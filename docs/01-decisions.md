@@ -17,6 +17,7 @@
 | D13 | 2026-09-29 | Supports cartes : **350 g cmdm** (défaut) ou **carte graphique 300 g**. Formats poker et bridge validés. Étui : plusieurs options à venir. | `media_options` dans les fiches produit ; deux supports différents ne partagent jamais une feuille. |
 | D14 | 2026-09-29 | Profil **PSO Coated v3 (FOGRA51)** fourni et versionné dans `config/icc/`. | Les lots sortent en PDF/X-4 avec OutputIntent FOGRA51. Lot d'essai : `docs/exemples/lot-test-iridesse-sra3.pdf`. |
 | D15 | 2026-09-29 | Site : design et UX de référence actuels ; **Cloudflare + Supabase**. | Voir l'architecture web (à venir). |
+| D16 | 2026-09-29 | **Seuls des lots SRA3 préimposés entrent dans le Fiery.** | `flux-print dispatch` contrôle le lot (format SRA3 sur chaque page, PDF/X-4 avec profil, cohérence avec le manifeste), puis le dépose de façon atomique dans le hot folder correspondant au support et au mode d'impression. Tout autre fichier est refusé. Les manifestes sont archivés hors des hot folders. |
 
 ## Politique de licences (conséquence de D5)
 

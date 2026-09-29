@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from .production.dispatch import HotFolder
 from .production.sheet import Flip, SheetSpec
 from .products.base import DocumentSpec, PreflightPolicy
 from .products.flat import build_flat_spec
@@ -53,6 +54,7 @@ class PressProfile:
     registration_tolerance_mm: float
     output: OutputProfile
     sheets: dict[str, SheetSpec]
+    hot_folders: tuple[HotFolder, ...] = ()
 
     def sheet(self, code: str | None = None) -> SheetSpec:
         if code is None:
@@ -100,6 +102,9 @@ def load_press(code: str) -> PressProfile:
             registry=out.get("registry", "http://www.color.org"),
         ),
         sheets=sheets,
+        hot_folders=tuple(
+            HotFolder(Path(h["path"]), h["media"], bool(h.get("duplex", True))) for h in data.get("hot_folders", [])
+        ),
     )
 
 

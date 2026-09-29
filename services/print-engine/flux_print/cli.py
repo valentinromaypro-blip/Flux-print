@@ -1,4 +1,4 @@
-"""Ligne de commande : `flux-print config | gabarit | preflight | prepare | impose`.
+"""Ligne de commande : `flux-print config | gabarit | preflight | prepare | impose | dispatch`.
 
 Les produits et presses sont décrits dans `config/` et désignés par leur code.
 """
@@ -14,6 +14,7 @@ from .config import list_presses, list_products, load_press, load_product, media
 from .pipeline import prepare_job
 from .preflight import Report, Severity, run_preflight
 from .production import Job, MarkStyle, SheetOrder, impose
+from .production.dispatch import DispatchRefused, check_press_ready, dispatch
 from .templates import generate_gabarit
 
 _ICONS = {Severity.ERROR: "✖", Severity.WARNING: "▲", Severity.INFO: "·"}
@@ -75,7 +76,31 @@ def main(argv: list[str] | None = None) -> int:
     p_imp.add_argument("--rotation", type=int, choices=[0, 90], help="Forcer l'orientation (sens des fibres)")
     p_imp.add_argument("--batch-id")
 
+    p_dis = sub.add_parser("dispatch", help="Contrôler un lot SRA3 et le déposer dans le hot folder du Fiery")
+    p_dis.add_argument("pdf")
+    p_dis.add_argument("--manifest", required=True)
+    p_dis.add_argument("--press", default=DEFAULT_PRESS)
+    p_dis.add_argument("--sheet")
+    p_dis.add_argument("--check-only", action="store_true", help="Contrôler sans déposer")
+
     args = parser.parse_args(argv)
+
+    if args.command == "dispatch":
+        press = load_press(args.press)
+        sheet = press.sheet(args.sheet)
+        try:
+            if args.check_only:
+                problems = check_press_ready(args.pdf, sheet, json.loads(Path(args.manifest).read_text()))
+                if problems:
+                    raise DispatchRefused("Lot refusé pour le Fiery :\n- " + "\n- ".join(problems))
+                print(f"Lot prêt pour le Fiery ({sheet.code}).")
+            else:
+                target = dispatch(args.pdf, args.manifest, sheet, list(press.hot_folders))
+                print(f"Déposé : {target}")
+        except DispatchRefused as exc:
+            print(exc, file=sys.stderr)
+            return 1
+        return 0
 
     if args.command == "config":
         for code in list_presses():

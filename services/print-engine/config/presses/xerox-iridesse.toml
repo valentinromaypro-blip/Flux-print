@@ -37,3 +37,18 @@ height_mm = 450.0
 # Marge réservée sur chaque bord : zone non imprimable (À MESURER)
 # + traits de coupe + identification de la feuille.
 reserved_margin_mm = 10.0
+
+# Dossiers surveillés (hot folders) du Fiery : SEULS les lots SRA3 préimposés y
+# sont déposés, par la commande « flux-print dispatch », après contrôle.
+# Un hot folder par couple support / mode, réglé côté Fiery (support,
+# recto/verso petit côté, CMJN source FOGRA51). Chemins d'exemple, à adapter
+# au partage réseau du Fiery.
+[[hot_folders]]
+media = "cmdm-350g"
+duplex = true
+path = "/mnt/fiery/SRA3_CMDM350_RV"
+
+[[hot_folders]]
+media = "carte-graphique-300g"
+duplex = true
+path = "/mnt/fiery/SRA3_CG300_RV"

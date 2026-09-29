@@ -94,3 +94,14 @@ Le taux de regroupement réel dépend donc du **volume par support**, pas du nom
 3. Fiche de travail pour la presse : support, recto/verso, nombre de feuilles, via JDF ou dossier surveillé selon le serveur d'impression.
 4. Planificateur de lots : regrouper les commandes en attente par clé de regroupement et par date d'expédition promise, et déclencher un lot quand il est plein ou qu'une date limite approche.
 5. Imposition de l'étui et du livre de coloriage : cahiers ou page à page sur 32 × 45.
+
+## 7. Envoi au Fiery : uniquement des SRA3
+
+```bash
+flux-print dispatch lot.pdf --manifest lot.json [--check-only]
+```
+
+- **Contrôles bloquants avant dépôt :** chaque page fait exactement 320 × 450 mm (à 0,1 mm près), aucune page n'est pivotée, le fichier est en PDF/X-4 avec OutputIntent, et le nombre de faces correspond au manifeste (pair en recto/verso).
+- **Routage :** chaque couple support / mode d'impression a son hot folder, configuré côté Fiery (support, recto/verso petit côté, CMJN source FOGRA51). Les chemins se déclarent dans `[[hot_folders]]` de `config/presses/xerox-iridesse.toml`.
+- **Dépôt atomique :** copie dans `.flux-transit/` puis renommage. Le Fiery ne voit jamais de fichier partiel, et un même lot ne peut pas être déposé deux fois.
+- **Manifeste :** il n'entre jamais dans un hot folder (le Fiery imprimerait tout ce qui y arrive). Il est archivé dans `manifestes/`.
