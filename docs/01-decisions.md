@@ -19,6 +19,7 @@
 | D15 | 2026-09-29 | Site : design et UX de référence actuels ; **Cloudflare + Supabase**. | Voir l'architecture web (à venir). |
 | D16 | 2026-09-29 | **Seuls des lots SRA3 préimposés entrent dans le Fiery.** | `flux-print dispatch` contrôle le lot (format SRA3 sur chaque page, PDF/X-4 avec profil, cohérence avec le manifeste), puis le dépose de façon atomique dans le hot folder correspondant au support et au mode d'impression. Tout autre fichier est refusé. Les manifestes sont archivés hors des hot folders. |
 | D17 | 2026-09-29 | Priorité : **toute la chaîne jusqu'à la génération du fichier SRA3** ; lien Fiery ensuite. | Schéma Supabase (commandes, lignes, lots, journal, RLS), worker Python qui contrôle, prépare et amalgame automatiquement. Voir `docs/04-chaine-commande.md`. |
+| D18 | 2026-09-29 | Paiement : **Stripe ou Revolut Business**. Univers du site n°1 proposé : **Carte Blanche** (à valider). | Prestataire de paiement abstrait, les deux implémentés et choisis par configuration. Proposition visuelle : `docs/design/carte-blanche-proposition.html`. |
 
 ## Politique de licences (conséquence de D5)
 
