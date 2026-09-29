@@ -144,6 +144,42 @@ class Database:
                 "update public.order_items set status = 'prepared', batch_id = null where batch_id = %s", (batch_id,)
             )
 
+    # --- Facturation -------------------------------------------------------------------------
+
+    def orders_to_invoice(self, providers: tuple[str, ...], limit: int = 10) -> list[dict]:
+        """Commandes payées sans facture (paiements réels uniquement, sauf `providers` élargi pour un essai)."""
+        return self.conn.execute(
+            """select o.*, coalesce(json_agg(json_build_object('label', coalesce(p.label, i.product_code),
+                        'copies', i.copies, 'total_cents', i.total_cents) order by i.created_at), '[]') as lines
+                 from public.orders o join public.order_items i on i.order_id = o.id
+                 left join public.products p on p.code = i.product_code
+                where o.paid_at is not null and o.invoice_id is null and o.invoice_provider is null
+                  and o.status in ('paid', 'in_production', 'printed', 'shipped')
+                  and o.payment_provider = any(%s)
+                group by o.id order by o.paid_at limit %s""",
+            (list(providers), limit),
+        ).fetchall()
+
+    def invoicing_contact(self, provider: str, email: str) -> str | None:
+        row = self.conn.execute("select external_id from public.invoicing_contacts where provider = %s and email = %s",
+                                (provider, email.lower())).fetchone()
+        return row["external_id"] if row else None
+
+    def save_invoicing_contact(self, provider: str, email: str, external_id: str) -> None:
+        self.conn.execute("""insert into public.invoicing_contacts (provider, email, external_id) values (%s, %s, %s)
+                             on conflict (provider, email) do update set external_id = excluded.external_id""",
+                          (provider, email.lower(), external_id))
+
+    def set_invoice(self, order_id: str, provider: str, invoice_id: str | None = None, number: str | None = None,
+                    pdf_url: str | None = None, error: str | None = None) -> None:
+        if error:
+            self.conn.execute("update public.orders set invoice_error = %s where id = %s", (error[:1000], order_id))
+        else:
+            self.conn.execute(
+                """update public.orders set invoice_provider = %s, invoice_id = %s, invoice_number = %s,
+                     invoice_pdf_url = %s, invoice_error = null, invoiced_at = now() where id = %s""",
+                (provider, invoice_id, number, pdf_url, order_id))
+
     # --- Demandes de lot (back-office) ---------------------------------------------------
 
     def take_batch_requests(self) -> list[dict]:

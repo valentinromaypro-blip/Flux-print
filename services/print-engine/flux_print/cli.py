@@ -222,7 +222,10 @@ def _orders_command(args) -> int:
                   f"{' — payée' if args.paid else ''}")
         else:
             logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-            worker = Worker(db, files)
+            from .orders.invoicing import from_env
+
+            providers = ("stripe", "revolut") + (("test",) if os.environ.get("FLUX_INVOICE_TEST_PAYMENTS") == "true" else ())
+            worker = Worker(db, files, invoicer=from_env(), invoice_providers=providers)
             if args.once:
                 print(worker.run_once(force_batches=args.force_batches))
             else:

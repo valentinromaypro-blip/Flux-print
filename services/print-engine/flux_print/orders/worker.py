@@ -30,6 +30,7 @@ from ..production import Job, compute_layout, impose
 from .batching import BatchingRules, Candidate, plan_batches
 from .db import Database
 from .files import FileStore
+from .invoicing import SellsyClient
 
 log = logging.getLogger("flux_print.worker")
 
@@ -69,9 +70,12 @@ class ProductionSettings:
 
 
 class Worker:
-    def __init__(self, db: Database, files: FileStore, settings: ProductionSettings | None = None):
+    def __init__(self, db: Database, files: FileStore, settings: ProductionSettings | None = None,
+                 invoicer: SellsyClient | None = None, invoice_providers: tuple[str, ...] = ("stripe", "revolut")):
         self.db = db
         self.files = files
+        self.invoicer = invoicer
+        self.invoice_providers = invoice_providers
         self.settings = settings or ProductionSettings.load()
         self.press = load_press(self.settings.press)
         self.sheet = self.press.sheet(self.settings.sheet)
@@ -96,7 +100,8 @@ class Worker:
         requests = self.db.take_batch_requests()
         batches = self.generate_batches(force=force_batches or bool(requests))
         self.db.answer_batch_requests([r["id"] for r in requests], {"batches": batches})
-        return {"checked": checked, "prepared": prepared, "batches": len(batches)}
+        invoiced = self.invoice_paid() if self.invoicer else 0
+        return {"checked": checked, "prepared": prepared, "batches": len(batches), "invoiced": invoiced}
 
     def run_forever(self, interval_s: float = 30.0) -> None:
         while True:
@@ -178,6 +183,36 @@ class Worker:
         finally:
             doc.close()
         return paths
+
+    # --- Facturation (Sellsy) -------------------------------------------------------------------
+
+    def invoice_paid(self, limit: int = 10) -> int:
+        """Facture les commandes payées. Un échec est noté sur la commande et retenté au passage suivant."""
+        from .invoicing import Customer, Line
+
+        done = 0
+        for order in self.db.orders_to_invoice(self.invoice_providers, limit):
+            try:
+                address = order.get("shipping_address") or {}
+                email = order["email"]
+                contact = self.db.invoicing_contact("sellsy", email)
+                if not contact:
+                    contact = self.invoicer.create_individual(Customer(email, address.get("name") or email, address))
+                    self.db.save_invoicing_contact("sellsy", email, contact)
+                lines = [Line(ln["label"], int(ln["copies"]), int(ln["total_cents"] or 0)) for ln in order["lines"]]
+                paid_lines = sum(ln.total_cents for ln in lines)
+                if paid_lines != order["total_cents"]:  # ex. frais de port : ligne dédiée
+                    lines.append(Line("Livraison", 1, order["total_cents"] - paid_lines))
+                invoice = self.invoicer.create_invoice(contact, order["number"], lines, order["paid_at"].date())
+                self.db.set_invoice(order["id"], "sellsy", invoice.id, invoice.number, invoice.pdf_url)
+                gap = None if invoice.total_incl_tax_cents is None else invoice.total_incl_tax_cents - order["total_cents"]
+                self.db.event("order", order["id"], "invoiced", {"number": invoice.number, "gap_cents": gap})
+                done += 1
+            except Exception as exc:  # la commande n'est jamais bloquée par la facturation
+                log.exception("facture %s en échec", order["number"])
+                self.db.set_invoice(order["id"], "sellsy", error=f"{exc.__class__.__name__}: {exc}")
+                self.db.event("order", order["id"], "invoice_failed", {"error": str(exc)[:500]})
+        return done
 
     # --- 2. Préparation --------------------------------------------------------------------
 

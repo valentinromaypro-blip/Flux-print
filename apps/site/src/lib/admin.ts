@@ -90,6 +90,12 @@ export async function dashboard() {
     todo.push({ kind: "failed", id: f.id, number: f.number, since: f.updated_at, action: "retry_item",
       title: `Erreur moteur · ${f.number}`, detail: `${f.product_code} · ${(f.error ?? "").slice(0, 110)}` });
   }
+  const invoiceErrors = await db<{ id: string; number: string; invoice_error: string; updated_at: Date }[]>`
+    select id, number, invoice_error, updated_at from public.orders
+     where invoice_error is not null and invoice_id is null and updated_at < now() - interval '30 minutes' order by updated_at limit 10`;
+  for (const o of invoiceErrors) {
+    todo.push({ kind: "failed", id: o.id, number: o.number, since: o.updated_at, title: `Facture Sellsy en échec · ${o.number}`, detail: o.invoice_error.slice(0, 120) });
+  }
   const toShip = await db<{ id: string; number: string; email: string; city: string | null; updated_at: Date }[]>`
     select id, number, email, shipping_address->>'city' as city, updated_at from public.orders where status = 'printed' order by updated_at limit 20`;
   for (const o of toShip) {

@@ -87,7 +87,7 @@ def test_full_chain_to_sra3_file(db, files, tmp_path):
     order, item = _order(db, files, tmp_path, _deck(tmp_path), copies=2)
     worker = Worker(db, files, _settings())
     counts = worker.run_once(force_batches=True)
-    assert counts == {"checked": 1, "prepared": 1, "batches": 1}
+    assert counts == {"checked": 1, "prepared": 1, "batches": 1, "invoiced": 0}
 
     item = db.item(item["id"])
     assert item["status"] == "batched"

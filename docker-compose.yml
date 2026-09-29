@@ -24,6 +24,11 @@ services:
     environment:
       FLUX_DATABASE_URL: "host=db port=5432 user=postgres password=flux dbname=flux"
       FLUX_STORAGE: "local:/data/storage"
+      # Factures Sellsy : renseigner dans un fichier .env à la racine (voir docs/07-facturation-sellsy.md)
+      FLUX_INVOICING: ${FLUX_INVOICING:-}
+      SELLSY_CLIENT_ID: ${SELLSY_CLIENT_ID:-}
+      SELLSY_CLIENT_SECRET: ${SELLSY_CLIENT_SECRET:-}
+      FLUX_INVOICE_TEST_PAYMENTS: ${FLUX_INVOICE_TEST_PAYMENTS:-}
     command: ["sh", "-c", "flux-print sync-catalog && flux-print worker --interval 3"]
     volumes:
       - storage:/data/storage

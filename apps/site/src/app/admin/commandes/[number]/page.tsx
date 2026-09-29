@@ -9,6 +9,7 @@ type Order = {
   id: string; number: string; email: string; status: string; total_cents: number; created_at: Date; paid_at: Date | null;
   due_date: string | null; payment_ref: string | null; shipping_address: Record<string, string> | null;
   carrier: string | null; tracking_number: string | null; shipped_at: Date | null;
+  invoice_number: string | null; invoice_pdf_url: string | null; invoice_error: string | null; payment_provider: string | null;
 };
 type Item = {
   id: string; product_code: string; label: string | null; media: string; copies: number; status: string; options: Record<string, unknown>;
@@ -24,7 +25,7 @@ const STATUS: Record<string, string> = {
   preparing: "Préparation", prepared: "Prêt à amalgamer", batched: "En lot", failed: "Erreur", generated: "À imprimer", printed_batch: "Imprimé",
 };
 const EVENTS: Record<string, string> = {
-  designed: "Création en ligne enregistrée", paid: "Paiement reçu", approved: "Fichier validé au contrôle", rejected: "Fichier refusé au contrôle", prepared: "Préparé pour l'impression (CMJN)",
+  designed: "Création en ligne enregistrée", invoiced: "Facture créée dans Sellsy", invoice_failed: "Échec de la facture Sellsy (nouvel essai automatique)", paid: "Paiement reçu", approved: "Fichier validé au contrôle", rejected: "Fichier refusé au contrôle", prepared: "Préparé pour l'impression (CMJN)",
   failed: "Erreur du moteur", retried: "Relancé depuis l'atelier", generated: "Lot SRA3 généré", printed: "Lot imprimé", shipped: "Expédiée",
 };
 const MEDIA: Record<string, string> = { "cmdm-350g": "Couché mat 350 g", "carte-graphique-300g": "Carte graphique 300 g" };
@@ -104,6 +105,10 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
           <div className="kv"><span>Total TTC</span><b>{formatEuros(order.total_cents)}</b></div>
           <div className="kv"><span>Référence</span><span className="mono">{order.payment_ref ?? "—"}</span></div>
           <div className="kv"><span>Client</span><span>{order.email}</span></div>
+          <div className="kv"><span>Facture Sellsy</span>{order.invoice_number
+            ? <span>{order.invoice_pdf_url ? <a className="link" href={order.invoice_pdf_url} target="_blank" rel="noreferrer">{order.invoice_number}</a> : order.invoice_number}</span>
+            : <span className="muted">{order.payment_provider === "stripe" || order.payment_provider === "revolut" ? "en cours de création" : "aucune (paiement de test)"}</span>}</div>
+          {order.invoice_error && <p className="error-text small">Facture en erreur, nouvel essai automatique : {order.invoice_error.slice(0, 200)}</p>}
         </section>
       </div>
 
