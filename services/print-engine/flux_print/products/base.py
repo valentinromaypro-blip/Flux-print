@@ -38,6 +38,19 @@ class PageSpec:
 
 
 @dataclass(frozen=True)
+class ImpositionUnit:
+    """Pièce physique découpée : un recto et, en recto/verso, sa page de verso.
+
+    Les index de page sont 0-based dans le PDF source. Un dos commun est
+    référencé par tous les unités (la page n'est incorporée qu'une fois).
+    """
+
+    label: str
+    recto: int
+    verso: int | None = None
+
+
+@dataclass(frozen=True)
 class DocumentSpec:
     code: str
     label: str
@@ -48,7 +61,27 @@ class DocumentSpec:
     policy: PreflightPolicy = field(default_factory=PreflightPolicy)
     # Description de l'ordre des pages, affichée au client en cas d'erreur.
     page_order_help: str = ""
+    # Support d'impression : seuls des documents sur le même support
+    # (et même mode recto/verso) peuvent partager une feuille.
+    media: str = "default"
+    # Découpage en pièces physiques ; vide = chaque page est une pièce recto seul.
+    units: tuple[ImpositionUnit, ...] = ()
 
     @property
     def page_count(self) -> int:
         return len(self.pages)
+
+    def imposition_units(self) -> tuple[ImpositionUnit, ...]:
+        if self.units:
+            return self.units
+        return tuple(ImpositionUnit(p.label, i) for i, p in enumerate(self.pages))
+
+    @property
+    def duplex(self) -> bool:
+        return any(u.verso is not None for u in self.imposition_units())
+
+    @property
+    def gang_key(self) -> tuple:
+        """Critère d'amalgame : même support, même format, même fond perdu, même mode."""
+        sizes = {(p.trim_w_mm, p.trim_h_mm) for p in self.pages}
+        return (self.media, tuple(sorted(sizes)), self.bleed_mm, self.duplex)

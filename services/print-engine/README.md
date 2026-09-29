@@ -1,6 +1,6 @@
 # print-engine
 
-Moteur d'impression Flux-print (Python) : spécifications produit, gabarits clients et preflight PDF.
+Moteur d'impression Flux-print (Python) : spécifications produit, gabarits clients, preflight PDF, amalgame et imposition sur feuille 32 × 45.
 
 ## Installation
 
@@ -17,6 +17,7 @@ Optionnel : Ghostscript (`apt install ghostscript`) pour mesurer la couverture d
 .venv/bin/flux-print products
 .venv/bin/flux-print gabarit --format poker --deck 54 gabarit.pdf
 .venv/bin/flux-print preflight --format poker --deck 54 fichier.pdf [--json] [--normalized out.pdf] [--icc presse.icc]
+.venv/bin/flux-print impose --format poker --deck 54 cmd1.pdf cmd2.pdf:3 -o lot.pdf --manifest lot.json
 ```
 
 Code de sortie : `0` si le fichier est conforme, `1` s'il est refusé.
@@ -31,6 +32,8 @@ flux_print/
   preflight/engine.py         Contrôles et corrections sans perte
   preflight/tac.py            Couverture d'encre via rendu CMJN (Ghostscript)
   templates/gabarit.py        Gabarits PDF téléchargeables
+  production/sheet.py         Feuille 32 × 45, grille de pose, recto/verso
+  production/imposition.py    Amalgame, coupe et empile, séparateurs, PDF de lot, manifeste
   cli.py
 ```
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from .base import DocumentSpec, PageSpec, PreflightPolicy
+from .base import DocumentSpec, ImpositionUnit, PageSpec, PreflightPolicy
 
 
 class BackLayout(str, Enum):
@@ -111,6 +111,7 @@ def build_document_spec(
     deck_code: str = "54",
     back_layout: BackLayout | str = BackLayout.COMMON,
     policy: PreflightPolicy | None = None,
+    media: str = "carton-jeu-310g",
 ) -> DocumentSpec:
     fmt = FORMATS[format_code]
     deck = DECKS[deck_code]
@@ -125,6 +126,7 @@ def build_document_spec(
             f"{len(pages)} pages : page 1 = dos commun, puis les {len(deck.cards)} faces "
             "(pique, cœur, carreau, trèfle ; As → Roi ; puis jokers)."
         )
+        units = tuple(ImpositionUnit(c.label, i + 1, 0) for i, c in enumerate(deck.cards))
     else:
         pages = tuple(
             p for c in deck.cards for p in (page(f"Face — {c.label}"), page(f"Dos — {c.label}"))
@@ -133,6 +135,7 @@ def build_document_spec(
             f"{len(pages)} pages : face puis dos pour chaque carte "
             "(pique, cœur, carreau, trèfle ; As → Roi ; puis jokers)."
         )
+        units = tuple(ImpositionUnit(c.label, 2 * i, 2 * i + 1) for i, c in enumerate(deck.cards))
 
     return DocumentSpec(
         code=f"cards-{fmt.code}-{deck.code}-{layout.value}",
@@ -143,4 +146,6 @@ def build_document_spec(
         corner_radius_mm=fmt.corner_radius_mm,
         policy=policy or PreflightPolicy(),
         page_order_help=order,
+        media=media,
+        units=units,
     )

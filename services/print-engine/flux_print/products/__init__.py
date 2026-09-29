@@ -1,3 +1,3 @@
-from .base import DocumentSpec, PageSpec, PreflightPolicy
+from .base import DocumentSpec, ImpositionUnit, PageSpec, PreflightPolicy
 
-__all__ = ["DocumentSpec", "PageSpec", "PreflightPolicy"]
+__all__ = ["DocumentSpec", "ImpositionUnit", "PageSpec", "PreflightPolicy"]

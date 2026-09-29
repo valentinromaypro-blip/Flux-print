@@ -1,12 +1,15 @@
-"""Ligne de commande : `flux-print products | gabarit | preflight`."""
+"""Ligne de commande : `flux-print products | gabarit | preflight | impose`."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import sys
+from dataclasses import replace
+from pathlib import Path
 
 from .preflight import Severity, run_preflight
+from .production import SHEET_32X45, Flip, Job, SheetOrder, impose
 from .products.playing_cards import DECKS, FORMATS, BackLayout, build_document_spec
 from .templates import generate_gabarit
 
@@ -37,6 +40,17 @@ def main(argv: list[str] | None = None) -> int:
     p_pre.add_argument("--no-ink", action="store_true", help="Ne pas mesurer la couverture d'encre")
     p_pre.add_argument("--icc", help="Profil CMJN de la presse pour la mesure d'encre")
 
+    p_imp = sub.add_parser("impose", help="Amalgamer et imposer des commandes sur feuille 32 × 45")
+    _add_card_options(p_imp)
+    p_imp.add_argument("jobs", nargs="+", help="PDF conformes, « fichier.pdf » ou « fichier.pdf:exemplaires »")
+    p_imp.add_argument("-o", "--output", required=True)
+    p_imp.add_argument("--manifest", help="Manifeste JSON de traçabilité")
+    p_imp.add_argument("--order", default=SheetOrder.CUT_STACK.value, choices=[o.value for o in SheetOrder])
+    p_imp.add_argument("--no-separators", action="store_true")
+    p_imp.add_argument("--flip", default=Flip.LONG_EDGE.value, choices=[f.value for f in Flip])
+    p_imp.add_argument("--rotation", type=int, choices=[0, 90], help="Forcer l'orientation (sens des fibres)")
+    p_imp.add_argument("--batch-id")
+
     args = parser.parse_args(argv)
 
     if args.command == "products":
@@ -53,6 +67,27 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "gabarit":
         path = generate_gabarit(spec, args.output)
         print(f"Gabarit écrit : {path} ({spec.page_count} pages) — {spec.label}")
+        return 0
+
+    if args.command == "impose":
+        jobs = []
+        for arg in args.jobs:
+            path, _, copies = arg.partition(":")
+            jobs.append(Job(Path(path).stem, Path(path), spec, int(copies or 1)))
+        result = impose(
+            jobs,
+            args.output,
+            sheet=replace(SHEET_32X45, flip=Flip(args.flip)),
+            order=args.order,
+            separators=not args.no_separators,
+            rotation=args.rotation,
+            batch_id=args.batch_id,
+            manifest_path=args.manifest,
+        )
+        print(f"Lot {result.batch_id} : {result.layout.describe()}")
+        print(f"{result.pieces} pièces sur {len(result.sheets)} feuilles "
+              f"({result.manifest['impressions']} faces imprimées), remplissage {result.fill_ratio:.1%}")
+        print(f"PDF : {result.output}")
         return 0
 
     report = run_preflight(

@@ -8,6 +8,7 @@
 | D4 | 2026-09-29 | **Marché** : France, puis Europe. | Multilingue et TVA OSS à prévoir dans le modèle, pas à implémenter tout de suite. |
 | D5 | 2026-09-29 | **Autonomie totale** : solution maison, pas de dépendance à un éditeur, coûts de lancement minimaux. | Pas de callas / PitStop / Customer's Canvas. Uniquement des bibliothèques open source sous licence permissive (voir ci-dessous). |
 | D6 | 2026-09-29 | Volumes non déterminants à ce stade. | Architecture simple d'abord (monolithe modulaire + workers), mise à l'échelle ensuite. |
+| D7 | 2026-09-29 | **Impression numérique sur feuille 32 × 45 cm** pour tous les produits, avec données variables et amalgame maximal. | Imposition maison en données variables, ordre « coupe et empile », séparateurs de commande, manifeste de traçabilité. Voir `docs/03-production-numerique.md`. |
 
 ## Politique de licences (conséquence de D5)
 

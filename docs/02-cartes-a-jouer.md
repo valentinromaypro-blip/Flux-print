@@ -66,7 +66,7 @@ flux-print preflight --deck 54 fichier-client.pdf --normalized corrige.pdf --icc
 ## 5. Prochaines étapes techniques
 
 1. Caler les valeurs réelles avec la production : formats, profil ICC de la presse, seuil de TAC du carton.
-2. **Imposition** : step-and-repeat des 55 pages sur la feuille machine, recto/verso en retournement, traits de coupe et code de feuille.
+2. ~~Imposition~~ : fait, sur 32 × 45 en numérique (18 poses au format poker). Voir `03-production-numerique.md`.
 3. Corrections automatiques : conversion ICC, extension du fond perdu, rotation.
 4. Aperçus (rendu PDFium) et BAT PDF.
 5. API HTTP autour du moteur (dépôt, preflight asynchrone, rapport).
