@@ -2,7 +2,10 @@
 export type Crop = { zoom: number; x: number; y: number };
 export type PhotoRef = Crop & { path: string };
 export type Design = {
-  back: { color: string; ink: string; title: string; subtitle: string; photo: PhotoRef | null };
+  back: {
+    template: string; color: string; ink: string; title: string; subtitle: string;
+    photo: PhotoRef | null; logo: { path: string; tint: boolean } | null;
+  };
   style: "gravure" | "couleur"; // traitement des visages sur les figures
   courts: Record<string, { photo: PhotoRef }>;
 };
@@ -23,11 +26,22 @@ function photo(p: unknown, session: string): PhotoRef | null {
   return { path: o.path, zoom: num(o.zoom, 0.5, 4, 1), x: num(o.x, 0, 1, 0.5), y: num(o.y, 0, 1, 0.5) };
 }
 
+const TEMPLATES = ["classique", "art-deco", "rayures", "monogramme", "photo", "logo-centre", "logo-motif", "elegant"];
+
+function logoRef(l: unknown, session: string): Design["back"]["logo"] {
+  if (l == null) return null;
+  const o = l as Record<string, unknown>;
+  if (typeof o.path !== "string" || !o.path.startsWith(`sessions/${session}/photos/`)) throw new Error("Logo invalide : déposez-le à nouveau.");
+  return { path: o.path, tint: o.tint === true };
+}
+
 /** Nettoie un design reçu du navigateur ; lève une erreur lisible si quelque chose ne va pas. */
 export function cleanDesign(input: unknown, session: string): Design {
   const d = (input ?? {}) as { back?: Record<string, unknown>; style?: unknown; courts?: Record<string, Record<string, unknown>> };
   const b = d.back ?? {};
   const color = String(b.color ?? "#134536"), ink = String(b.ink ?? "#F0E8D6");
+  const template = String(b.template ?? "classique");
+  if (!TEMPLATES.includes(template)) throw new Error("Modèle de dos inconnu.");
   if (!HEX.test(color) || !HEX.test(ink)) throw new Error("Couleur invalide.");
   const valid = new Set(SUITS.flatMap(([s]) => RANKS.map(([r]) => `${s}-${r}`)));
   const courts: Design["courts"] = {};
@@ -40,11 +54,15 @@ export function cleanDesign(input: unknown, session: string): Design {
   if (style !== "gravure" && style !== "couleur") throw new Error("Style inconnu.");
   return {
     style,
-    back: { color, ink, title: String(b.title ?? "").slice(0, 12), subtitle: String(b.subtitle ?? "").slice(0, 24), photo: photo(b.photo, session) },
+    back: {
+      template, color, ink, title: String(b.title ?? "").slice(0, 20), subtitle: String(b.subtitle ?? "").slice(0, 32),
+      photo: photo(b.photo, session), logo: logoRef(b.logo, session),
+    },
     courts,
   };
 }
 
 export function designPhotos(d: Design): string[] {
-  return [d.back.photo, ...Object.values(d.courts).map((c) => c.photo)].filter((p): p is PhotoRef => !!p).map((p) => p.path);
+  const photos = [d.back.photo, ...Object.values(d.courts).map((c) => c.photo)].filter((p): p is PhotoRef => !!p).map((p) => p.path);
+  return d.back.logo ? [...photos, d.back.logo.path] : photos;
 }

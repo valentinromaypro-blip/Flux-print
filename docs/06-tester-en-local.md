@@ -53,7 +53,7 @@ Vous pouvez bien sûr tester avec vos propres fichiers : téléchargez le gabari
 ## 4. Création en ligne (sans fichier)
 
 Sur « Le jeu classique » ou « Le jeu de belote », mode **Créer en ligne** : un studio en 3 étapes, avec un grand aperçu dessiné comme le moteur l'imprimera.
-1. **Le dos** : couleur, texte principal et secondaire, photo de fond facultative.
+1. **Le dos** : 8 modèles (Classique, Art déco, Rayures, Monogramme, Photo, Logo entreprise, Logo en motif, Élégant), dont les vignettes montrent en direct le texte et le logo du client. Couleurs prédéfinies ou couleurs de marque au choix, logo (PNG transparent conseillé, avec option « une seule couleur »), photo à placer à la souris pour le modèle Photo. Les modèles sont des SVG (`services/print-engine/flux_print/design/backs/`), communs à l'aperçu et à l'impression : on peut en dessiner d'autres dans Illustrator en gardant les champs {{…}}.
 2. **Les visages** : ajoutez une ou plusieurs photos (une personne par photo). La tête est **détourée automatiquement dans le navigateur** puis se glisse sur les figures (ou « Remplir les figures vides »). Dans le grand aperçu, on déplace le visage à la souris ou au doigt, et on règle sa taille (molette, − / +). Rendu couleur ou gravure bleue. Les figures sans photo gardent leur visage d'origine.
 3. **Finitions** : carton, quantité, prix, puis **Valider mon jeu** : le moteur fabrique les 55 cartes en qualité d'impression (environ 15 s), les contrôle et affiche le vrai rendu avant l'ajout au panier.
 

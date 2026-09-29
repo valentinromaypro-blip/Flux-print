@@ -1,0 +1,147 @@
+[
+ {
+  "model": "classique",
+  "input": {
+   "bg": "#134536",
+   "ink": "#F0E8D6",
+   "title": "J & M",
+   "subtitle": "12 · 06 · 2027",
+   "logo": null,
+   "tint": false,
+   "photo": null
+  },
+  "fields": {
+   "bg": "#134536",
+   "ink": "#F0E8D6",
+   "title": "J &amp; M",
+   "subtitle": "12 · 06 · 2027",
+   "title_size": "7.10",
+   "sub_size": "2.60",
+   "t_dy": "-0.80",
+   "title_on": "inline",
+   "sub_on": "inline",
+   "logo_on": "none",
+   "mark_on": "none",
+   "plate_on": "inline",
+   "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==",
+   "logo_filter": "none",
+   "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg=="
+  }
+ },
+ {
+  "model": "logo-centre",
+  "input": {
+   "bg": "#FFFFFF",
+   "ink": "#16161A",
+   "title": "Boulangerie Martin",
+   "subtitle": "Depuis 1987",
+   "logo": "data:image/png;base64,AAA",
+   "tint": true,
+   "photo": null
+  },
+  "fields": {
+   "bg": "#FFFFFF",
+   "ink": "#16161A",
+   "title": "Boulangerie Martin",
+   "subtitle": "Depuis 1987",
+   "title_size": "4.12",
+   "sub_size": "2.60",
+   "t_dy": "0.00",
+   "title_on": "inline",
+   "sub_on": "inline",
+   "logo_on": "inline",
+   "mark_on": "none",
+   "plate_on": "inline",
+   "logo": "data:image/png;base64,AAA",
+   "logo_filter": "url(#tint)",
+   "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg=="
+  }
+ },
+ {
+  "model": "photo",
+  "input": {
+   "bg": "#16161A",
+   "ink": "#F0E8D6",
+   "title": "",
+   "subtitle": "",
+   "logo": null,
+   "tint": false,
+   "photo": "data:image/jpeg;base64,BBB"
+  },
+  "fields": {
+   "bg": "#16161A",
+   "ink": "#F0E8D6",
+   "title": "",
+   "subtitle": "",
+   "title_size": "8.00",
+   "sub_size": "2.60",
+   "t_dy": "2.80",
+   "title_on": "none",
+   "sub_on": "none",
+   "logo_on": "none",
+   "mark_on": "none",
+   "plate_on": "none",
+   "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==",
+   "logo_filter": "none",
+   "photo": "data:image/jpeg;base64,BBB"
+  }
+ },
+ {
+  "model": "monogramme",
+  "input": {
+   "bg": "#F3EBDD",
+   "ink": "#9C7A3C",
+   "title": "<A&B>",
+   "subtitle": "",
+   "logo": null,
+   "tint": false,
+   "photo": null
+  },
+  "fields": {
+   "bg": "#F3EBDD",
+   "ink": "#9C7A3C",
+   "title": "&lt;A&amp;B&gt;",
+   "subtitle": "",
+   "title_size": "12.90",
+   "sub_size": "2.60",
+   "t_dy": "4.52",
+   "title_on": "inline",
+   "sub_on": "none",
+   "logo_on": "none",
+   "mark_on": "none",
+   "plate_on": "inline",
+   "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==",
+   "logo_filter": "none",
+   "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg=="
+  }
+ },
+ {
+  "model": "logo-motif",
+  "input": {
+   "bg": "#1C2440",
+   "ink": "#FFFFFF",
+   "title": "",
+   "subtitle": "",
+   "logo": "data:image/png;base64,CCC",
+   "tint": false,
+   "photo": null
+  },
+  "fields": {
+   "bg": "#1C2440",
+   "ink": "#FFFFFF",
+   "title": "",
+   "subtitle": "",
+   "title_size": "6.00",
+   "sub_size": "2.60",
+   "t_dy": "2.10",
+   "title_on": "none",
+   "sub_on": "none",
+   "logo_on": "inline",
+   "mark_on": "none",
+   "plate_on": "inline",
+   "logo": "data:image/png;base64,CCC",
+   "logo_filter": "none",
+   "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg=="
+  }
+ }
+]

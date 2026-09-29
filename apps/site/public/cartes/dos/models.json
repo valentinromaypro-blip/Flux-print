@@ -1,0 +1,81 @@
+{
+ "_doc": "Modèles de dos. Champs remplacés dans les SVG : bg, ink, title, subtitle, title_size, sub_size, t_dy, logo, logo_filter, photo, et *_on (inline / none). Même remplissage dans le navigateur (apps/site/src/lib/backs.ts) et le moteur (flux_print/design/backs.py).",
+ "models": [
+  {
+   "id": "classique",
+   "label": "Classique",
+   "hint": "Motif losanges et médaillon",
+   "bg": "#134536",
+   "ink": "#F0E8D6",
+   "title_max": 24,
+   "title_box": 22
+  },
+  {
+   "id": "art-deco",
+   "label": "Art déco",
+   "hint": "Rayons et plaque centrale",
+   "bg": "#1C2440",
+   "ink": "#E8D6B0",
+   "title_max": 7,
+   "title_box": 36
+  },
+  {
+   "id": "rayures",
+   "label": "Rayures",
+   "hint": "Diagonales et médaillon",
+   "bg": "#B3152A",
+   "ink": "#FCEFE6",
+   "title_max": 9,
+   "title_box": 21
+  },
+  {
+   "id": "monogramme",
+   "label": "Monogramme",
+   "hint": "Grandes initiales",
+   "bg": "#F3EBDD",
+   "ink": "#9C7A3C",
+   "title_max": 22,
+   "title_box": 40
+  },
+  {
+   "id": "photo",
+   "label": "Photo",
+   "hint": "Votre photo pleine carte",
+   "bg": "#16161A",
+   "ink": "#F0E8D6",
+   "title_max": 8,
+   "title_box": 20,
+   "photo": true
+  },
+  {
+   "id": "logo-centre",
+   "label": "Logo entreprise",
+   "hint": "Logo en grand, nom et slogan",
+   "bg": "#FFFFFF",
+   "ink": "#16161A",
+   "title_max": 6,
+   "title_box": 46,
+   "logo": "wanted",
+   "title_with_logo": true
+  },
+  {
+   "id": "logo-motif",
+   "label": "Logo en motif",
+   "hint": "Logo répété et médaillon",
+   "bg": "#1C2440",
+   "ink": "#FFFFFF",
+   "title_max": 6,
+   "title_box": 21,
+   "logo": "required"
+  },
+  {
+   "id": "elegant",
+   "label": "Élégant",
+   "hint": "Filets fins et ornements",
+   "bg": "#16161A",
+   "ink": "#D9C08C",
+   "title_max": 8,
+   "title_box": 26
+  }
+ ]
+}

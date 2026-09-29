@@ -3,7 +3,6 @@
 import type { Crop } from "@/lib/design.ts";
 
 export type Style = "couleur" | "gravure";
-export type Back = { color: string; ink: string; title: string; subtitle: string };
 export type Face = { url: string; cut: boolean };
 type Slot = [number, number, number, number, number]; // centre x, centre y, demi-largeur, demi-hauteur, bord haut (unités 240 × 336)
 
@@ -94,40 +93,5 @@ export async function drawCourt(target: HTMLCanvasElement, code: string, face: F
     c.beginPath(); c.rect(0, top * k, W, H); c.clip();
     c.drawImage(ring, x, y); c.drawImage(f, x, y);
     c.restore();
-  }
-}
-
-export async function drawBack(target: HTMLCanvasElement, back: Back, photo: Face | null, crop: Crop) {
-  const W = target.width, H = target.height, u = W / 63.5; // px par mm
-  const c = target.getContext("2d")!;
-  c.clearRect(0, 0, W, H);
-  c.beginPath(); c.roundRect(0, 0, W, H, 3.5 * u); c.fillStyle = back.color; c.fill();
-  c.strokeStyle = back.ink; c.lineWidth = 0.3 * u; c.beginPath(); c.roundRect(5 * u, 5 * u, W - 10 * u, H - 10 * u, 1.5 * u); c.stroke();
-  const ix = 6.6 * u, iy = 6.6 * u, iw = W - 13.2 * u, ih = H - 13.2 * u; // comme cardart.back_card : cadre à 5 mm
-  c.save(); c.beginPath(); c.roundRect(ix, iy, iw, ih, 0.75 * u); c.clip();
-  const img = photo ? await loadImage(photo.url) : null;
-  if (img) {
-    c.drawImage(img, ...cropRect(img.naturalWidth, img.naturalHeight, crop, iw / ih), ix, iy, iw, ih);
-  } else {
-    c.globalAlpha = 0.27; c.fillStyle = back.ink;
-    const step = 4.6 * u, d = 0.9 * u;
-    for (let row = 0, yy = iy; yy < iy + ih + step; row++, yy += step) {
-      for (let xx = ix + (row % 2 ? step / 2 : 0); xx < ix + iw + step; xx += step) {
-        c.beginPath(); c.moveTo(xx, yy - d); c.lineTo(xx + d, yy); c.lineTo(xx, yy + d); c.lineTo(xx - d, yy); c.fill();
-      }
-    }
-  }
-  c.restore(); c.globalAlpha = 1;
-  if (img && !back.title && !back.subtitle) return;
-  const R = 15 * u;
-  c.beginPath(); c.arc(W / 2, H / 2, R, 0, Math.PI * 2); c.fillStyle = back.color; c.fill();
-  c.lineWidth = 0.4 * u; c.strokeStyle = back.ink; c.stroke();
-  c.beginPath(); c.arc(W / 2, H / 2, R - 1.4 * u, 0, Math.PI * 2); c.lineWidth = 0.2 * u; c.stroke();
-  c.fillStyle = back.ink; c.textAlign = "center"; c.textBaseline = "middle";
-  if (back.subtitle) {
-    c.font = `600 ${5.8 * u}px Georgia, serif`; c.fillText(back.title, W / 2, H / 2 - 2.5 * u, 25 * u);
-    c.font = `600 ${2.4 * u}px system-ui, sans-serif`; c.fillText(back.subtitle, W / 2, H / 2 + 4.8 * u, 25 * u);
-  } else {
-    c.font = `800 ${11 * u}px system-ui, sans-serif`; c.fillText(back.title || (img ? "" : "CB"), W / 2, H / 2 + 0.5 * u, 25 * u);
   }
 }

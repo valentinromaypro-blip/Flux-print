@@ -2,7 +2,9 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { type Crop, type Design, RANKS, SUITS } from "@/lib/design.ts";
 import { cutHead } from "@/lib/headcut.ts";
-import { type Back, type Style, drawBack, drawCourt, headBox, RATIO } from "@/lib/cardrender.ts";
+import { type Style, drawCourt, headBox, RATIO } from "@/lib/cardrender.ts";
+import { backModels, type BackModel } from "@/lib/backs.ts";
+import BackStep, { BackPreview, type BackState, hasAlpha, initialBack } from "@/components/BackStep";
 
 // Studio de création : grand aperçu à gauche (dessiné comme le moteur l'imprimera), étapes à droite.
 // 1. Le dos · 2. Les visages (photos détourées, glissées sur les figures) · 3. Finitions et commande.
@@ -14,10 +16,6 @@ type Props = {
   onSubmit: (design: Design) => void;
 };
 
-const COLORS: [string, string, string][] = [
-  ["Vert tapis", "#134536", "#F0E8D6"], ["Nuit", "#1C2440", "#E8D6B0"], ["Noir", "#16161A", "#E6E4DE"],
-  ["Rouge", "#B3152A", "#FCEFE6"], ["Crème", "#F3EBDD", "#9C7A3C"], ["Rose", "#EEC4C8", "#78203C"],
-];
 const COURTS = SUITS.flatMap(([s]) => [...RANKS].reverse().map(([r]) => `${s}-${r}`)); // R, D, V de chaque couleur
 const CENTER: Crop = { zoom: 1, x: 0.5, y: 0.5 };
 const OVAL: Crop = { zoom: 2.2, x: 0.5, y: 0.38 }; // photo non détourée : cadrage de départ sur le visage
@@ -65,9 +63,10 @@ function MiniCourt({ code, face, crop, style, selected, onSelect, onDropFace, on
 
 export default function Editor({ product, busy, header, finish, status, onSubmit }: Props) {
   const [step, setStep] = useState(0);
-  const [back, setBack] = useState<Back>({ color: "#134536", ink: "#F0E8D6", title: "", subtitle: "" });
-  const [backPhoto, setBackPhoto] = useState<Photo | null>(null);
-  const [backCrop, setBackCrop] = useState<Crop>(CENTER);
+  const [back, setBackState] = useState<BackState>(initialBack);
+  const [models, setModels] = useState<BackModel[]>([]);
+  const setBack = (patch: Partial<BackState>) => setBackState((b) => ({ ...b, ...patch }));
+  const backDrag = useRef<Crop | null>(null);
   const [faces, setFaces] = useState<Photo[]>([]);
   const [courts, setCourts] = useState<Record<string, Assign>>({});
   const [selected, setSelected] = useState("H-K");
@@ -75,7 +74,6 @@ export default function Editor({ product, busy, header, finish, status, onSubmit
   const [over, setOver] = useState(false);
   const stage = useRef<HTMLCanvasElement>(null);
   const picker = useRef<HTMLInputElement>(null);
-  const backPicker = useRef<HTMLInputElement>(null);
   const drag = useRef<{ x: number; y: number; crop: Crop; w: number; h: number } | null>(null);
   const pendingTarget = useRef<string | null>(null);
 
@@ -83,16 +81,16 @@ export default function Editor({ product, busy, header, finish, status, onSubmit
   const current = courts[selected];
   const currentFace = faceOf(current?.face);
   const done = Object.keys(courts).filter((c) => faceOf(courts[c].face)).length;
-  const uploading = [backPhoto, ...faces].some((p) => p?.busy);
+  const uploading = [back.photo, back.logo, ...faces].some((p) => p?.busy);
+  useEffect(() => { backModels().then(setModels).catch(() => {}); }, []);
   const view = step === 0 ? "back" : "court";
 
   // Grand aperçu
   useEffect(() => {
     const c = stage.current;
-    if (!c) return;
-    const job = view === "back" ? drawBack(c, back, backPhoto, backCrop) : drawCourt(c, selected, currentFace, current?.crop ?? CENTER, style);
-    job.catch(() => {});
-  }, [view, back, backPhoto, backCrop, selected, currentFace, current, style]);
+    if (!c || view !== "court") return;
+    drawCourt(c, selected, currentFace, current?.crop ?? CENTER, style).catch(() => {});
+  }, [view, selected, currentFace, current, style]);
 
   // Photos : détourage, envoi, et pose sur la figure visée (la première photo seulement).
   const addFaces = useCallback(async (files: File[], target: string | null) => {
@@ -165,8 +163,13 @@ export default function Editor({ product, busy, header, finish, status, onSubmit
 
   function submit() {
     const ref = (p: Photo | null, crop: Crop) => (p?.path ? { path: p.path, ...crop } : null);
+    const model = models.find((m) => m.id === back.template);
     onSubmit({
-      back: { ...back, photo: ref(backPhoto, backCrop) },
+      back: {
+        template: back.template, color: back.bg, ink: back.ink, title: back.title, subtitle: back.subtitle,
+        photo: model?.photo ? ref(back.photo as Photo | null, back.crop) : null,
+        logo: back.logo?.path ? { path: back.logo.path, tint: back.tint && back.logo.alpha } : null,
+      },
       style,
       courts: Object.fromEntries(Object.entries(courts).flatMap(([code, a]) => {
         const p = ref(faceOf(a.face), a.crop);
@@ -175,16 +178,22 @@ export default function Editor({ product, busy, header, finish, status, onSubmit
     });
   }
 
-  async function pickBack(file: File) {
-    const id = crypto.randomUUID();
-    setBackPhoto({ id, url: URL.createObjectURL(file), path: null, cut: false, busy: true });
-    setBackCrop(CENTER);
-    try {
-      const path = await uploadPhoto(product, file);
-      setBackPhoto((p) => (p?.id === id ? { ...p, path, busy: false } : p));
-    } catch (e) {
-      setBackPhoto((p) => (p?.id === id ? { ...p, busy: false, error: (e as Error).message } : p));
-    }
+  async function uploadBack(kind: "logo" | "photo", file: File) {
+    const id = crypto.randomUUID(), url = URL.createObjectURL(file);
+    if (kind === "logo") setBack({ logo: { id, url, path: null, busy: true, alpha: await hasAlpha(url).catch(() => false) } });
+    else setBack({ photo: { id, url, path: null, busy: true }, crop: CENTER });
+    const update = (patch: object) => setBackState((b) => {
+      const cur = b[kind];
+      return cur?.id === id ? { ...b, [kind]: { ...cur, ...patch } } : b;
+    });
+    try { update({ path: await uploadPhoto(product, file), busy: false }); }
+    catch (e) { update({ busy: false, error: (e as Error).message }); }
+  }
+  function dragBack(dx: number, dy: number, done: boolean) {
+    if (done) { backDrag.current = null; return; }
+    const start = (backDrag.current ??= back.crop);
+    const clamp = (v: number) => +Math.min(1, Math.max(0, v)).toFixed(3);
+    setBack({ crop: { ...start, x: clamp(start.x - dx / start.zoom), y: clamp(start.y - dy / start.zoom) } });
   }
 
   return (
@@ -197,8 +206,9 @@ export default function Editor({ product, busy, header, finish, status, onSubmit
             const id = e.dataTransfer.getData("text/x-face");
             if (id) assign(selected, id); else addFaces([...e.dataTransfer.files], selected);
           }}>
-          <canvas ref={stage} width={720} height={Math.round(720 * RATIO)} aria-label={view === "back" ? "Aperçu du dos" : `Aperçu : ${label(selected)}`}
-            className={view === "court" && current ? "grab" : ""}
+          {view === "back" && <BackPreview state={back} models={models} onDrag={dragBack} />}
+          <canvas ref={stage} width={720} height={Math.round(720 * RATIO)} aria-label={`Aperçu : ${label(selected)}`}
+            hidden={view === "back"} className={view === "court" && current ? "grab" : ""}
             onPointerDown={down} onPointerMove={move} onPointerUp={() => (drag.current = null)} onPointerCancel={() => (drag.current = null)}
             onWheel={(e) => { if (view === "court" && current) zoomBy(e.deltaY < 0 ? 1.05 : 1 / 1.05); }} />
           {view === "court" && !current && (
@@ -216,7 +226,7 @@ export default function Editor({ product, busy, header, finish, status, onSubmit
           </div>
         )}
         <p className="stage-caption">{view === "back"
-          ? "Le dos, identique sur les 55 cartes"
+          ? (models.find((m) => m.id === back.template)?.photo && back.photo ? "Glissez la photo pour la placer · le dos est identique sur les 55 cartes" : "Le dos, identique sur les 55 cartes")
           : current ? "Glissez le visage pour le placer · molette ou −/+ pour la taille" : `${label(selected)} · tête du haut et du bas`}</p>
       </div>
 
@@ -232,35 +242,8 @@ export default function Editor({ product, busy, header, finish, status, onSubmit
             </ol>
 
             {step === 0 && (
-              <div className="step">
-                <div className="field-group">
-                  <b>Couleur</b>
-                  <div className="swatches">
-                    {COLORS.map(([name, color, ink]) => (
-                      <button key={name} title={name} aria-label={name} aria-pressed={back.color === color}
-                        style={{ background: color, color: ink }} onClick={() => setBack({ ...back, color, ink })}>Aa</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid2">
-                  <label className="field">Texte principal<input maxLength={12} value={back.title} placeholder="J & M" onChange={(e) => setBack({ ...back, title: e.target.value })} /></label>
-                  <label className="field">Texte secondaire<input maxLength={24} value={back.subtitle} placeholder="12 · 06 · 2027" onChange={(e) => setBack({ ...back, subtitle: e.target.value })} /></label>
-                </div>
-                <div className="field-group">
-                  <b>Photo de fond <span className="hint">(facultatif)</span></b>
-                  <div className="row-actions">
-                    <button className="btn ghost small" onClick={() => backPicker.current?.click()}>{backPhoto ? "Changer la photo" : "＋ Ajouter une photo"}</button>
-                    {backPhoto && <button className="link" onClick={() => setBackPhoto(null)}>Retirer</button>}
-                    {backPhoto?.busy && <span className="hint"><span className="spinner" />Envoi…</span>}
-                    {backPhoto?.error && <span className="error-text">{backPhoto.error}</span>}
-                  </div>
-                  {backPhoto && (
-                    <label className="field">Zoom<input type="range" min={1} max={3} step={0.02} value={backCrop.zoom} onChange={(e) => setBackCrop({ ...backCrop, zoom: +e.target.value })} /></label>
-                  )}
-                  <input ref={backPicker} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) pickBack(f); }} />
-                </div>
-                <button className="btn red wide" onClick={() => setStep(1)}>Continuer : les visages →</button>
-              </div>
+              <BackStep state={back} set={setBack} models={models} onNext={() => setStep(1)}
+                pickLogo={(f) => uploadBack("logo", f)} pickPhoto={(f) => uploadBack("photo", f)} />
             )}
 
             {step === 1 && (

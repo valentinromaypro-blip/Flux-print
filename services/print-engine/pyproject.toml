@@ -26,7 +26,7 @@ dev = ["pytest>=7"]
 flux-print = "flux_print.cli:main"
 
 [tool.setuptools.package-data]
-flux_print = ["design/fonts/*", "design/classic/*"]
+flux_print = ["design/fonts/*", "design/classic/*", "design/backs/*.svg", "design/backs/*.json", "design/backs/fonts/*"]
 
 [tool.setuptools.packages.find]
 include = ["flux_print*"]

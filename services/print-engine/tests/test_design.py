@@ -63,3 +63,52 @@ def test_cut_out_head_keeps_its_silhouette():
     corner = (round((cx - rx + 1) * k), round((cy + ry - 3) * k))
     assert face.getpixel(corner) == classic.court("SQ", 480).getpixel(corner)
     assert face.getpixel((round(cx * k), round(cy * k)))[:3] != classic.court("SQ", 480).getpixel((round(cx * k), round(cy * k)))[:3]
+
+
+def test_back_fields_match_the_shared_fixture():
+    """Même fixture que apps/site/src/lib/backs.test.ts : navigateur et moteur remplissent pareil."""
+    from flux_print.design import backs
+
+    for case in json.loads((Path(__file__).parent / "fixtures/back_fields.json").read_text()):
+        i = case["input"]
+        assert backs.fields(case["model"], i["bg"], i["ink"], i["title"], i["subtitle"], i["logo"], i["tint"], i["photo"]) == case["fields"]
+
+
+@pytest.mark.skipif(not SITE_CARDS.is_dir(), reason="site absent")
+def test_site_uses_the_same_back_templates_and_fonts():
+    from flux_print.design import backs
+
+    site = SITE_CARDS / "dos"
+    for f in list(backs.DIR.glob("*.svg")) + [backs.DIR / "models.json"]:
+        assert (site / f.name).read_bytes() == f.read_bytes(), f.name
+    for font in backs.FONTS:
+        assert (SITE_CARDS.parent / "fonts/cartes" / Path(font).name).read_bytes() == Path(font).read_bytes()
+
+
+def test_every_back_model_renders():
+    from flux_print.design import backs
+
+    for mid, m in backs.models().items():
+        img = backs.render(backs.fill(mid, backs.fields(mid, m["bg"], m["ink"], "Test", "Sous-titre")), 139)
+        assert img.size == (139, 190)
+
+
+def test_company_back_prints_the_logo_full_bleed():
+    from flux_print.design.render import render_back
+
+    logo = Image.new("RGBA", (300, 150), (0, 0, 0, 0))
+    logo.paste((200, 20, 30, 255), (50, 25, 250, 125))
+    back = validate_design({"back": {"template": "logo-centre", "title": "Boulangerie Martin", "subtitle": "Depuis 1987",
+                                     "logo": {"path": "logo.png"}}}, "54")["back"]
+    img = render_back(back, lambda path: logo)
+    assert img.size == (973, 1329)  # 69,5 × 94,9 mm à 14 px/mm : fond perdu compris
+    r, g, b, _ = img.getpixel((img.width // 2, int(img.height * 0.42)))
+    assert r > 150 and g < 80  # le logo rouge est au centre
+    assert img.getpixel((2, 2))[:3] == (255, 255, 255)  # fond blanc jusque dans le fond perdu
+
+
+def test_logo_pattern_back_requires_a_logo():
+    with pytest.raises(DesignError, match="logo"):
+        validate_design({"back": {"template": "logo-motif"}}, "54")
+    with pytest.raises(DesignError, match="inconnu"):
+        validate_design({"back": {"template": "inexistant"}}, "54")
