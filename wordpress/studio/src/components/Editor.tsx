@@ -1,6 +1,6 @@
 "use client";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { type Crop, RANKS, SUITS } from "@/lib/design.ts";
+import { type Crop, RANKS, SUITS, uid } from "@/lib/design.ts";
 import { cutHead } from "@/lib/headcut.ts";
 import { type Style, drawCourt, headBox, RATIO } from "@/lib/cardrender.ts";
 import { backModels, type BackModel } from "@/lib/backs.ts";
@@ -93,7 +93,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
   const addFaces = useCallback(async (files: File[], target: string | null) => {
     let dest = target;
     for (const file of files.filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type)).slice(0, 12)) {
-      const id = crypto.randomUUID(), assignTo = dest;
+      const id = uid(), assignTo = dest;
       dest = null;
       setFaces((all) => [...all, { id, url: URL.createObjectURL(file), path: null, cut: false, busy: true }]);
       if (assignTo) { setCourts((all) => ({ ...all, [assignTo]: { face: id, crop: OVAL } })); setSelected(assignTo); }
@@ -170,7 +170,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
   }
 
   async function uploadBack(kind: "logo" | "photo", file: File) {
-    const id = crypto.randomUUID(), url = URL.createObjectURL(file);
+    const id = uid(), url = URL.createObjectURL(file);
     if (kind === "logo") setBack({ logo: { id, url, path: null, busy: true, alpha: await hasAlpha(url).catch(() => false) } });
     else setBack({ photo: { id, url, path: null, busy: true }, crop: CENTER });
     const update = (patch: object) => setBackState((b) => {

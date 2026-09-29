@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import type { Crop } from "@/lib/design.ts";
+import { type Crop, uid } from "@/lib/design.ts";
 import { backModels, type BackModel } from "@/lib/backs.ts";
 import { CB } from "@/lib/env.ts";
 import { format } from "@/lib/format.ts";
@@ -55,7 +55,7 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit }: 
   function addFiles(files: File[]) {
     const images = files.filter((f) => f.type.startsWith("image/")).slice(0, max - cards.length);
     if (!images.length) return;
-    const added = images.map((f) => ({ id: crypto.randomUUID(), url: URL.createObjectURL(f), crop: CENTER, title: "" }));
+    const added = images.map((f) => ({ id: uid(), url: URL.createObjectURL(f), crop: CENTER, title: "" }));
     setCards((all) => [...all, ...added]);
     setSelected((s) => s ?? added[0].id);
   }
@@ -72,7 +72,7 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit }: 
   }
 
   async function uploadBack(kind: "logo" | "photo", file: File) {
-    const id = crypto.randomUUID(), url = URL.createObjectURL(file);
+    const id = uid(), url = URL.createObjectURL(file);
     if (kind === "logo") setBack({ logo: { id, url, path: "local", busy: false, alpha: await hasAlpha(url).catch(() => false) } });
     else setBack({ photo: { id, url, path: "local", busy: false }, crop: CENTER });
   }
