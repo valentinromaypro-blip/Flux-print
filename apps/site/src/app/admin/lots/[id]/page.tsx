@@ -9,7 +9,7 @@ type Manifest = {
   sheet: { width_mm: number; height_mm: number; flip: string }; order: string; sheets_count: number; impressions: number;
   book_sheets: number | null; fill_ratio: number; layout: { description: string; per_sheet: number };
   slots: { slot: number; trim_mm: [number, number, number, number] }[]; stacks: Stack[]; stacking_instructions: string;
-  items?: Record<string, string>; reason?: string;
+  items?: Record<string, string>; reason?: string; books?: { book: number; sheets: number; first_sheet: number }[];
   decks?: { job: string; copy: number; book: number; stacks: number[]; cards: number }[];
 };
 const MEDIA: Record<string, string> = { "cmdm-350g": "Couché mat 350 g", "carte-graphique-300g": "Carte graphique 300 g" };
@@ -94,7 +94,7 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
       <section className="tiles">
         <div className="tile"><span>Mode</span><b>{lanes ? "Piles alignées" : deck ? "Pile = jeu" : "Coupe et empile"}</b><small>{lanes ? "une pile = un seul jeu" : deck ? "chaque pile est un jeu complet" : "piles à reposer dans l'ordre"}</small></div>
         <div className="tile"><span>Feuilles SRA3</span><b>{m.sheets_count}</b><small>{m.impressions} faces imprimées</small></div>
-        <div className="tile"><span>{deck ? "Livres" : "Piles"}</span><b>{deck ? books.length : m.stacks.length}</b><small>{deck ? `${m.book_sheets} feuilles par coupe` : `${m.sheets_count} feuilles par coupe`}</small></div>
+        <div className="tile"><span>{deck ? "Livres" : "Piles"}</span><b>{deck ? books.length : m.stacks.length}</b><small>{deck ? `${(m.books ?? []).map((x) => x.sheets).join(" + ") || m.book_sheets} feuilles, une coupe par livre` : `${m.sheets_count} feuilles par coupe`}</small></div>
         <div className="tile"><span>Jeux</span><b>{lanes ? m.decks?.length ?? 0 : deck ? m.stacks.length : rows.reduce((n, r) => n + r.copies, 0)}</b><small>remplissage {Math.round(m.fill_ratio * 100)} %</small></div>
       </section>
 
@@ -119,7 +119,11 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
         return (
           <section className="card map-card" key={b}>
             <div className="card-head">
-              <h2>{deck ? `Livre ${b} · feuilles ${(b - 1) * (m.book_sheets ?? 0) + 1} à ${b * (m.book_sheets ?? 0)}` : "Plan des piles"}</h2>
+              <h2>{deck ? (() => {
+                const info = m.books?.find((x) => x.book === b);
+                const first = info?.first_sheet ?? (b - 1) * (m.book_sheets ?? 0) + 1, count = info?.sheets ?? m.book_sheets ?? 0;
+                return `Livre ${b} · feuilles ${first} à ${first + count - 1} (${count} feuilles, une coupe)`;
+              })() : "Plan des piles"}</h2>
               <span className="muted">{stacks.length} pile{stacks.length > 1 ? "s" : ""}</span>
             </div>
             <div className="map-wrap">

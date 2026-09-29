@@ -83,7 +83,7 @@ class BatchResult:
     pieces: int
     output: Path
     manifest: dict = field(default_factory=dict)
-    book_length: int = 0  # mode pile = jeu : feuilles par livre (= pièces d'un jeu)
+    book_lengths: list[int] = field(default_factory=list)  # feuilles de chaque livre (coupé d'un seul coup)
 
     @property
     def fill_ratio(self) -> float:
@@ -123,17 +123,22 @@ def plan_sheets(sequence: list[Piece], per_sheet: int, order: SheetOrder) -> lis
     return sheets
 
 
-def plan_deck_stack(decks: list[list[Piece]], per_sheet: int) -> tuple[list[list[Piece | None]], int]:
-    """Pile = jeu : la feuille n porte la carte n de chacun des jeux (un jeu par pose).
-    Au-delà de `per_sheet` jeux, un deuxième « livre » de feuilles suit le premier.
-    Renvoie les feuilles et la longueur d'un livre (en feuilles)."""
-    length = max(len(d) for d in decks)
+def plan_deck_stack(decks: list[list[Piece]], per_sheet: int) -> tuple[list[list[Piece | None]], list[int]]:
+    """Pile = jeu, amalgame de toutes les commandes du même format : la feuille n porte la carte n
+    de chacun des jeux du livre (un jeu par pose). Les jeux sont rangés du plus long au plus court
+    par livres de `per_sheet` : un livre fait la hauteur de son jeu le plus long, les jeux plus courts
+    (32 cartes, petits oracles) laissent leur pose vide sur les dernières feuilles.
+    Renvoie les feuilles et la hauteur de chaque livre."""
+    ranked = sorted(decks, key=len, reverse=True)  # tri stable : l'ordre des commandes est gardé à longueur égale
     sheets: list[list[Piece | None]] = []
-    for start in range(0, len(decks), per_sheet):
-        book = decks[start:start + per_sheet]
+    lengths: list[int] = []
+    for start in range(0, len(ranked), per_sheet):
+        book = ranked[start:start + per_sheet]
+        length = len(book[0])
+        lengths.append(length)
         for n in range(length):
             sheets.append([book[k][n] if k < len(book) and n < len(book[k]) else None for k in range(per_sheet)])
-    return sheets, length
+    return sheets, lengths
 
 
 @dataclass(frozen=True)
@@ -239,11 +244,12 @@ def impose(
     lanes: LanePlan | None = None
     if order is SheetOrder.LANES:
         lanes = best_lane_plan([len(d) for d in decks], layout.per_sheet, max_cut_sheets, sheet_cost, merge_cost, cut_cost)
-        sheets, book_length = plan_lanes(decks, layout.per_sheet, lanes), lanes.sheets_per_book
+        sheets, book_lengths = plan_lanes(decks, layout.per_sheet, lanes), [lanes.sheets_per_book] * lanes.books
     elif order is SheetOrder.DECK_STACK:
-        sheets, book_length = plan_deck_stack(decks, layout.per_sheet)
+        sheets, book_lengths = plan_deck_stack(decks, layout.per_sheet)
     else:
-        sheets, book_length = plan_sheets(sequence, layout.per_sheet, order), 0
+        sheets = plan_sheets(sequence, layout.per_sheet, order)
+        book_lengths = [len(sheets)]
     duplex = spec.duplex
 
     condition = output_profile.identifier if output_profile is not None else "sans profil"
@@ -307,7 +313,7 @@ def impose(
         for pdf in sources.values():
             pdf.close()
 
-    result = BatchResult(batch_id, layout, order, sheets, len(sequence), output, book_length=book_length)
+    result = BatchResult(batch_id, layout, order, sheets, len(sequence), output, book_lengths=book_lengths)
     result.manifest = _manifest(result, jobs, spec, duplex)
     if lanes is not None:
         result.manifest["decks"] = _lane_decks(decks, lanes)
@@ -502,15 +508,16 @@ def _manifest(result: BatchResult, jobs: list[Job], spec: DocumentSpec, duplex: 
     n = len(result.sheets)
     stacks = []
     if result.order in (SheetOrder.DECK_STACK, SheetOrder.LANES):
-        book_len = result.book_length
-        for b in range(0, n, book_len):
+        start = 0
+        for book, book_len in enumerate(result.book_lengths, 1):
             for k in range(layout.per_sheet):
-                items = [result.sheets[s][k] for s in range(b, min(n, b + book_len)) if result.sheets[s][k] is not None]
+                items = [result.sheets[s][k] for s in range(start, start + book_len) if result.sheets[s][k] is not None]
                 if items:
                     units = [p for p in items if p.kind == "unit"]
-                    stacks.append({"book": b // book_len + 1, "stack": k + 1, "job": items[0].job_id, "count": len(items),
+                    stacks.append({"book": book, "stack": k + 1, "job": items[0].job_id, "count": len(items),
                                    "first": f"{items[0].job_id} · {items[0].label}", "last": f"{items[-1].job_id} · {items[-1].label}",
                                    "cards": len(units)})
+            start += book_len
     elif result.order is SheetOrder.CUT_STACK:
         for k in range(layout.per_sheet):
             items = [result.sheets[s][k] for s in range(n) if result.sheets[s][k] is not None]
@@ -530,7 +537,9 @@ def _manifest(result: BatchResult, jobs: list[Job], spec: DocumentSpec, duplex: 
         "layout": {"cols": layout.cols, "rows": layout.rows, "rotation": layout.rotation,
                    "per_sheet": layout.per_sheet, "description": layout.describe()},
         "order": result.order.value,
-        "book_sheets": result.book_length or None,
+        "book_sheets": result.book_lengths[0] if result.order is not SheetOrder.CUT_STACK and result.book_lengths else None,
+        "books": [{"book": i + 1, "sheets": length, "first_sheet": sum(result.book_lengths[:i]) + 1}
+                  for i, length in enumerate(result.book_lengths)],
         "sheets_count": n,
         "impressions": n * (2 if duplex else 1),
         "pieces": result.pieces,

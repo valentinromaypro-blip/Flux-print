@@ -1,8 +1,8 @@
 """Décision de lancement des lots (amalgame automatique).
 
 Les lignes prêtes sont regroupées par clé d'amalgame (support, format, fond
-perdu, recto/verso), tous produits confondus ; en mode « pile = jeu », aussi par
-longueur de jeu (un jeu de 32 ne partage pas les feuilles d'un jeu de 54). Un groupe part en lot si :
+perdu, recto/verso), tous produits et toutes longueurs confondus : jeux de 54, de 32
+et oracles au même format partagent les mêmes planches. Un groupe part en lot si :
 - le remplissage de ses feuilles atteint le seuil ;
 - ou la ligne la plus ancienne a trop attendu ;
 - ou une commande est urgente (date d'expédition proche) ;
@@ -75,8 +75,9 @@ class Candidate:
             return 0
         if self.order == "lanes":
             return self.lane_plan().sheets
-        if self.order == "deck_stack":
-            return math.ceil(self.decks / self.layout.per_sheet) * self.deck_length
+        if self.order == "deck_stack":  # livres de 18 jeux, du plus long au plus court
+            ranked = sorted(self.lengths, reverse=True)
+            return sum(ranked[i] for i in range(0, len(ranked), self.layout.per_sheet))
         return math.ceil(self.pieces / self.layout.per_sheet)
 
     @property
@@ -118,8 +119,6 @@ def plan_batches(
         spec = spec_for(item)
         key = gang_key_label(spec)
         length = len(spec.imposition_units()) + (1 if rules.separators else 0)
-        if rules.order == "deck_stack":
-            key += f"|{length}p"  # pile = jeu : seuls des jeux de même longueur partagent un livre
         if key not in groups:
             groups[key] = Candidate(key, spec.media, layout_for(spec), deck_length=length,
                                     preferred_order=rules.order, min_decks=rules.deck_stack_min_decks, rules=rules)

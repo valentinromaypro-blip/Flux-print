@@ -302,8 +302,8 @@ def test_deck_stack_plan_puts_one_deck_per_position():
     from flux_print.production.imposition import Piece, plan_deck_stack
 
     decks = [[Piece(f"J{d}", f"c{n}", "s", n, None) for n in range(4)] for d in range(20)]
-    sheets, length = plan_deck_stack(decks, per_sheet=18)
-    assert length == 4 and len(sheets) == 8  # 2 livres de 4 feuilles
+    sheets, lengths = plan_deck_stack(decks, per_sheet=18)
+    assert lengths == [4, 4] and len(sheets) == 8  # 2 livres de 4 feuilles
     assert [sheets[n][5].label for n in range(4)] == ["c0", "c1", "c2", "c3"]  # pose 6 = jeu 6, cartes dans l'ordre
     assert {sheets[n][5].job_id for n in range(4)} == {"J5"}
     assert sheets[4][1].job_id == "J19" and sheets[4][2] is None  # 2e livre : 2 jeux seulement
@@ -402,3 +402,17 @@ def test_press_slots_launch_what_was_paid_before():
     assert run(11, 1)[0].reason == "créneau 11:00"
     late = [{"id": "b", "copies": 1, "created_at": paid.replace(hour=11, minute=30), "paid_at": paid.replace(hour=11, minute=30)}]
     assert plan_batches(late, lambda i: spec, lambda s: layout, rules, now=datetime(2026, 9, 29, 12, tzinfo=paris)) == []
+
+
+def test_deck_stack_gangs_32_and_54_card_decks_of_several_orders_on_one_plate(db, files, tmp_path):
+    worker = Worker(db, files, _settings(separators=True, order="deck_stack", deck_stack_min_decks=0))
+    _, a = _order(db, files, tmp_path, _deck(tmp_path), copies=2)
+    _, b = _order(db, files, tmp_path, _deck(tmp_path), copies=1)
+    _, c = _order(db, files, tmp_path, _deck(tmp_path, "d32.pdf", "jeu-poker-32"), product="jeu-poker-32", copies=2)
+    worker.run_once(force_batches=True)
+    batch_ids = {db.item(x["id"])["batch_id"] for x in (a, b, c)}
+    assert len(batch_ids) == 1  # trois commandes, deux produits, une seule planche
+    m = db.batch(batch_ids.pop())["manifest"]
+    assert (m["order"], m["sheets_count"], m["books"]) == ("deck_stack", 55, [{"book": 1, "sheets": 55, "first_sheet": 1}])
+    assert sorted(s["cards"] for s in m["stacks"]) == [32, 32, 54, 54, 54]
+    assert all(s["first"].split(" · ")[1].startswith("Séparateur") for s in m["stacks"])  # étiquette sur le dessus
