@@ -66,8 +66,14 @@ flux_print/
   products/flat.py            Produits à plat génériques
   config.py                   Chargement presses / feuilles / produits
   pipeline.py                 prepare = preflight + normalisation + CMJN
+  orders/db.py                Accès Postgres (Supabase) du worker
+  orders/files.py             Stockage : Supabase Storage ou dossier local
+  orders/batching.py          Décision de lancement des lots
+  orders/worker.py            Worker : contrôle → préparation → lot SRA3
   cli.py
 ```
+
+Chaîne de commande et worker : voir `docs/04-chaine-commande.md`. Les tests de la chaîne demandent un PostgreSQL (`FLUX_TEST_PG`) et sont sautés sinon.
 
 Pour ajouter un produit, il suffit d'écrire une fonction qui renvoie un `DocumentSpec`. Le preflight et les gabarits le prennent en charge sans autre modification.
 

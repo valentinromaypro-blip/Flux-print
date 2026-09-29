@@ -18,6 +18,7 @@
 | D14 | 2026-09-29 | Profil **PSO Coated v3 (FOGRA51)** fourni et versionné dans `config/icc/`. | Les lots sortent en PDF/X-4 avec OutputIntent FOGRA51. Lot d'essai : `docs/exemples/lot-test-iridesse-sra3.pdf`. |
 | D15 | 2026-09-29 | Site : design et UX de référence actuels ; **Cloudflare + Supabase**. | Voir l'architecture web (à venir). |
 | D16 | 2026-09-29 | **Seuls des lots SRA3 préimposés entrent dans le Fiery.** | `flux-print dispatch` contrôle le lot (format SRA3 sur chaque page, PDF/X-4 avec profil, cohérence avec le manifeste), puis le dépose de façon atomique dans le hot folder correspondant au support et au mode d'impression. Tout autre fichier est refusé. Les manifestes sont archivés hors des hot folders. |
+| D17 | 2026-09-29 | Priorité : **toute la chaîne jusqu'à la génération du fichier SRA3** ; lien Fiery ensuite. | Schéma Supabase (commandes, lignes, lots, journal, RLS), worker Python qui contrôle, prépare et amalgame automatiquement. Voir `docs/04-chaine-commande.md`. |
 
 ## Politique de licences (conséquence de D5)
 
@@ -30,6 +31,8 @@
 | ReportLab | BSD | Génération des gabarits et des PDF | ✅ liée au code |
 | Pillow, NumPy | MIT-CMU, BSD | Images | ✅ liée au code |
 | LittleCMS | MIT | Conversions ICC | ✅ liée au code |
+| psycopg 3 | LGPL-3.0 | Accès Postgres du worker | ✅ utilisée sans modification (la LGPL n'impose rien à notre code) |
+| httpx | BSD | API Storage Supabase | ✅ liée au code |
 | **Ghostscript** | **AGPL-3.0** | Rendu CMJN (mesure d'encre uniquement) | ⚠️ **uniquement en processus externe, non modifié** |
 | MuPDF / PyMuPDF | AGPL-3.0 | — | ❌ exclu (liaison directe = obligation de publier le code du service) |
 | Poppler | GPL | — | ❌ exclu du code lié |

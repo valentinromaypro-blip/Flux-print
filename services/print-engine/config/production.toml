@@ -1,0 +1,20 @@
+# Règles de production automatisée (worker).
+
+press = "xerox-iridesse"
+sheet = "SRA3"
+
+[batching]
+# Un lot part dès que l'une des conditions est remplie :
+min_fill_ratio = 0.90   # remplissage des feuilles atteint (90 %)
+max_wait_hours = 24     # la plus ancienne ligne attend depuis 24 h
+urgent_days = 2         # une commande doit être expédiée dans 2 jours ou moins
+# Lot minimum hors urgence : évite de lancer une feuille à moitié vide trop tôt.
+min_sheets = 1
+
+separators = true       # pièce séparatrice avant chaque exemplaire
+order = "cut_stack"     # coupe et empile
+marks = "edge"          # traits de coupe prolongés (massicot)
+
+[previews]
+pages = 2               # aperçus générés pour le client (dos + première face)
+width_px = 600

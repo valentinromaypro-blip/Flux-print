@@ -14,6 +14,8 @@ dependencies = [
     "reportlab>=4",      # BSD — génération des gabarits
     "Pillow>=10",        # MIT-CMU
     "numpy>=1.24",       # BSD
+    "psycopg[binary]>=3.1",  # LGPL-3.0, utilisée sans modification — accès Postgres (Supabase)
+    "httpx>=0.27",       # BSD — API Storage de Supabase
 ]
 
 [project.optional-dependencies]

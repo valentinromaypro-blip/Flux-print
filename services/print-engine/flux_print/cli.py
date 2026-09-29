@@ -83,7 +83,25 @@ def main(argv: list[str] | None = None) -> int:
     p_dis.add_argument("--sheet")
     p_dis.add_argument("--check-only", action="store_true", help="Contrôler sans déposer")
 
+    p_wrk = sub.add_parser("worker", help="Worker de production (contrôle, préparation, lots)")
+    p_wrk.add_argument("--once", action="store_true", help="Un seul passage")
+    p_wrk.add_argument("--force-batches", action="store_true", help="Lancer les lots sans attendre les seuils")
+    p_wrk.add_argument("--interval", type=float, default=30.0)
+
+    sub.add_parser("sync-catalog", help="Publier les produits configurés dans la base")
+
+    p_ord = sub.add_parser("dev-order", help="(dev) Créer une commande avec un fichier, sans passer par le site")
+    p_ord.add_argument("--product", required=True)
+    p_ord.add_argument("--media")
+    p_ord.add_argument("--copies", type=int, default=1)
+    p_ord.add_argument("--email", default="test@flux-print.local")
+    p_ord.add_argument("--paid", action="store_true", help="Marquer la commande payée")
+    p_ord.add_argument("pdf")
+
     args = parser.parse_args(argv)
+
+    if args.command in ("worker", "sync-catalog", "dev-order"):
+        return _orders_command(args)
 
     if args.command == "dispatch":
         press = load_press(args.press)
@@ -164,6 +182,53 @@ def main(argv: list[str] | None = None) -> int:
         print(f"PDF/X-4, OutputIntent {press.output.identifier} : {result.output}")
     else:
         print(f"⚠ PDF sans OutputIntent (profil {press.output.icc_path} absent) : {result.output}")
+    return 0
+
+
+def _orders_command(args) -> int:
+    import logging
+    import os
+    import uuid
+
+    from .orders.db import Database
+    from .orders.files import LocalFileStore, SupabaseStorage
+    from .orders.worker import Worker
+
+    dsn = os.environ.get("FLUX_DATABASE_URL")
+    if not dsn:
+        print("FLUX_DATABASE_URL manquant (chaîne de connexion Postgres/Supabase).", file=sys.stderr)
+        return 2
+    storage = os.environ.get("FLUX_STORAGE", "supabase")
+    if storage.startswith("local:"):
+        files = LocalFileStore(storage.removeprefix("local:"))
+    else:
+        files = SupabaseStorage(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"])
+    db = Database(dsn)
+    try:
+        if args.command == "sync-catalog":
+            for code in list_products():
+                spec = load_product(code)
+                db.upsert_product(code, spec.label, media_options(code), spec.page_count)
+            print(f"{len(list_products())} produits publiés.")
+        elif args.command == "dev-order":
+            spec = load_product(args.product, media=args.media)
+            order = db.create_order(args.email)
+            path = f"invites/{order['id']}/{uuid.uuid4()}.pdf"
+            files.upload("uploads", path, Path(args.pdf), "application/pdf")
+            item = db.add_item(order["id"], args.product, spec.media, args.copies, path)
+            if args.paid:
+                db.mark_paid(order["id"], "dev")
+            print(f"Commande {order['number']} ({order['id']}), ligne {item['id']}"
+                  f"{' — payée' if args.paid else ''}")
+        else:
+            logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+            worker = Worker(db, files)
+            if args.once:
+                print(worker.run_once(force_batches=args.force_batches))
+            else:
+                worker.run_forever(args.interval)
+    finally:
+        db.close()
     return 0
 
 
