@@ -8,3 +8,17 @@ media_options = ["cmdm-350g", "carte-graphique-300g"]
 format = "poker"
 deck = "32"
 backs = "common"
+
+[shop]
+title = "Le jeu de belote"
+tagline = "32 cartes, du 7 à l'As."
+description = "Pour la belote, la manille ou le piquet, avec votre dos personnalisé."
+image = "scene-etui"
+order = 5
+
+# PRIX FICTIFS pour la maquette : à remplacer par la grille de l'atelier.
+[shop.pricing]
+unit = 19.90
+per_card = 0.0
+tiers = [[1, 1.0], [5, 0.85], [10, 0.75], [25, 0.65], [50, 0.55]]
+media = { "carte-graphique-300g" = -1.50 }

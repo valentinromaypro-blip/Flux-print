@@ -206,10 +206,10 @@ def _orders_command(args) -> int:
     db = Database(dsn)
     try:
         if args.command == "sync-catalog":
-            for code in list_products():
-                spec = load_product(code)
-                db.upsert_product(code, spec.label, media_options(code), spec.page_count)
-            print(f"{len(list_products())} produits publiés.")
+            from .orders.catalog import publish_catalog
+
+            codes = publish_catalog(db, files)
+            print(f"{len(codes)} produits publiés, gabarits générés.")
         elif args.command == "dev-order":
             spec = load_product(args.product, media=args.media)
             order = db.create_order(args.email)

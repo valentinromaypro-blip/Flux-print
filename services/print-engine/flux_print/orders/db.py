@@ -30,13 +30,19 @@ class Database:
 
     # --- Catalogue -------------------------------------------------------------
 
-    def upsert_product(self, code: str, label: str, media_options: list[str], page_count: int) -> None:
+    def upsert_product(self, code: str, label: str, media_options: list[str], page_count: int,
+                       shop: dict | None = None, options: dict | None = None, media: list | None = None,
+                       templates: dict | None = None, active: bool = True) -> None:
         self.conn.execute(
-            """insert into public.products (code, label, media_options, page_count, updated_at)
-               values (%s, %s, %s, %s, now())
+            """insert into public.products (code, label, media_options, page_count, shop, options, media, templates,
+                                            active, updated_at)
+               values (%s, %s, %s, %s, %s, %s, %s, %s, %s, now())
                on conflict (code) do update set label = excluded.label, media_options = excluded.media_options,
-                 page_count = excluded.page_count, active = true, updated_at = now()""",
-            (code, label, media_options, page_count),
+                 page_count = excluded.page_count, shop = excluded.shop, options = excluded.options,
+                 media = excluded.media, templates = excluded.templates, active = excluded.active,
+                 updated_at = now()""",
+            (code, label, media_options, page_count, Jsonb(shop or {}), Jsonb(options or {}), Jsonb(media or []),
+             Jsonb(templates or {}), active),
         )
 
     # --- Commandes (développement / back-office) ----------------------------------
@@ -47,11 +53,12 @@ class Database:
             (email, customer_id, due_date),
         ).fetchone()
 
-    def add_item(self, order_id: str, product_code: str, media: str, copies: int, source_path: str) -> dict:
+    def add_item(self, order_id: str, product_code: str, media: str, copies: int, source_path: str,
+                 options: dict | None = None) -> dict:
         return self.conn.execute(
-            """insert into public.order_items (order_id, product_code, media, copies, source_path)
-               values (%s, %s, %s, %s, %s) returning *""",
-            (order_id, product_code, media, copies, source_path),
+            """insert into public.order_items (order_id, product_code, media, copies, source_path, options)
+               values (%s, %s, %s, %s, %s, %s) returning *""",
+            (order_id, product_code, media, copies, source_path, Jsonb(options or {})),
         ).fetchone()
 
     def mark_paid(self, order_id: str, payment_ref: str, total_cents: int | None = None) -> None:

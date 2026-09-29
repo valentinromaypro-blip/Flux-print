@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pypdfium2 as pdfium
 
-from ..config import config_dir, load_press, load_product
+from ..config import config_dir, load_item_spec, load_press
 from ..pipeline import prepare_job
 from ..preflight import run_preflight
 from ..production import Job, compute_layout, impose
@@ -78,7 +78,8 @@ class Worker:
         self._layouts: dict = {}
 
     def spec_for(self, item: dict):
-        return load_product(item["product_code"], press=self.press, media=item["media"])
+        return load_item_spec(item["product_code"], press=self.press, media=item["media"],
+                              options=item.get("options") or {})
 
     def layout_for(self, spec):
         page = spec.pages[0]

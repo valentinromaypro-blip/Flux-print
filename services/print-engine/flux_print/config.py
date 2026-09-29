@@ -19,6 +19,7 @@ from typing import Any, Callable
 from .production.dispatch import HotFolder
 from .production.sheet import Flip, SheetSpec
 from .products.base import DocumentSpec, PreflightPolicy
+from .products.custom_deck import build_custom_deck_spec
 from .products.flat import build_flat_spec
 from .products.playing_cards import build_document_spec as build_playing_cards
 
@@ -130,11 +131,37 @@ def _flat(params: dict[str, Any], media: str, policy: PreflightPolicy) -> Docume
     )
 
 
+def _custom_deck(params: dict[str, Any], media: str, policy: PreflightPolicy) -> DocumentSpec:
+    formats = params["formats"]
+    fmt = params.get("format", next(iter(formats)))
+    if fmt not in formats:
+        raise ValueError(f"Format {fmt!r} non proposé ({', '.join(formats)}).")
+    w, h = formats[fmt]["trim_mm"]
+    return build_custom_deck_spec(
+        float(w), float(h), int(params.get("cards", params.get("cards_min", 1))), params.get("backs", "common"),
+        cards_min=int(params.get("cards_min", 1)), cards_max=int(params.get("cards_max", 200)),
+        bleed_mm=float(params.get("bleed_mm", DEFAULT_BLEED_MM)), safe_mm=float(params.get("safe_mm", 4.0)),
+        corner_radius_mm=float(params.get("corner_radius_mm", 3.5)), media=media, policy=policy,
+        template=bool(params.get("template", False)),
+    )
+
+
 # Types de produits connus. Un nouveau type (livre, calendrier…) = une fonction ici.
 PRODUCT_TYPES: dict[str, ProductBuilder] = {
     "playing_cards": _playing_cards,
     "flat": _flat,
+    "custom_deck": _custom_deck,
 }
+
+
+def product_data(code: str) -> dict[str, Any]:
+    """Fiche produit brute (TOML), y compris la section [shop] destinée au site."""
+    return _read(config_dir() / "products" / f"{code}.toml")
+
+
+def media_catalog() -> dict[str, dict[str, Any]]:
+    path = config_dir() / "media.toml"
+    return _read(path).get("media", {}) if path.is_file() else {}
 
 
 def list_products() -> list[str]:
@@ -168,3 +195,37 @@ def load_product(
     if spec.bleed_mm != DEFAULT_BLEED_MM and not data.get("allow_custom_bleed", False):
         raise ValueError(f"{code} : fond perdu de {spec.bleed_mm} mm, la règle atelier est {DEFAULT_BLEED_MM} mm.")
     return dataclasses.replace(spec, code=data["code"], label=data.get("label", spec.label))
+
+
+def customer_options(code: str) -> dict[str, dict[str, Any]]:
+    """Options modifiables par le client, avec leurs choix résolus (pour le site)."""
+    data = product_data(code)
+    params = data.get("params", {})
+    resolved: dict[str, dict[str, Any]] = {}
+    for key, spec in data.get("options", {}).items():
+        spec = dict(spec)
+        if key == "format" and "choices" not in spec:
+            spec["choices"] = {k: v.get("label", k) for k, v in params.get("formats", {}).items()}
+        spec["default"] = params.get(key)
+        resolved[key] = spec
+    return resolved
+
+
+def load_item_spec(code: str, press: PressProfile | None = None, media: str | None = None,
+                   options: dict[str, Any] | None = None) -> DocumentSpec:
+    """Spec d'une ligne de commande : seules les options déclarées dans [options] sont acceptées."""
+    options = dict(options or {})
+    allowed = product_data(code).get("options", {})
+    unknown = set(options) - set(allowed)
+    if unknown:
+        raise ValueError(f"{code} : option(s) non modifiable(s) : {', '.join(sorted(unknown))}.")
+    for key, spec in allowed.items():
+        if key not in options:
+            continue
+        value = options[key]
+        if spec.get("kind") == "number":
+            value = int(value)
+            if not spec.get("min", value) <= value <= spec.get("max", value):
+                raise ValueError(f"{spec.get('label', key)} : {value} hors limites.")
+            options[key] = value
+    return load_product(code, press=press, media=media, **options)

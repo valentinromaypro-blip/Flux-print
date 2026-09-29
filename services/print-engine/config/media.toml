@@ -1,0 +1,12 @@
+# Supports d'impression proposés aux clients.
+[media."cmdm-350g"]
+label = "Couché mi-mat 350 g"
+description = "Rigide et souple, finition satinée. Le choix des jeux de cartes."
+
+[media."carte-graphique-300g"]
+label = "Carte graphique 300 g"
+description = "Toucher naturel légèrement texturé, rendu mat."
+
+[media."couche-mat-350g"]
+label = "Couché mat 350 g"
+description = "Mat, tenue ferme, pour cartes de visite et cartes postales."

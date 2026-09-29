@@ -213,3 +213,46 @@ def test_supabase_storage_client(tmp_path):
     assert seen[0] == ("POST", "/storage/v1/object/production/batches/L1.pdf", "Bearer cle-service")
     assert seen[1][:2] == ("GET", "/storage/v1/object/uploads/u/o/f.pdf")
     assert (tmp_path / "b.pdf").read_bytes() == b"%PDF-1.7"
+
+
+def test_publish_catalog_with_templates(db, files):
+    from flux_print.orders.catalog import publish_catalog
+
+    codes = publish_catalog(db, files)
+    assert "oracle" in codes
+    oracle = db.conn.execute("select * from public.products where code = 'oracle'").fetchone()
+    assert oracle["active"] and oracle["shop"]["pricing"]["per_card"] > 0
+    assert set(oracle["templates"]) == {"tarot", "poker"}
+    assert files._path("templates", oracle["templates"]["tarot"]).is_file()
+    assert oracle["options"]["cards"]["min"] == 22
+    business = db.conn.execute("select active from public.products where code = 'carte-visite-85x55'").fetchone()
+    assert business["active"] is False  # pas de fiche boutique : non vendu sur ce site
+
+
+def test_oracle_chain_with_customer_options(db, files, tmp_path):
+    from flux_print.config import load_item_spec
+
+    spec = load_item_spec("oracle", options={"cards": 30, "format": "tarot"})
+    pdf = make_pdf(tmp_path / "oracle.pdf", spec)
+    order = db.create_order("oracle@example.fr")
+    path = f"invites/{order['id']}/oracle.pdf"
+    files.upload("uploads", path, pdf, "application/pdf")
+    item = db.add_item(order["id"], "oracle", "cmdm-350g", 2, path, options={"cards": 30, "format": "tarot"})
+    db.mark_paid(order["id"], "test")
+    Worker(db, files, _settings()).run_once(force_batches=True)
+    item = db.item(item["id"])
+    assert item["status"] == "batched", item["preflight_report"]
+    batch = db.batch(item["batch_id"])
+    assert batch["manifest"]["layout"]["per_sheet"] == 10  # tarot 70 × 120 sur SRA3
+    assert batch["sheets"] == 7  # 2 × (30 + séparateur) = 62 pièces / 10
+
+
+def test_wrong_card_count_is_rejected(db, files, tmp_path):
+    from flux_print.config import load_item_spec
+
+    pdf = make_pdf(tmp_path / "o.pdf", load_item_spec("oracle", options={"cards": 30}))
+    order = db.create_order("x@example.fr")
+    files.upload("uploads", f"i/{order['id']}/o.pdf", pdf, "application/pdf")
+    item = db.add_item(order["id"], "oracle", "cmdm-350g", 1, f"i/{order['id']}/o.pdf", options={"cards": 44})
+    Worker(db, files, _settings()).check_uploads()
+    assert db.item(item["id"])["status"] == "rejected"

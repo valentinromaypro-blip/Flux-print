@@ -1,0 +1,41 @@
+code = "oracle"
+type = "custom_deck"
+label = "Jeu oracle sur mesure"
+media_options = ["cmdm-350g", "carte-graphique-300g"]
+
+[params]
+format = "tarot"
+cards = 44
+cards_min = 22
+cards_max = 100
+backs = "common"
+safe_mm = 4.0
+corner_radius_mm = 3.5
+
+[params.formats.tarot]
+label = "Tarot 70 × 120 mm"
+trim_mm = [70.0, 120.0]
+
+[params.formats.poker]
+label = "Poker 63,5 × 88,9 mm"
+trim_mm = [63.5, 88.9]
+
+# Options que le client peut modifier sur le site.
+[options]
+format = { kind = "choice", label = "Format" }
+cards = { kind = "number", label = "Nombre de cartes", min = 22, max = 100, step = 1 }
+backs = { kind = "choice", label = "Dos", choices = { common = "Un dos commun", individual = "Un dos par carte" } }
+
+[shop]
+title = "Jeu oracle"
+tagline = "De 22 à 100 cartes, chacune unique."
+description = "Pour les créatrices et créateurs d'oracles, de jeux de tirage ou de cartes d'affirmation. Coins arrondis, carton rigide."
+image = "scene-oracle"
+order = 3
+
+# PRIX FICTIFS pour la maquette : à remplacer par la grille de l'atelier.
+[shop.pricing]
+unit = 12.00
+per_card = 0.28
+tiers = [[1, 1.0], [5, 0.88], [10, 0.78], [25, 0.68], [50, 0.6]]
+media = { "carte-graphique-300g" = -0.80 }
