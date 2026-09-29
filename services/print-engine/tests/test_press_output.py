@@ -36,7 +36,21 @@ def test_iridesse_press_profile():
     sheet = press.sheet("SRA3")
     assert (sheet.width_mm, sheet.height_mm) == (320.0, 450.0)
     assert press.output.identifier == "FOGRA51"
-    assert "Gold" in press.specialty_inks
+    assert press.output.available  # profil PSO Coated v3 livré dans config/icc
+    assert press.flip.value == "short_edge"
+    assert press.specialty_inks == frozenset()
+    assert press.dfe == "Fiery"
+    assert not sheet.cutter_marks
+
+
+def test_card_media_options():
+    assert load_product("jeu-poker-54").media == "cmdm-350g"
+    assert load_product("jeu-poker-54", media="carte-graphique-300g").media == "carte-graphique-300g"
+    with pytest.raises(ValueError):
+        load_product("jeu-poker-54", media="papier-80g")
+    a = load_product("jeu-poker-54")
+    b = load_product("jeu-poker-54", media="carte-graphique-300g")
+    assert a.gang_key != b.gang_key
 
 
 def test_all_configured_products_load_with_3mm_bleed():
@@ -55,7 +69,9 @@ def test_flat_product_from_config_only():
 
 
 def test_specialty_ink_is_accepted_other_spots_are_not(tmp_path):
-    press = load_press("xerox-iridesse")
+    import dataclasses
+
+    press = dataclasses.replace(load_press("xerox-iridesse"), specialty_inks=frozenset({"Gold"}))
     spec = load_product("carte-visite-85x55", press=press)
 
     def gold(c, i, pw, ph, bleed):
@@ -80,7 +96,10 @@ def test_neutral_rgb_becomes_pure_black():
 
 @needs_icc
 def test_pdf_conversion_keeps_boxes_spots_and_black(tmp_path):
-    spec = load_product("carte-visite-85x55", press=load_press("xerox-iridesse"))
+    import dataclasses
+
+    press = dataclasses.replace(load_press("xerox-iridesse"), specialty_inks=frozenset({"Gold"}))
+    spec = load_product("carte-visite-85x55", press=press)
 
     def mixed(c, i, pw, ph, bleed):
         c.setFillColorRGB(0.9, 0.2, 0.1)

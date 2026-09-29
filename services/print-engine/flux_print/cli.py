@@ -10,7 +10,7 @@ import json
 import sys
 from pathlib import Path
 
-from .config import list_presses, list_products, load_press, load_product
+from .config import list_presses, list_products, load_press, load_product, media_options
 from .pipeline import prepare_job
 from .preflight import Report, Severity, run_preflight
 from .production import Job, MarkStyle, SheetOrder, impose
@@ -23,6 +23,7 @@ DEFAULT_PRESS = "xerox-iridesse"
 def _common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--product", required=True, help="Code produit (voir « flux-print config »)")
     parser.add_argument("--press", default=DEFAULT_PRESS, help="Code presse")
+    parser.add_argument("--media", help="Support (défaut : premier support proposé par le produit)")
 
 
 def _print_report(report: Report, label: str, as_json: bool) -> None:
@@ -82,18 +83,18 @@ def main(argv: list[str] | None = None) -> int:
             status = "présent" if press.output.available else f"ABSENT ({press.output.icc_path})"
             print(f"Presse {press.code} — {press.name}")
             print(f"  profil {press.output.identifier} : {status}")
-            print(f"  encres spéciales : {', '.join(sorted(press.specialty_inks)) or 'aucune'}")
+            print(f"  contrôleur : {press.dfe} ; encres spéciales : {', '.join(sorted(press.specialty_inks)) or 'aucune'}")
             for sheet in press.sheets.values():
                 print(f"  feuille {sheet.code} : {sheet.width_mm:g} × {sheet.height_mm:g} mm, "
                       f"marge réservée {sheet.margin_mm:g} mm, retournement {sheet.flip.value}")
         print("Produits :")
         for code in list_products():
             spec = load_product(code)
-            print(f"  {code:<30} {spec.label} ({spec.page_count} p., support {spec.media})")
+            print(f"  {code:<30} {spec.label} ({spec.page_count} p., supports {', '.join(media_options(code))})")
         return 0
 
     press = load_press(args.press)
-    spec = load_product(args.product, press=press)
+    spec = load_product(args.product, press=press, media=args.media)
 
     if args.command == "gabarit":
         path = generate_gabarit(spec, args.output)

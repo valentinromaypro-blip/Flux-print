@@ -4,15 +4,18 @@
 
 code = "xerox-iridesse"
 name = "Xerox Iridesse Production Press"
-# Contrôleur d'impression (DFE) : à confirmer (Fiery ou FreeFlow Print Server).
-dfe = "à confirmer"
+# Contrôleur d'impression (DFE).
+dfe = "Fiery"
 
 # Retournement recto/verso : "long_edge" (grand côté) ou "short_edge".
-duplex_flip = "long_edge"
+duplex_flip = "short_edge"
 
-# Encres spéciales (5e et 6e groupes). Les noms doivent correspondre EXACTEMENT
-# aux noms de tons directs attendus par le contrôleur : À CONFIRMER sur le DFE.
-specialty_inks = ["Gold", "Silver", "White", "Clear", "Fluorescent Pink"]
+# Encres spéciales (5e et 6e groupes) : aucune utilisée pour l'instant.
+# Pour en activer une, ajouter son nom EXACT tel que le Fiery l'attend (ex. "Gold").
+specialty_inks = []
+
+# Coupe au massicot : pas de repères de découpe numérique.
+cutter_marks = false
 
 # Tolérance de repérage recto/verso annoncée : À MESURER sur feuille de test.
 registration_tolerance_mm = 0.5

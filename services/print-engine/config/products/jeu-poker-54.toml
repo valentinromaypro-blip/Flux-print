@@ -1,7 +1,8 @@
 code = "jeu-poker-54"
 type = "playing_cards"
 label = "Jeu de 54 cartes poker, dos commun"
-media = "carton-jeu-310g"
+# Supports proposés ; le premier est celui par défaut.
+media_options = ["cmdm-350g", "carte-graphique-300g"]
 
 [params]
 format = "poker"

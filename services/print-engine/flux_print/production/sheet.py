@@ -47,6 +47,8 @@ class SheetSpec:
     # + repères de coupe, marques de découpe numérique, identification.
     margin_mm: float = 10.0
     flip: Flip = Flip.LONG_EDGE
+    # Carrés de repérage pour une découpe automatisée (inutiles au massicot).
+    cutter_marks: bool = True
 
     @property
     def width_pt(self) -> float:

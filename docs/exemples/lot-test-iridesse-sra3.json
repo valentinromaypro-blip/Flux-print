@@ -1,0 +1,998 @@
+{
+  "batch_id": "ESSAI-01",
+  "sheet": {
+    "code": "SRA3",
+    "width_mm": 320.0,
+    "height_mm": 450.0,
+    "flip": "short_edge"
+  },
+  "media": "cmdm-350g",
+  "duplex": true,
+  "layout": {
+    "cols": 3,
+    "rows": 6,
+    "rotation": 90,
+    "per_sheet": 18,
+    "description": "18 poses (3 × 6, pivotées 90°) sur SRA3"
+  },
+  "order": "cut_stack",
+  "sheets_count": 7,
+  "impressions": 14,
+  "pieces": 110,
+  "fill_ratio": 0.873,
+  "jobs": [
+    {
+      "job_id": "TEST-1",
+      "copies": 1,
+      "units": 54
+    },
+    {
+      "job_id": "TEST-2",
+      "copies": 1,
+      "units": 54
+    }
+  ],
+  "slots": [
+    {
+      "slot": 1,
+      "trim_mm": [
+        20.65,
+        367.0,
+        109.55,
+        430.5
+      ]
+    },
+    {
+      "slot": 2,
+      "trim_mm": [
+        115.55,
+        367.0,
+        204.45,
+        430.5
+      ]
+    },
+    {
+      "slot": 3,
+      "trim_mm": [
+        210.45,
+        367.0,
+        299.35,
+        430.5
+      ]
+    },
+    {
+      "slot": 4,
+      "trim_mm": [
+        20.65,
+        297.5,
+        109.55,
+        361.0
+      ]
+    },
+    {
+      "slot": 5,
+      "trim_mm": [
+        115.55,
+        297.5,
+        204.45,
+        361.0
+      ]
+    },
+    {
+      "slot": 6,
+      "trim_mm": [
+        210.45,
+        297.5,
+        299.35,
+        361.0
+      ]
+    },
+    {
+      "slot": 7,
+      "trim_mm": [
+        20.65,
+        228.0,
+        109.55,
+        291.5
+      ]
+    },
+    {
+      "slot": 8,
+      "trim_mm": [
+        115.55,
+        228.0,
+        204.45,
+        291.5
+      ]
+    },
+    {
+      "slot": 9,
+      "trim_mm": [
+        210.45,
+        228.0,
+        299.35,
+        291.5
+      ]
+    },
+    {
+      "slot": 10,
+      "trim_mm": [
+        20.65,
+        158.5,
+        109.55,
+        222.0
+      ]
+    },
+    {
+      "slot": 11,
+      "trim_mm": [
+        115.55,
+        158.5,
+        204.45,
+        222.0
+      ]
+    },
+    {
+      "slot": 12,
+      "trim_mm": [
+        210.45,
+        158.5,
+        299.35,
+        222.0
+      ]
+    },
+    {
+      "slot": 13,
+      "trim_mm": [
+        20.65,
+        89.0,
+        109.55,
+        152.5
+      ]
+    },
+    {
+      "slot": 14,
+      "trim_mm": [
+        115.55,
+        89.0,
+        204.45,
+        152.5
+      ]
+    },
+    {
+      "slot": 15,
+      "trim_mm": [
+        210.45,
+        89.0,
+        299.35,
+        152.5
+      ]
+    },
+    {
+      "slot": 16,
+      "trim_mm": [
+        20.65,
+        19.5,
+        109.55,
+        83.0
+      ]
+    },
+    {
+      "slot": 17,
+      "trim_mm": [
+        115.55,
+        19.5,
+        204.45,
+        83.0
+      ]
+    },
+    {
+      "slot": 18,
+      "trim_mm": [
+        210.45,
+        19.5,
+        299.35,
+        83.0
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "sheet": 1,
+      "slots": [
+        {
+          "slot": 1,
+          "job": "TEST-1",
+          "piece": "Séparateur 1/1",
+          "kind": "separator"
+        },
+        {
+          "slot": 2,
+          "job": "TEST-1",
+          "piece": "7 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 3,
+          "job": "TEST-1",
+          "piece": "As de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 4,
+          "job": "TEST-1",
+          "piece": "8 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 5,
+          "job": "TEST-1",
+          "piece": "2 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 6,
+          "job": "TEST-1",
+          "piece": "9 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 7,
+          "job": "TEST-1",
+          "piece": "3 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 8,
+          "job": "TEST-1",
+          "piece": "10 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 9,
+          "job": "TEST-2",
+          "piece": "As de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 10,
+          "job": "TEST-2",
+          "piece": "8 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 11,
+          "job": "TEST-2",
+          "piece": "2 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 12,
+          "job": "TEST-2",
+          "piece": "9 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 13,
+          "job": "TEST-2",
+          "piece": "3 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 14,
+          "job": "TEST-2",
+          "piece": "10 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 15,
+          "job": "TEST-2",
+          "piece": "4 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 16,
+          "job": "TEST-2",
+          "piece": "Valet de trèfle",
+          "kind": "unit"
+        }
+      ]
+    },
+    {
+      "sheet": 2,
+      "slots": [
+        {
+          "slot": 1,
+          "job": "TEST-1",
+          "piece": "As de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 2,
+          "job": "TEST-1",
+          "piece": "8 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 3,
+          "job": "TEST-1",
+          "piece": "2 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 4,
+          "job": "TEST-1",
+          "piece": "9 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 5,
+          "job": "TEST-1",
+          "piece": "3 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 6,
+          "job": "TEST-1",
+          "piece": "10 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 7,
+          "job": "TEST-1",
+          "piece": "4 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 8,
+          "job": "TEST-1",
+          "piece": "Valet de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 9,
+          "job": "TEST-2",
+          "piece": "2 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 10,
+          "job": "TEST-2",
+          "piece": "9 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 11,
+          "job": "TEST-2",
+          "piece": "3 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 12,
+          "job": "TEST-2",
+          "piece": "10 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 13,
+          "job": "TEST-2",
+          "piece": "4 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 14,
+          "job": "TEST-2",
+          "piece": "Valet de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 15,
+          "job": "TEST-2",
+          "piece": "5 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 16,
+          "job": "TEST-2",
+          "piece": "Dame de trèfle",
+          "kind": "unit"
+        }
+      ]
+    },
+    {
+      "sheet": 3,
+      "slots": [
+        {
+          "slot": 1,
+          "job": "TEST-1",
+          "piece": "2 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 2,
+          "job": "TEST-1",
+          "piece": "9 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 3,
+          "job": "TEST-1",
+          "piece": "3 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 4,
+          "job": "TEST-1",
+          "piece": "10 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 5,
+          "job": "TEST-1",
+          "piece": "4 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 6,
+          "job": "TEST-1",
+          "piece": "Valet de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 7,
+          "job": "TEST-1",
+          "piece": "5 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 8,
+          "job": "TEST-1",
+          "piece": "Dame de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 9,
+          "job": "TEST-2",
+          "piece": "3 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 10,
+          "job": "TEST-2",
+          "piece": "10 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 11,
+          "job": "TEST-2",
+          "piece": "4 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 12,
+          "job": "TEST-2",
+          "piece": "Valet de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 13,
+          "job": "TEST-2",
+          "piece": "5 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 14,
+          "job": "TEST-2",
+          "piece": "Dame de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 15,
+          "job": "TEST-2",
+          "piece": "6 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 16,
+          "job": "TEST-2",
+          "piece": "Roi de trèfle",
+          "kind": "unit"
+        }
+      ]
+    },
+    {
+      "sheet": 4,
+      "slots": [
+        {
+          "slot": 1,
+          "job": "TEST-1",
+          "piece": "3 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 2,
+          "job": "TEST-1",
+          "piece": "10 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 3,
+          "job": "TEST-1",
+          "piece": "4 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 4,
+          "job": "TEST-1",
+          "piece": "Valet de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 5,
+          "job": "TEST-1",
+          "piece": "5 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 6,
+          "job": "TEST-1",
+          "piece": "Dame de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 7,
+          "job": "TEST-1",
+          "piece": "6 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 8,
+          "job": "TEST-1",
+          "piece": "Roi de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 9,
+          "job": "TEST-2",
+          "piece": "4 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 10,
+          "job": "TEST-2",
+          "piece": "Valet de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 11,
+          "job": "TEST-2",
+          "piece": "5 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 12,
+          "job": "TEST-2",
+          "piece": "Dame de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 13,
+          "job": "TEST-2",
+          "piece": "6 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 14,
+          "job": "TEST-2",
+          "piece": "Roi de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 15,
+          "job": "TEST-2",
+          "piece": "7 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 16,
+          "job": "TEST-2",
+          "piece": "Joker 1",
+          "kind": "unit"
+        }
+      ]
+    },
+    {
+      "sheet": 5,
+      "slots": [
+        {
+          "slot": 1,
+          "job": "TEST-1",
+          "piece": "4 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 2,
+          "job": "TEST-1",
+          "piece": "Valet de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 3,
+          "job": "TEST-1",
+          "piece": "5 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 4,
+          "job": "TEST-1",
+          "piece": "Dame de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 5,
+          "job": "TEST-1",
+          "piece": "6 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 6,
+          "job": "TEST-1",
+          "piece": "Roi de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 7,
+          "job": "TEST-1",
+          "piece": "7 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 8,
+          "job": "TEST-1",
+          "piece": "Joker 1",
+          "kind": "unit"
+        },
+        {
+          "slot": 9,
+          "job": "TEST-2",
+          "piece": "5 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 10,
+          "job": "TEST-2",
+          "piece": "Dame de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 11,
+          "job": "TEST-2",
+          "piece": "6 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 12,
+          "job": "TEST-2",
+          "piece": "Roi de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 13,
+          "job": "TEST-2",
+          "piece": "7 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 14,
+          "job": "TEST-2",
+          "piece": "As de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 15,
+          "job": "TEST-2",
+          "piece": "8 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 16,
+          "job": "TEST-2",
+          "piece": "Joker 2",
+          "kind": "unit"
+        }
+      ]
+    },
+    {
+      "sheet": 6,
+      "slots": [
+        {
+          "slot": 1,
+          "job": "TEST-1",
+          "piece": "5 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 2,
+          "job": "TEST-1",
+          "piece": "Dame de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 3,
+          "job": "TEST-1",
+          "piece": "6 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 4,
+          "job": "TEST-1",
+          "piece": "Roi de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 5,
+          "job": "TEST-1",
+          "piece": "7 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 6,
+          "job": "TEST-1",
+          "piece": "As de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 7,
+          "job": "TEST-1",
+          "piece": "8 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 8,
+          "job": "TEST-1",
+          "piece": "Joker 2",
+          "kind": "unit"
+        },
+        {
+          "slot": 9,
+          "job": "TEST-2",
+          "piece": "6 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 10,
+          "job": "TEST-2",
+          "piece": "Roi de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 11,
+          "job": "TEST-2",
+          "piece": "7 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 12,
+          "job": "TEST-2",
+          "piece": "As de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 13,
+          "job": "TEST-2",
+          "piece": "8 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 14,
+          "job": "TEST-2",
+          "piece": "2 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 15,
+          "job": "TEST-2",
+          "piece": "9 de trèfle",
+          "kind": "unit"
+        }
+      ]
+    },
+    {
+      "sheet": 7,
+      "slots": [
+        {
+          "slot": 1,
+          "job": "TEST-1",
+          "piece": "6 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 2,
+          "job": "TEST-1",
+          "piece": "Roi de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 3,
+          "job": "TEST-1",
+          "piece": "7 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 4,
+          "job": "TEST-1",
+          "piece": "As de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 5,
+          "job": "TEST-1",
+          "piece": "8 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 6,
+          "job": "TEST-1",
+          "piece": "2 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 7,
+          "job": "TEST-1",
+          "piece": "9 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 8,
+          "job": "TEST-2",
+          "piece": "Séparateur 1/1",
+          "kind": "separator"
+        },
+        {
+          "slot": 9,
+          "job": "TEST-2",
+          "piece": "7 de pique",
+          "kind": "unit"
+        },
+        {
+          "slot": 10,
+          "job": "TEST-2",
+          "piece": "As de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 11,
+          "job": "TEST-2",
+          "piece": "8 de cœur",
+          "kind": "unit"
+        },
+        {
+          "slot": 12,
+          "job": "TEST-2",
+          "piece": "2 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 13,
+          "job": "TEST-2",
+          "piece": "9 de carreau",
+          "kind": "unit"
+        },
+        {
+          "slot": 14,
+          "job": "TEST-2",
+          "piece": "3 de trèfle",
+          "kind": "unit"
+        },
+        {
+          "slot": 15,
+          "job": "TEST-2",
+          "piece": "10 de trèfle",
+          "kind": "unit"
+        }
+      ]
+    }
+  ],
+  "stacks": [
+    {
+      "stack": 1,
+      "count": 7,
+      "first": "TEST-1 · Séparateur 1/1",
+      "last": "TEST-1 · 6 de pique"
+    },
+    {
+      "stack": 2,
+      "count": 7,
+      "first": "TEST-1 · 7 de pique",
+      "last": "TEST-1 · Roi de pique"
+    },
+    {
+      "stack": 3,
+      "count": 7,
+      "first": "TEST-1 · As de cœur",
+      "last": "TEST-1 · 7 de cœur"
+    },
+    {
+      "stack": 4,
+      "count": 7,
+      "first": "TEST-1 · 8 de cœur",
+      "last": "TEST-1 · As de carreau"
+    },
+    {
+      "stack": 5,
+      "count": 7,
+      "first": "TEST-1 · 2 de carreau",
+      "last": "TEST-1 · 8 de carreau"
+    },
+    {
+      "stack": 6,
+      "count": 7,
+      "first": "TEST-1 · 9 de carreau",
+      "last": "TEST-1 · 2 de trèfle"
+    },
+    {
+      "stack": 7,
+      "count": 7,
+      "first": "TEST-1 · 3 de trèfle",
+      "last": "TEST-1 · 9 de trèfle"
+    },
+    {
+      "stack": 8,
+      "count": 7,
+      "first": "TEST-1 · 10 de trèfle",
+      "last": "TEST-2 · Séparateur 1/1"
+    },
+    {
+      "stack": 9,
+      "count": 7,
+      "first": "TEST-2 · As de pique",
+      "last": "TEST-2 · 7 de pique"
+    },
+    {
+      "stack": 10,
+      "count": 7,
+      "first": "TEST-2 · 8 de pique",
+      "last": "TEST-2 · As de cœur"
+    },
+    {
+      "stack": 11,
+      "count": 7,
+      "first": "TEST-2 · 2 de cœur",
+      "last": "TEST-2 · 8 de cœur"
+    },
+    {
+      "stack": 12,
+      "count": 7,
+      "first": "TEST-2 · 9 de cœur",
+      "last": "TEST-2 · 2 de carreau"
+    },
+    {
+      "stack": 13,
+      "count": 7,
+      "first": "TEST-2 · 3 de carreau",
+      "last": "TEST-2 · 9 de carreau"
+    },
+    {
+      "stack": 14,
+      "count": 7,
+      "first": "TEST-2 · 10 de carreau",
+      "last": "TEST-2 · 3 de trèfle"
+    },
+    {
+      "stack": 15,
+      "count": 7,
+      "first": "TEST-2 · 4 de trèfle",
+      "last": "TEST-2 · 10 de trèfle"
+    },
+    {
+      "stack": 16,
+      "count": 5,
+      "first": "TEST-2 · Valet de trèfle",
+      "last": "TEST-2 · Joker 2"
+    }
+  ],
+  "stacking_instructions": "Après coupe, poser la pile 1 sur la pile 2, puis l'ensemble sur la pile 3, etc. : la séquence des commandes est reconstituée, séparateurs compris.",
+  "pdfx4": true,
+  "output_condition": "FOGRA51",
+  "press": "Xerox Iridesse Production Press"
+}

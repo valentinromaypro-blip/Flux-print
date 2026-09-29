@@ -13,6 +13,10 @@
 | D9 | 2026-09-29 | Presses : **Xerox Iridesse**. | Profil `config/presses/xerox-iridesse.toml` : SRA3, retournement recto/verso, encres spéciales (or, argent, blanc, vernis, rose fluo) acceptées par le preflight. |
 | D10 | 2026-09-29 | Sortie : **SRA3 32 × 45 préimposé**, PDF/X-4, **CMJN FOGRA51** (PSO Coated v3), **traits de coupe et fond perdu de 3 mm** pour tous les formats. | Conversion RVB → CMJN maison (LittleCMS), OutputIntent incorporé, fond perdu imposé à 3 mm par la configuration. |
 | D11 | 2026-09-29 | **Coins arrondis** : opération de façonnage séparée (manuelle puis automatisée). | Aucun tracé de découpe dans le PDF de production ; le rayon reste indiqué sur les gabarits clients (zone de sécurité). |
+| D12 | 2026-09-29 | Iridesse pilotée par un **Fiery**, **retournement petit côté**, **aucune encre spéciale** pour l'instant, **coupe au massicot**. | `xerox-iridesse.toml` mis à jour ; carrés de repérage pour la découpe automatique désactivés ; traits de coupe « en bordure » (adaptés au massicot). |
+| D13 | 2026-09-29 | Supports cartes : **350 g cmdm** (défaut) ou **carte graphique 300 g**. Formats poker et bridge validés. Étui : plusieurs options à venir. | `media_options` dans les fiches produit ; deux supports différents ne partagent jamais une feuille. |
+| D14 | 2026-09-29 | Profil **PSO Coated v3 (FOGRA51)** fourni et versionné dans `config/icc/`. | Les lots sortent en PDF/X-4 avec OutputIntent FOGRA51. Lot d'essai : `docs/exemples/lot-test-iridesse-sra3.pdf`. |
+| D15 | 2026-09-29 | Site : design et UX de référence actuels ; **Cloudflare + Supabase**. | Voir l'architecture web (à venir). |
 
 ## Politique de licences (conséquence de D5)
 

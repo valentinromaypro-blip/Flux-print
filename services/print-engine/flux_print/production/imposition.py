@@ -301,9 +301,11 @@ def _marks(layout: Layout, sheets: list[list[Piece | None]], duplex: bool, batch
             occupied = [slot for slot, piece in zip(layout.slots, sheets[s]) if piece is not None]
             _per_piece_marks(c, occupied, length)
         c.setFillColor(BLACK)
-        size, inset = mm_to_pt(3), mm_to_pt(sheet.margin_mm / 2) - mm_to_pt(1.5)
-        for x, y in ((inset, inset), (W - inset - size, inset), (inset, H - inset - size), (W - inset - size, H - inset - size)):
-            c.rect(x, y, size, size, stroke=0, fill=1)
+        if sheet.cutter_marks:
+            size, inset = mm_to_pt(3), mm_to_pt(sheet.margin_mm / 2) - mm_to_pt(1.5)
+            for x, y in ((inset, inset), (W - inset - size, inset), (inset, H - inset - size),
+                         (W - inset - size, H - inset - size)):
+                c.rect(x, y, size, size, stroke=0, fill=1)
         _sheet_label(c, sheet, f"{batch_id}|{s + 1}|R", f"Lot {batch_id} · feuille {s + 1}/{n_sheets} · RECTO · "
                      f"{spec.media} · {layout.describe()} · {press_info}")
         c.showPage()

@@ -82,6 +82,7 @@ def load_press(code: str) -> PressProfile:
             height_mm=float(s["height_mm"]),
             margin_mm=float(s.get("reserved_margin_mm", 10.0)),
             flip=flip,
+            cutter_marks=bool(data.get("cutter_marks", True)),
         )
         for s in data["sheets"]
     }
@@ -135,15 +136,30 @@ def list_products() -> list[str]:
     return sorted(p.stem for p in (config_dir() / "products").glob("*.toml"))
 
 
-def load_product(code: str, press: PressProfile | None = None, **overrides: Any) -> DocumentSpec:
-    """Construit la spec d'un produit ; la presse fournit les encres spéciales acceptées."""
+def media_options(code: str) -> list[str]:
     data = _read(config_dir() / "products" / f"{code}.toml")
+    return list(data.get("media_options", [data.get("media", "default")]))
+
+
+def load_product(
+    code: str, press: PressProfile | None = None, media: str | None = None, **overrides: Any
+) -> DocumentSpec:
+    """Construit la spec d'un produit ; la presse fournit les encres spéciales acceptées.
+
+    `media` choisit le support parmi `media_options` (le premier par défaut). Le support
+    fait partie de la clé d'amalgame : deux supports ne partagent jamais une feuille.
+    """
+    data = _read(config_dir() / "products" / f"{code}.toml")
+    options = list(data.get("media_options", [data.get("media", "default")]))
+    media = media or options[0]
+    if media not in options:
+        raise ValueError(f"{code} : support {media!r} non proposé ({', '.join(options)}).")
     params = {**data.get("params", {}), **overrides}
     policy = PreflightPolicy(**data.get("preflight", {}))
     if press is not None:
         policy = dataclasses.replace(policy, allowed_spot_names=press.specialty_inks)
     builder = PRODUCT_TYPES[data["type"]]
-    spec = builder(params, data.get("media", "default"), policy)
+    spec = builder(params, media, policy)
     if spec.bleed_mm != DEFAULT_BLEED_MM and not data.get("allow_custom_bleed", False):
         raise ValueError(f"{code} : fond perdu de {spec.bleed_mm} mm, la règle atelier est {DEFAULT_BLEED_MM} mm.")
     return dataclasses.replace(spec, code=data["code"], label=data.get("label", spec.label))
