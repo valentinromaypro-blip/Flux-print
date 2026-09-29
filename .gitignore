@@ -3,3 +3,5 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 var/
+apps/static-demo/dist/
+apps/static-demo/*.zip

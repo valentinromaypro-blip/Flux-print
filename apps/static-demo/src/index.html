@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Carte Blanche · Jeux de cartes personnalisés</title>
+  <meta name="description" content="Démo Carte Blanche : jeux de cartes et oracles personnalisés, contrôle du fichier en direct, aperçu avant paiement.">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/vendor/pdf-lib.min.js"></script>
+  <script type="module" src="assets/app.js"></script>
+</head>
+<body>
+  <div class="demo-banner">Version démo : le contrôle des fichiers est simplifié, rien n'est envoyé ni débité, tout reste dans votre navigateur.</div>
+  <div class="announce">Imprimé et façonné dans notre atelier en France · Vous voyez vos cartes avant de payer</div>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="logo" href="#/">Carte <span>Blanche</span></a>
+      <nav class="menu" aria-label="Navigation principale">
+        <a href="#/">Nos jeux</a>
+        <a href="#/creer/oracle">Oracles</a>
+        <a href="#/atelier">Atelier</a>
+      </nav>
+      <div class="tools"><a class="cart-link" href="#/panier">Panier<b id="cart-count">0</b></a></div>
+    </div>
+  </header>
+  <main id="app" tabindex="-1"><p class="container muted" style="padding-block:40px">Chargement…</p></main>
+  <footer class="site-footer">
+    <div class="container">
+      <div class="foot">
+        <div><span class="logo">Carte <span>Blanche</span></span>
+          <p class="muted" style="margin-top:12px;max-width:34ch">Jeux de cartes et oracles personnalisés, imprimés et façonnés dans notre atelier en France.</p></div>
+        <div><h4>Nos jeux</h4><ul><li><a href="#/creer/jeu-poker-54">Jeu classique</a></li><li><a href="#/creer/jeu-poker-54-dos-individuels">Jeu photo</a></li><li><a href="#/creer/oracle">Oracle</a></li><li><a href="#/creer/jeu-poker-32">Belote</a></li></ul></div>
+        <div><h4>Aide</h4><ul><li><a href="#/panier">Mon panier</a></li><li><a href="exemples/jeu-54-carte-blanche.pdf">Fichier de test : jeu</a></li><li><a href="exemples/oracle-30-tarot.pdf">Fichier de test : oracle</a></li><li><a href="exemples/jeu-54-a-corriger.pdf">Fichier de test : à corriger</a></li></ul></div>
+        <div><h4>Démo</h4><ul><li><a href="#/atelier">Atelier (SRA3)</a></li><li><button class="link" id="reset-demo" type="button">Effacer les données de démo</button></li></ul></div>
+      </div>
+      <div class="legal"><span>© 2026 Carte Blanche · prix fictifs</span><span>Paiement simulé</span></div>
+    </div>
+  </footer>
+</body>
+</html>
