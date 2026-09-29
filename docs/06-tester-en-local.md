@@ -41,7 +41,12 @@ Vous pouvez bien sûr tester avec vos propres fichiers : téléchargez le gabari
 4. **Fichier fautif** : sur le jeu classique, déposez `jeu-54-a-corriger.pdf`. Lisez les messages, puis « Déposer un fichier corrigé ».
 5. **Panier** : adresse, puis **Payer**. Sur la page de paiement de test, « Simuler un paiement accepté ».
 6. **Suivi de commande** : l'étape « Fichiers préparés pour l'impression » passe au vert quand le lot est créé.
-7. **Atelier** : http://localhost:3000/admin — identifiant au choix, mot de passe **atelier**.
+7. **Atelier** : http://localhost:3000/admin — identifiant au choix, mot de passe **atelier**. Le tableau de bord de pilotage : chiffre d'affaires, flux de production étape par étape, liste « À faire » (lots à imprimer, commandes à expédier, erreurs à relancer, clients à relancer), charge de la presse par carton, commandes et lots SRA3.
+
+   Pour le voir rempli avant d'avoir de vraies commandes, chargez 30 jours d'activité fictive :
+   ```bash
+   docker compose exec db psql -U postgres -d flux -f /flux/supabase/seed/demo.sql
+   ```
    - « Lancer un lot maintenant » crée tout de suite les feuilles SRA3. Sans ce bouton, un lot part automatiquement quand les feuilles sont remplies à 90 %, ou après 24 h d'attente, ou pour une commande urgente.
    - Rechargez la page : téléchargez le **PDF SRA3** et son **manifeste**. Le jeu et l'oracle forment deux lots différents (formats différents), chacun avec son séparateur de commande.
 
