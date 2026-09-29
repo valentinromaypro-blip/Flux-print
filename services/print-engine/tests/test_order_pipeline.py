@@ -268,3 +268,29 @@ def test_batch_request_from_back_office(db, files, tmp_path):
     assert db.item(item["id"])["status"] == "batched"
     req = db.conn.execute("select * from public.batch_requests").fetchone()
     assert req["handled_at"] and len(req["result"]["batches"]) == 1
+
+
+def test_online_design_rendered_checked_and_batched(db, files, tmp_path):
+    from PIL import Image
+
+    photo = tmp_path / "papa.jpg"
+    Image.new("RGB", (900, 1200), (180, 120, 90)).save(photo)
+    files.upload("uploads", "sessions/s1/photos/papa.jpg", photo, "image/jpeg")
+    design = {"back": {"color": "#1C2440", "ink": "#E8D6B0", "title": "J & M", "subtitle": "2027"},
+              "courts": {"H-K": {"name": "Papa", "photo": {"path": "sessions/s1/photos/papa.jpg", "zoom": 1.2}}}}
+    order = db.create_order("design@example.fr")
+    item = db.add_item(order["id"], "jeu-poker-54", "cmdm-350g", 1, None, design=design)
+    db.mark_paid(order["id"], "test")
+    Worker(db, files, _settings()).run_once(force_batches=True)
+    item = db.item(item["id"])
+    assert item["source_path"] == f"rendered/{item['id']}.pdf"
+    assert item["status"] == "batched", item["preflight_report"]
+    assert [p.rsplit("/", 1)[-1] for p in item["preview_paths"]] == ["p1.png", "p27.png"]  # dos + Roi de cœur
+
+
+def test_invalid_design_fails_cleanly(db, files, tmp_path):
+    order = db.create_order("x@example.fr")
+    item = db.add_item(order["id"], "jeu-poker-54", "cmdm-350g", 1, None, design={"back": {"color": "rouge"}})
+    Worker(db, files, _settings()).check_uploads()
+    item = db.item(item["id"])
+    assert item["status"] == "failed" and "Couleur invalide" in item["error"]

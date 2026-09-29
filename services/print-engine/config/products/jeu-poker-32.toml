@@ -4,6 +4,8 @@ label = "Jeu de 32 cartes poker (belote), dos commun"
 # Supports proposés ; le premier est celui par défaut.
 media_options = ["cmdm-350g", "carte-graphique-300g"]
 
+editor = "playing_cards"  # création en ligne possible
+
 [params]
 format = "poker"
 deck = "32"

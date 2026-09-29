@@ -45,9 +45,17 @@ Vous pouvez bien sûr tester avec vos propres fichiers : téléchargez le gabari
    - « Lancer un lot maintenant » crée tout de suite les feuilles SRA3. Sans ce bouton, un lot part automatiquement quand les feuilles sont remplies à 90 %, ou après 24 h d'attente, ou pour une commande urgente.
    - Rechargez la page : téléchargez le **PDF SRA3** et son **manifeste**. Le jeu et l'oracle forment deux lots différents (formats différents), chacun avec son séparateur de commande.
 
-## 4. Ce que la démonstration ne montre pas encore
+## 4. Création en ligne (sans fichier)
 
-- La **création en ligne sans fichier** (visage sur le Roi, prénoms) : annoncée « bientôt » sur le site.
+Sur « Le jeu classique » ou « Le jeu de belote », onglet **Créer en ligne** :
+- **Dos** : couleur, texte principal, texte secondaire, photo (zoom et position) ;
+- **Figures** : pour chacun des 12 Rois, Dames et Valets, un prénom et une photo recadrée. Les figures sans photo gardent leur portrait illustré ;
+- **Valider** : le moteur fabrique les 55 cartes en qualité d'impression (environ 20 s), les contrôle et affiche le vrai rendu du dos et de la première figure personnalisée.
+
+Après une mise à jour du projet, relancez avec `docker compose down -v` puis `docker compose up --build` : la base est recréée avec les nouvelles tables.
+
+## 5. Ce que la démonstration ne montre pas encore
+
 - Les **vrais paiements** Stripe ou Revolut : ils nécessitent vos clés en mode test.
 - Les **e-mails** de confirmation et la **livraison**.
 - Le **dépôt automatique dans le Fiery** : à faire depuis l'atelier (`flux-print dispatch`).

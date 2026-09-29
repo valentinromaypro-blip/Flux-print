@@ -36,6 +36,6 @@ def publish_catalog(db: Database, files: FileStore) -> list[str]:
         shop = data.get("shop", {})
         db.upsert_product(code, spec.label if not shop else shop.get("title", spec.label), media_options(code),
                           spec.page_count, shop=shop, options=options, media=media, templates=templates,
-                          active=bool(shop))
+                          active=bool(shop), editor=data.get("editor"))
         published.append(code)
     return published

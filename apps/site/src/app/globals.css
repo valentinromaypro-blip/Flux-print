@@ -148,7 +148,7 @@ button, input, select { font: inherit; color: inherit; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
 .previews { display: flex; gap: 12px; flex-wrap: wrap; }
-.previews img { width: 130px; border-radius: 8px; box-shadow: 0 10px 24px -12px rgba(0,0,0,.45); background: #fff; }
+.previews img { width: 170px; border-radius: 8px; box-shadow: 0 10px 24px -12px rgba(0,0,0,.45); background: #fff; }
 .row-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .soon { font-size: 14px; color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; padding: 12px 14px; }
 

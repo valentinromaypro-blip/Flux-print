@@ -119,10 +119,33 @@ class Worker:
                 self._fail(item, "check", exc)
         return len(items)
 
+    def _render_design(self, item: dict, tmp: Path) -> Path:
+        """Création en ligne : fabrique le PDF du client à partir de son design, puis le range comme un dépôt."""
+        from PIL import Image
+
+        from ..config import product_data
+        from ..design.render import render_playing_cards, validate_design
+
+        deck = str(product_data(item["product_code"])["params"]["deck"])
+        design = validate_design(item["design"], deck)
+
+        def load(path: str) -> Image.Image:
+            local = self.files.download("uploads", path, tmp / f"photo-{abs(hash(path))}")
+            return Image.open(local)
+
+        pdf = render_playing_cards(design, deck, tmp / "design.pdf", load)
+        path = f"rendered/{item['id']}.pdf"
+        self.files.upload("uploads", path, pdf, "application/pdf")
+        self.db.update_item(item["id"], source_path=path)
+        item["source_path"] = path
+        return pdf
+
     def _check(self, item: dict) -> None:
         spec = self.spec_for(item)
         order = self.db.order(item["order_id"])
         with tempfile.TemporaryDirectory(prefix="flux-check-") as tmp:
+            if item.get("design") and not item.get("source_path"):
+                self._render_design(item, Path(tmp))
             src = self.files.download("uploads", item["source_path"], Path(tmp) / "source.pdf")
             icc = self.press.output.icc_path if self.press.output.available else None
             report = run_preflight(src, spec, measure_ink=self.settings.measure_ink, output_icc=icc)
@@ -135,9 +158,16 @@ class Worker:
     def _previews(self, pdf: Path, item: dict, order: dict, tmp: Path) -> list[str]:
         owner = str(order["customer_id"]) if order.get("customer_id") else "invites"
         doc = pdfium.PdfDocument(str(pdf))
+        pages = list(range(min(self.settings.preview_pages, len(doc))))
+        if item.get("design"):
+            from ..config import product_data
+            from ..design.render import preview_pages, validate_design
+
+            deck = str(product_data(item["product_code"])["params"]["deck"])
+            pages = [p - 1 for p in preview_pages(validate_design(item["design"], deck), deck) if p <= len(doc)]
         paths = []
         try:
-            for index in range(min(self.settings.preview_pages, len(doc))):
+            for index in pages:
                 page = doc[index]
                 scale = self.settings.preview_width_px / page.get_width()
                 image = page.render(scale=scale).to_pil()

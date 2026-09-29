@@ -30,6 +30,7 @@ export type Product = {
   options: Record<string, OptionSpec>;
   media: { code: string; label: string; description: string }[];
   templates: Record<string, string>;
+  editor: string | null;
 };
 
 export type ItemStatus =

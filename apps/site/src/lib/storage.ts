@@ -27,18 +27,19 @@ async function localFile(bucket: string, path: string) {
 }
 
 /** Adresse où le navigateur envoie directement le fichier (sans passer par le serveur en production). */
-export async function uploadTarget(bucket: string, path: string, localToken: string): Promise<UploadTarget> {
+export async function uploadTarget(bucket: string, path: string, localToken: string,
+  contentType = "application/pdf"): Promise<UploadTarget> {
   const m = mode();
   if (m.kind === "local") {
     return { url: `/api/uploads/local?path=${encodeURIComponent(path)}&token=${localToken}`, method: "PUT",
-      headers: { "Content-Type": "application/pdf" } };
+      headers: { "Content-Type": contentType } };
   }
   const res = await fetch(`${m.url}/storage/v1/object/upload/sign/${bucket}/${safePath(path)}`, {
     method: "POST", headers: { Authorization: `Bearer ${m.key}`, apikey: m.key },
   });
   if (!res.ok) throw new Error(`Supabase Storage : ${res.status}`);
   const { url } = (await res.json()) as { url: string };
-  return { url: `${m.url}/storage/v1${url}`, method: "PUT", headers: { "Content-Type": "application/pdf" } };
+  return { url: `${m.url}/storage/v1${url}`, method: "PUT", headers: { "Content-Type": contentType } };
 }
 
 export async function putLocal(bucket: string, path: string, body: ReadableStream<Uint8Array>, maxBytes: number) {

@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Editor from "@/components/Editor";
+import type { Design } from "@/lib/design.ts";
 import { formatEuros, priceFor } from "@/lib/pricing.ts";
 import type { CustomerMessage } from "@/lib/report.ts";
 import type { Product } from "@/lib/types.ts";
@@ -30,6 +32,7 @@ export default function Configurator({ product }: { product: Product }) {
   const [error, setError] = useState("");
   const [item, setItem] = useState<ItemView | null>(null);
   const [over, setOver] = useState(false);
+  const [mode, setMode] = useState<"editor" | "upload">(product.editor ? "editor" : "upload");
   const input = useRef<HTMLInputElement>(null);
   const locked = phase !== "idle" && phase !== "error";
 
@@ -75,6 +78,19 @@ export default function Configurator({ product }: { product: Product }) {
       const out = await created.json();
       if (!created.ok) throw new Error(out.error);
       setPhase("checking");
+      poll(out.id);
+    } catch (e) {
+      setPhase("error"); setError((e as Error).message);
+    }
+  }
+
+  async function submitDesign(design: Design) {
+    setError(""); setItem(null); setPhase("checking");
+    try {
+      const created = await fetch("/api/cart/items", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product: product.code, media, options, copies, design }) });
+      const out = await created.json();
+      if (!created.ok) throw new Error(out.error);
       poll(out.id);
     } catch (e) {
       setPhase("error"); setError((e as Error).message);
@@ -164,13 +180,27 @@ export default function Configurator({ product }: { product: Product }) {
         </div>
 
         <div className="block">
-          <h2>Votre fichier<small>PDF de {pages} pages</small></h2>
+          <h2>{mode === "editor" ? "Votre jeu" : "Votre fichier"}{mode === "upload" && <small>PDF de {pages} pages</small>}</h2>
+          {product.editor && (phase === "idle" || phase === "error") && (
+            <div className="chips" role="tablist">
+              <button className="chip" role="tab" aria-pressed={mode === "editor"} onClick={() => setMode("editor")}>Créer en ligne</button>
+              <button className="chip" role="tab" aria-pressed={mode === "upload"} onClick={() => setMode("upload")}>J&apos;ai mon fichier PDF</button>
+            </div>
+          )}
+          {mode === "editor" && (phase === "idle" || phase === "error") && (
+            <>
+              <Editor product={product.code} disabled={false} onSubmit={submitDesign} />
+              {error && <p className="error-text">{error}</p>}
+            </>
+          )}
+          {mode === "upload" && (
           <p className="hint">
             Partez de notre gabarit : il contient le fond perdu, la zone de sécurité et l&apos;ordre des pages.{" "}
             <a className="link" href={`/api/templates/${product.code}/${format}`}>Télécharger le gabarit</a>
           </p>
+          )}
 
-          {phase === "idle" || phase === "error" ? (
+          {mode === "editor" && (phase === "idle" || phase === "error") ? null : phase === "idle" || phase === "error" ? (
             <>
               <div className={`dropzone${over ? " over" : ""}`} role="button" tabIndex={0}
                 onClick={() => input.current?.click()} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && input.current?.click()}
@@ -181,7 +211,7 @@ export default function Configurator({ product }: { product: Product }) {
                 <input ref={input} id="file" type="file" accept="application/pdf" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
               </div>
               {error && <p className="error-text">{error}</p>}
-              <div className="soon">Pas de logiciel de graphisme ? La création en ligne, sans fichier, arrive bientôt.</div>
+              {!product.editor && <div className="soon">Pas de logiciel de graphisme ? La création en ligne arrive bientôt sur ce produit.</div>}
             </>
           ) : (
             <div className="check" aria-live="polite">
@@ -189,7 +219,9 @@ export default function Configurator({ product }: { product: Product }) {
                 <><p><span className="spinner" />Envoi de {file?.name} · {progress} %</p>
                   <div className="progress"><i style={{ width: `${progress}%` }} /></div></>
               )}
-              {phase === "checking" && <p><span className="spinner" />Contrôle de votre fichier : format, fond perdu, images, polices…</p>}
+              {phase === "checking" && <p><span className="spinner" />{mode === "editor"
+                ? "Fabrication de vos 55 cartes en qualité d'impression, puis contrôle… (environ 20 secondes)"
+                : "Contrôle de votre fichier : format, fond perdu, images, polices…"}</p>}
               {item?.messages.map((m, i) => (
                 <div className={`msg ${m.level}`} key={i}>
                   <b>{m.title}</b><span>{m.help}</span>
