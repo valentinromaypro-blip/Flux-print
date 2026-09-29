@@ -67,5 +67,7 @@ Le fichier : `dist/carte-blanche.zip` (fabriqué par `wordpress/build.sh`, envir
 
 Rien n'est écrasé : relançable sans doublon. La page liste ensuite les champs **[à compléter]** (surlignés en jaune dans les pages) : SIRET, délais, contact…
 
-Thème conseillé : **Kadence** (menus classiques, rapide). Avec un thème en blocs (Twenty Twenty-Five), le pied de page du thème est à modifier dans Apparence → Éditeur.
+**Le thème Carte Blanche** (`dist/carte-blanche-theme.zip`) reproduit le design du site : couleurs, polices hébergées sur le site, en-tête, pied de page, accueil. Admin du réseau → **Thèmes → Ajouter → Téléverser** → installer, puis **Activer pour le réseau** (cela le rend seulement disponible) ; sur le site carteblanche : **Apparence → Thèmes → Activer**. Tout se modifie ensuite dans **Apparence → Éditeur**.
+
+**Mise à jour** : relancer **Mise en place** après une nouvelle version du plugin. Les pages et produits jamais modifiés depuis leur création sont mis à jour ; ceux que vous avez modifiés sont laissés tels quels.
 

@@ -91,7 +91,7 @@ final class CB_Admin
         if ($log && isset($_GET['done'])) {
             echo '<h2>Ce qui vient d’être fait</h2><table class="widefat striped" style="max-width:960px"><tbody>';
             foreach ($log as [$status, $what, $id]) {
-                $color = ['créé' => '#1e7a4f', 'réglé' => '#2271b1', 'existant' => '#646970', 'ignoré' => '#c4172c'][$status] ?? '#000';
+                $color = ['créé' => '#1e7a4f', 'mis à jour' => '#1e7a4f', 'réglé' => '#2271b1', 'existant' => '#646970', 'ignoré' => '#c4172c'][$status] ?? '#000';
                 printf('<tr><td style="width:90px;color:%s;font-weight:600">%s</td><td>%s%s</td></tr>', $color, esc_html($status), esc_html($what), $edit($id));
             }
             echo '</tbody></table>';

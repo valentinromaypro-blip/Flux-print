@@ -38,24 +38,66 @@ return [
     'accueil' => [
         'title' => 'Jeu de cartes personnalisé avec vos photos',
         'slug' => 'accueil',
+        'focus' => 'jeu de cartes personnalisé',
         'seo_title' => 'Jeu de cartes personnalisé avec vos photos, imprimé en France | %site%',
-        'seo_desc' => 'Créez votre jeu de cartes personnalisé en ligne : vos visages sur les rois, dames et valets, un dos à votre image. Jeu de 54 cartes ou de belote, imprimé dans notre atelier.',
+        'seo_desc' => 'Créez votre jeu de cartes personnalisé en ligne : vos visages sur les rois, dames et valets, un dos à votre image. Jeu de 54 cartes, belote, bridge, oracle, imprimés dans notre atelier.',
         'content' => B::join([
+            // Accroche
             B::columns([
                 [
-                    B::p('Vos proches deviennent les rois, les dames et les valets. Créez en quelques minutes un <strong>jeu de cartes personnalisé</strong> avec vos photos et un dos à votre image, imprimé dans notre atelier.', false, true),
-                    B::buttons([['Créer mon jeu', $pr('jeu-54')], ['Comment ça marche', $u('comment-ca-marche'), true]]),
+                    B::h('Votre jeu de cartes personnalisé. <em>Vos règles.</em>', 1),
+                    B::p('Jeux de cartes, jeux de famille et oracles à votre image : vos visages sur les figures, votre dos, votre fichier. Vous voyez tout avant de payer.', false, false, 'cb-sub'),
+                    B::buttons([['Créer mon jeu →', $pr('jeu-54'), 'red'], ['Voir comment ça marche', $u('comment-ca-marche'), true]]),
+                    B::ul(['Contrôle du fichier en direct', 'Carton 350 g', 'Fabriqué en France'], 'cb-promise'),
                 ],
-                [B::image($img('hero'), 'Jeu de cartes personnalisé : dos personnalisés et figures roi et dame')],
-            ], true),
-            B::h('Comment créer votre jeu de cartes photo', 2, true),
-            $steps,
+                [B::image($img('scene-hero'), 'Éventail de cartes Carte Blanche sur un tapis vert, avec leur étui')],
+            ], true, true, 'cb-hero', ['42%', '58%']),
+
+            // Les jeux
+            B::group([
+                B::h('Choisissez votre jeu'),
+                B::p('Tout se personnalise ensuite : carton, dos, figures, nombre de cartes.'),
+            ], 'cb-head', null, null, '', 'flow'),
+            '<!-- wp:html --><span id="jeux"></span><!-- /wp:html -->',
+            B::group([B::shortcode('[products limit="6" columns="3" category="jeux-de-cartes-personnalises" orderby="menu_order" order="ASC"]')], 'cb-products', null, null, '', 'flow'),
+
+            // Oracle
+            B::group([
+                B::columns([
+                    [B::image($img('scene-oracle'), 'Cartes oracle au format tarot : la Lune, le Soleil, l’Étoile')],
+                    [B::group([
+                        B::h('Votre oracle, de 22 à 100 cartes'),
+                        B::p('Format tarot ou poker, chaque carte unique. Envoyez votre fichier : le nombre de cartes est détecté et le prix s’ajuste.', false, false, 'cb-muted'),
+                        B::buttons([['Créer mon oracle', $pr('oracle')]]),
+                    ], 'cb-text', null, null, '', 'flow', '')],
+                ], true, false, '', ['58%', '42%']),
+            ], 'cb-feature', 'stone', null, '', 'flow'),
+
+            // Occasions
+            '<!-- wp:html --><span id="occasions"></span><!-- /wp:html -->',
+            B::h('Pour chaque occasion', 2, false, true),
+            B::columns([
+                [B::image($img('occ-mariage'), 'Dos de carte personnalisé pour un mariage', $u('mariage'), 'Mariage')],
+                [B::image($img('occ-anniversaire'), 'Dos de carte personnalisé pour un anniversaire', $u('famille'), 'Anniversaire')],
+                [B::image($img('occ-evjf'), 'Dos de carte personnalisé pour un EVJF', $pr('jeu-54'), 'EVJF')],
+                [B::image($img('occ-entreprise'), 'Dos de carte personnalisé pour une entreprise', $u('entreprise'), 'Entreprise')],
+            ], false, true, 'cb-occasions'),
+
+            // Étapes
+            B::h('Trois étapes, et vous voyez tout avant de payer', 2, false, true),
+            B::columns([
+                [B::image($img('scene-etui'), ''), B::h('1. Choisissez', 3), B::p('Le jeu, le carton et le dos : couleurs, prénom, date, logo ou photo en fond.')],
+                [B::image($img('scene-detail'), ''), B::h('2. Personnalisez', 3), B::p('Vos visages détourés automatiquement sur les figures, ou votre propre PDF, contrôlé en quelques secondes.')],
+                [B::image($img('scene-famille'), ''), B::h('3. Vérifiez et commandez', 3), B::p('Vous voyez vos cartes imprimées avant de payer. Nous les fabriquons dans notre atelier.')],
+            ], false, true, 'cb-steps'),
+
+            // Contenu pour le référencement
             B::h('Vos visages sur les figures', 2, false, true),
             B::columns([
                 [B::image($img('figures'), 'Roi, dame et valet de cœur d’un jeu de cartes classique')],
                 [
                     B::p('Les douze figures d’un jeu classique (roi, dame et valet de pique, cœur, carreau et trèfle) peuvent recevoir chacune un visage différent. La tête est détourée automatiquement et placée <strong>en haut et en bas</strong> de la carte, comme sur un vrai jeu.'),
-                    B::p('Vous ajustez la taille et la position de chaque visage, puis vous choisissez le rendu : <strong>photo couleur</strong> ou <strong>gravure bleue</strong>, dans l’esprit des jeux anciens.'),
+                    B::p('Vous ajustez la taille et la position de chaque visage, puis vous choisissez le rendu : <strong>photo couleur</strong> ou <strong>gravure bleue</strong>, dans l’esprit des jeux anciens. Vos photos restent sur votre ordinateur : seules les cartes finales nous sont envoyées.'),
                 ],
             ], true),
             B::h('Un dos de cartes à votre image', 2, false, true),
@@ -66,19 +108,23 @@ return [
                 ],
                 [B::image($img('dos'), 'Quatre modèles de dos de cartes personnalisés')],
             ], true),
-            B::section([B::h('Nos jeux personnalisés', 2, true), B::shortcode('[products limit="4" columns="2" category="jeux-de-cartes-personnalises"]')], '#F3EFE7'),
-            B::h('Imprimé dans notre atelier', 2),
-            B::p('Nous sommes imprimeurs. Chaque jeu est imprimé en numérique haute définition sur une presse Xerox Iridesse, sur carton couché mat 350 g, puis coupé et assemblé dans notre atelier. <a href="' . $u('atelier') . '">Découvrir l’atelier</a>.'),
-            B::h('Une idée de cadeau personnalisé', 2),
+            B::h('Imprimé dans notre atelier'),
+            B::p('Nous sommes imprimeurs. Chaque jeu est imprimé en numérique haute définition sur une presse Xerox Iridesse, sur carton couché mat 350 g ou carte graphique 300 g, puis coupé et assemblé dans notre atelier. <a href="' . $u('atelier') . '">Découvrir l’atelier</a>.'),
+            B::h('Une idée de cadeau personnalisé'),
             B::ul([
                 '<a href="' . $u('famille') . '">Un jeu de cartes photo pour la famille</a> : les grands-parents en roi et en dame, les petits-enfants en valets.',
                 '<a href="' . $u('mariage') . '">Un jeu de cartes de mariage</a> : les mariés, les témoins, et la date sur le dos.',
                 '<a href="' . $pr('belote') . '">Un jeu de belote personnalisé</a> pour les parties entre amis.',
             ]),
-            B::h('Questions fréquentes', 2),
+            B::h('Questions fréquentes'),
             $faq($faq_common),
             B::p('<a href="' . $u('faq') . '">Toutes les questions</a>'),
-            $cta(),
+
+            // Bandeau final
+            B::group([
+                B::h('Donnez-vous carte blanche.'),
+                B::buttons([['Créer mon jeu →', $pr('jeu-54'), 'light']]),
+            ], 'cb-cta', 'felt', 'paper', 'clamp(32px, 5vw, 64px)', 'flow'),
         ]),
     ],
 
@@ -86,6 +132,7 @@ return [
     'comment-ca-marche' => [
         'title' => 'Comment créer son jeu de cartes personnalisé',
         'slug' => 'comment-ca-marche',
+        'focus' => 'créer son jeu de cartes',
         'seo_title' => 'Comment créer son jeu de cartes personnalisé en ligne | %site%',
         'seo_desc' => 'Créer un jeu de cartes personnalisé en 3 étapes : choisir le dos, ajouter les visages sur les figures, valider. Ou déposer votre propre fichier PDF.',
         'content' => B::join([
@@ -114,6 +161,7 @@ return [
     'atelier' => [
         'title' => 'Notre atelier d’impression',
         'slug' => 'atelier',
+        'focus' => 'impression jeu de cartes',
         'seo_title' => 'Notre atelier d’impression de jeux de cartes | %site%',
         'seo_desc' => 'Vos jeux de cartes personnalisés sont imprimés dans notre atelier sur une presse numérique Xerox Iridesse, sur carton couché mat 350 g, puis coupés et contrôlés à la main.',
         'content' => B::join([
@@ -140,6 +188,7 @@ return [
     'entreprise' => [
         'title' => 'Jeu de cartes personnalisé pour entreprise',
         'slug' => 'jeu-de-cartes-personnalise-entreprise',
+        'focus' => 'jeu de cartes personnalisé entreprise',
         'seo_title' => 'Jeu de cartes personnalisé avec logo pour entreprise | %site%',
         'seo_desc' => 'Jeux de cartes publicitaires avec votre logo : cadeau client, séminaire, goodies. Dos à vos couleurs, figures avec les visages de l’équipe. Devis pour les quantités.',
         'content' => B::join([
@@ -176,6 +225,7 @@ return [
     'famille' => [
         'title' => 'Jeu de cartes photo de famille',
         'slug' => 'jeu-de-cartes-photo-famille',
+        'focus' => 'jeu de cartes photo',
         'seo_title' => 'Jeu de cartes photo de famille : le cadeau personnalisé | %site%',
         'seo_desc' => 'Offrez un jeu de cartes photo avec toute la famille : grands-parents en rois et dames, enfants en valets. Un cadeau personnalisé pour Noël, un anniversaire ou la fête des grands-mères.',
         'content' => B::join([
@@ -195,6 +245,7 @@ return [
     'mariage' => [
         'title' => 'Jeu de cartes personnalisé pour un mariage',
         'slug' => 'jeu-de-cartes-mariage',
+        'focus' => 'jeu de cartes mariage',
         'seo_title' => 'Jeu de cartes personnalisé mariage : cadeau invités et témoins | %site%',
         'seo_desc' => 'Un jeu de cartes de mariage à vos noms : les mariés en roi et dame, les témoins en valets, la date au dos. Cadeau d’invités, animation de table ou souvenir.',
         'content' => B::join([
@@ -218,6 +269,7 @@ return [
     'faq' => [
         'title' => 'Questions fréquentes',
         'slug' => 'faq',
+        'focus' => 'jeu de cartes personnalisé',
         'seo_title' => 'Jeu de cartes personnalisé : questions fréquentes | %site%',
         'seo_desc' => 'Photos, fichiers PDF, papier, délais, livraison, retours : toutes les réponses sur nos jeux de cartes personnalisés.',
         'content' => B::join([
@@ -248,6 +300,7 @@ return [
     'guide-pdf' => [
         'title' => 'Créer son jeu de cartes en PDF : format et fond perdu',
         'slug' => 'creer-son-jeu-de-cartes-en-pdf',
+        'focus' => 'imprimer son jeu de cartes',
         'seo_title' => 'Imprimer son jeu de cartes : format PDF, fond perdu, gabarit | %site%',
         'seo_desc' => 'Préparer le fichier PDF de son jeu de cartes : format 69,5 × 94,9 mm avec fond perdu, ordre des pages, résolution et couleurs. Guide pour faire imprimer son propre jeu.',
         'content' => B::join([
@@ -266,7 +319,12 @@ return [
                 '<strong>Jeu de 54 cartes</strong> : 55 pages. Le dos en page 1, puis les 54 faces.',
                 '<strong>Jeu de belote</strong> : 33 pages. Le dos en page 1, puis les 32 faces.',
             ]),
-            B::p('Les faces suivent l’ordre de notre gabarit. ' . B::todo('lien de téléchargement du gabarit')),
+            B::p('Ordre des faces : pique, cœur, carreau, trèfle ; dans chaque couleur, de l’as au roi (as, 2 à 10, valet, dame, roi) ; puis les jokers. ' . B::todo('lien de téléchargement du gabarit')),
+            B::ul([
+                '<strong>Jeu photo (un dos par carte)</strong> : 108 pages, en alternant face 1, dos 1, face 2, dos 2…',
+                '<strong>Jeu de bridge</strong> : 55 pages au format bridge (63,2 × 94,9 mm avec le fond perdu).',
+                '<strong>Oracle</strong> : le dos en page 1, puis une page par carte, de 22 à 100 cartes, au format tarot (76 × 126 mm avec le fond perdu) ou poker.',
+            ]),
             B::h('Les couleurs'),
             B::p('Les fichiers en RVB ou en CMJN sont acceptés : nous les convertissons pour notre presse avec un profil adapté au papier. Évitez les noirs composés de quatre couleurs dans les petits textes.'),
             B::h('Le contrôle automatique'),
@@ -279,6 +337,7 @@ return [
     'livraison' => [
         'title' => 'Livraison et délais',
         'slug' => 'livraison',
+        'focus' => 'livraison jeu de cartes personnalisé',
         'seo_title' => 'Livraison et délais de fabrication | %site%',
         'seo_desc' => 'Délais de fabrication, modes de livraison et tarifs d’expédition de nos jeux de cartes personnalisés.',
         'content' => B::join([

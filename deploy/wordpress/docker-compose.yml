@@ -30,6 +30,7 @@ services:
     volumes:
       - html:/var/www/html
       - ../../wordpress/carte-blanche:/var/www/html/wp-content/plugins/carte-blanche
+      - ../../wordpress/carte-blanche-theme:/var/www/html/wp-content/themes/carte-blanche-theme
     depends_on:
       db: { condition: service_healthy }
 
@@ -44,6 +45,7 @@ services:
     volumes:
       - html:/var/www/html
       - ../../wordpress/carte-blanche:/var/www/html/wp-content/plugins/carte-blanche
+      - ../../wordpress/carte-blanche-theme:/var/www/html/wp-content/themes/carte-blanche-theme
       - ./setup.sh:/setup.sh:ro
     entrypoint: ["sh", "/setup.sh"]
     depends_on: [wordpress]

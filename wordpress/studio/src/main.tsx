@@ -11,7 +11,7 @@ import "./studio.css";
 import "./wp.css";
 
 type Message = { level: "ok" | "warn" | "error"; title: string; help: string };
-type Job = { uid: string; status: string; messages: Message[]; previews: string[]; error: string | null };
+type Job = { uid: string; status: string; messages: Message[]; previews: string[]; error: string | null; price?: number; cards?: number | null };
 const FINAL = ["approved", "rejected", "failed"];
 const CHUNK = 4 * 1024 * 1024;
 
@@ -31,9 +31,11 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 const post = <T,>(path: string, body: BodyInit, type = "application/json") =>
   api<T>(path, { method: "POST", body, headers: { "Content-Type": type } });
 
-async function createJob(kind: "design" | "pdf") {
-  return (await post<{ uid: string }>("jobs", JSON.stringify({ product_id: CB.productId, kind }))).uid;
+async function createJob(kind: "design" | "pdf", media: string) {
+  return (await post<{ uid: string }>("jobs", JSON.stringify({ product_id: CB.productId, kind, media }))).uid;
 }
+const euros = (v: number) => v.toFixed(2).replace(".", ",") + " €";
+const mm = (v: number) => v.toFixed(1).replace(".", ",").replace(",0", "");
 async function waitJob(uid: string, onUpdate: (j: Job) => void): Promise<Job> {
   for (let i = 0; ; i++) {
     const job = await api<Job>(`jobs/${uid}`);
@@ -68,8 +70,48 @@ function Report({ job, onAddToCart, onEdit }: { job: Job; onAddToCart: () => voi
         {job.messages.map((m, i) => <li key={i} className={`cb-msg ${m.level}`}><b>{m.title}</b>{m.help && <span>{m.help}</span>}</li>)}
         {job.error && <li className="cb-msg error"><b>{job.error}</b></li>}
       </ul>
+      {ok && job.price !== undefined && <p className="cb-price">{euros(job.price)} <small>l&apos;exemplaire{job.cards && CB.spec.cardsMin ? ` · ${job.cards} cartes` : ""} · remises par quantité au panier</small></p>}
+      {ok && <Quantity />}
       {ok && <button type="button" className="btn red wide" onClick={onAddToCart}>Ajouter au panier</button>}
       <button type="button" className="link" onClick={onEdit}>{ok ? "← Modifier ma création" : "← Corriger"}</button>
+    </div>
+  );
+}
+
+// Titre (H1), prix, accroche et remises de la fiche produit, déplacés dans le panneau du studio
+// (comme sur le site d'origine) ; le reste de la fiche (image, formulaire) est masqué par le CSS.
+const productHead = document.createElement("div");
+productHead.className = "cb-product-head";
+function collectProductHead() {
+  const scope = document.querySelector(".product") ?? document.querySelector("main") ?? document.body;
+  const pick = (sel: string) => scope.querySelector<HTMLElement>(sel);
+  for (const el of [
+    pick("h1.product_title, h1.wp-block-post-title, h1"),
+    pick(".summary .price, .wp-block-woocommerce-product-price, p.price"),
+    pick(".woocommerce-product-details__short-description, .wp-block-post-excerpt"),
+    pick(".cb-tiers"),
+  ]) if (el && !productHead.contains(el)) productHead.appendChild(el);
+}
+function ProductHead() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { ref.current?.appendChild(productHead); }, []);
+  return <div ref={ref} />;
+}
+
+/** Quantité : saisie dans le studio, reportée dans le formulaire WooCommerce (masqué) avant l'envoi. */
+function Quantity() {
+  const input = document.querySelector<HTMLInputElement>("form.cart input.qty");
+  const [qty, setQty] = useState(Number(input?.value) || 1);
+  if (!input) return null;
+  const set = (v: number) => { const n = Math.max(1, Math.min(999, v || 1)); setQty(n); input.value = String(n); };
+  return (
+    <div className="cb-qty">
+      <span>Quantité</span>
+      <div className="stepper">
+        <button type="button" onClick={() => set(qty - 1)} aria-label="Un de moins">−</button>
+        <input type="number" min={1} value={qty} onChange={(e) => set(Number(e.target.value))} aria-label="Nombre de jeux" />
+        <button type="button" onClick={() => set(qty + 1)} aria-label="Un de plus">+</button>
+      </div>
     </div>
   );
 }
@@ -84,20 +126,23 @@ function Progress({ label, value }: { label: string; value?: number }) {
   );
 }
 
-function PdfPanel({ onDone }: { onDone: (job: Job) => void }) {
+function PdfPanel({ media, onDone }: { media: string; onDone: (job: Job) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [step, setStep] = useState<{ label: string; value?: number } | null>(null);
   const [error, setError] = useState("");
-  const pages = Number(CB.deck) + 1;
-  const [w, h] = CB.cardPx;
-  const mm = (px: number) => ((px / 350) * 25.4).toFixed(1).replace(".", ",");
+  const sp = CB.spec;
+  const pagesFor = (n: number) => (sp.backs === "individual" ? 2 * n : n + 1);
+  const pages = sp.cardsMin ? `de ${pagesFor(sp.cardsMin)} à ${pagesFor(sp.cardsMax!)} pages` : `${pagesFor(sp.cards)} pages`;
+  const order = sp.backs === "individual" ? "recto verso alternés : face 1, dos 1, face 2, dos 2…"
+    : "le dos en page 1, puis les faces (pique, cœur, carreau, trèfle ; de l'as au roi ; puis les jokers)";
+  const sizes = sp.formats.map((f) => `${mm(f.page[0])} × ${mm(f.page[1])} mm (${f.label.split(" ")[0].toLowerCase()})`).join(" ou ");
 
   async function send() {
     if (!file) return;
     setError("");
     try {
       setStep({ label: "Préparation…" });
-      const uid = await createJob("pdf");
+      const uid = await createJob("pdf", media);
       for (let offset = 0; offset < file.size; offset += CHUNK) {
         setStep({ label: "Envoi du fichier…", value: offset / file.size });
         await post(`jobs/${uid}/file?role=pdf&offset=${offset}`, file.slice(offset, offset + CHUNK), "application/pdf");
@@ -115,8 +160,8 @@ function PdfPanel({ onDone }: { onDone: (job: Job) => void }) {
   return (
     <div className="step">
       <p className="hint">
-        Un PDF de <b>{pages} pages</b> : le dos en page 1, puis les faces dans l&apos;ordre du gabarit.
-        Chaque page mesure <b>{mm(w)} × {mm(h)} mm</b>, soit 3 mm de fond perdu autour de la carte.
+        Un PDF de <b>{pages}</b>{sp.cardsMin ? ` (${sp.cardsMin} à ${sp.cardsMax} cartes)` : ""} : {order}.
+        Chaque page mesure <b>{sizes}</b>, soit 3 mm de fond perdu autour de la carte.
       </p>
       <label className={`cb-drop${file ? " on" : ""}`}
         onDragOver={(e) => e.preventDefault()}
@@ -132,7 +177,8 @@ function PdfPanel({ onDone }: { onDone: (job: Job) => void }) {
 }
 
 function App() {
-  const [mode, setMode] = useState<"design" | "pdf">("design");
+  const [mode, setMode] = useState<"design" | "pdf">(CB.spec.editor ? "design" : "pdf");
+  const [media, setMedia] = useState(CB.spec.media[0]?.id ?? "cmdm-350g");
   const [step, setStep] = useState<{ label: string; value?: number } | null>(null);
   const [job, setJobState] = useState<Job | null>(null);
   const [error, setError] = useState("");
@@ -153,7 +199,7 @@ function App() {
     setError("");
     try {
       setStep({ label: "Préparation…" });
-      const uid = await createJob("design");
+      const uid = await createJob("design", media);
       const cards: [string, () => Promise<Blob>][] = [
         ["back", () => renderBack(p)],
         ...p.courts.map((c) => [`court-${c.code}`, () => renderCourt(c, p.style)] as [string, () => Promise<Blob>]),
@@ -180,10 +226,22 @@ function App() {
 
   const header = (
     <div className="cb-head">
-      <div className="seg" role="radiogroup" aria-label="Façon de créer le jeu">
-        <button type="button" role="radio" aria-checked={mode === "design"} disabled={!!step} onClick={() => { setMode("design"); setJobState(null); }}>Créer en ligne</button>
-        <button type="button" role="radio" aria-checked={mode === "pdf"} disabled={!!step} onClick={() => { setMode("pdf"); setJobState(null); }}>J&apos;ai mon fichier PDF</button>
-      </div>
+      <ProductHead />
+      {CB.spec.editor && (
+        <div className="seg" role="radiogroup" aria-label="Façon de créer le jeu">
+          <button type="button" role="radio" aria-checked={mode === "design"} disabled={!!step} onClick={() => { setMode("design"); setJobState(null); }}>Créer en ligne</button>
+          <button type="button" role="radio" aria-checked={mode === "pdf"} disabled={!!step} onClick={() => { setMode("pdf"); setJobState(null); }}>J&apos;ai mon fichier PDF</button>
+        </div>
+      )}
+      {CB.spec.media.length > 1 && (
+        <div className="cb-media" role="radiogroup" aria-label="Carton">
+          {CB.spec.media.map((m) => (
+            <button type="button" key={m.id} role="radio" aria-checked={media === m.id} disabled={!!step || !!job} onClick={() => setMedia(m.id)}>
+              <b>{m.label}</b><span>{m.hint}{m.delta ? ` · ${m.delta > 0 ? "+" : "−"}${euros(Math.abs(m.delta))}` : ""}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {error && <p className="error-text">{error}</p>}
     </div>
   );
@@ -196,8 +254,9 @@ function App() {
           finish={<p className="hint">Vérifiez vos figures : le jeu sera imprimé exactement comme l&apos;aperçu.</p>} />
       </div>
       {mode === "pdf" && (
-        <div className="cb-container cb-pdf">
-          <div className="panel">{header}{job ? status : <PdfPanel onDone={finish} />}</div>
+        <div className="cb-container studio cb-pdf">
+          <div className="stage-col">{CB.image && <img className="cb-pdf-image" src={CB.image} alt="" />}</div>
+          <div className="panel">{header}{step || job ? status : <PdfPanel media={media} onDone={finish} />}</div>
         </div>
       )}
     </div>
@@ -211,5 +270,7 @@ if (mount) {
   const product = mount.closest(".product");
   if (product?.parentElement) product.parentElement.insertBefore(mount, product);
   showCart(false);
+  collectProductHead();
+  document.body.classList.add("cb-has-studio");
   createRoot(mount).render(<StrictMode><App /></StrictMode>);
 }

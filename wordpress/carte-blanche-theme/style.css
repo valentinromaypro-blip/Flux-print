@@ -1,0 +1,99 @@
+/*
+Theme Name: Carte Blanche
+Description: Thème du site Carte Blanche : jeux de cartes personnalisés. Thème en blocs, léger, polices hébergées localement, compatible WooCommerce et le plugin Carte Blanche.
+Version: 1.0.0
+Requires at least: 6.5
+Requires PHP: 8.1
+Author: Carte Blanche
+License: GPL-2.0-or-later
+Text Domain: carte-blanche-theme
+*/
+
+/* Ce que theme.json ne sait pas exprimer. Les couleurs et polices viennent de theme.json. */
+:root { --cb-line: var(--wp--preset--color--line); --cb-muted: var(--wp--preset--color--muted); }
+body { -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { text-wrap: balance; }
+:focus-visible { outline: 3px solid var(--wp--preset--color--red); outline-offset: 3px; }
+
+/* En-tête */
+.cb-announce { font-size: 13.5px; text-align: center; }
+.cb-announce p { margin: 0; }
+.cb-header { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--wp--preset--color--paper) 92%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--cb-line); }
+.admin-bar .cb-header { top: 32px; }
+@media (max-width: 782px) { .admin-bar .cb-header { top: 0; } }
+.cb-logo { font: 800 22px/1 var(--wp--preset--font-family--display); letter-spacing: -.03em; white-space: nowrap; margin: 0; }
+.cb-logo a { text-decoration: none; color: inherit; }
+.cb-logo span, .cb-red { color: var(--wp--preset--color--red); }
+.cb-header .wp-block-navigation a:hover { color: var(--wp--preset--color--red); }
+
+/* Boutons */
+.wp-block-button.is-style-red .wp-block-button__link { background: var(--wp--preset--color--red); color: #fff; }
+.wp-block-button.is-style-red .wp-block-button__link:hover { background: var(--wp--preset--color--ink); }
+.wp-block-button.is-style-light .wp-block-button__link { background: var(--wp--preset--color--paper); color: var(--wp--preset--color--ink); }
+.wp-block-button.is-style-outline .wp-block-button__link { background: transparent; color: var(--wp--preset--color--ink); border: 1.5px solid var(--cb-line); }
+.wp-block-button.is-style-outline .wp-block-button__link:hover { border-color: var(--wp--preset--color--ink); color: var(--wp--preset--color--ink); }
+.wp-block-button__link { transition: transform .15s, background .15s; }
+.wp-block-button__link:hover { transform: translateY(-1px); }
+.is-style-cb-link a { font-weight: 600; text-decoration: none; border-bottom: 1.5px solid currentColor; padding-bottom: 2px; }
+
+/* Accueil */
+.cb-hero { padding-block: clamp(20px, 4vw, 48px); }
+.cb-hero h1 { font-size: clamp(42px, 5.4vw, 76px); letter-spacing: -.045em; }
+.cb-hero h1 em { font-style: normal; color: var(--wp--preset--color--red); }
+.cb-hero .cb-sub { font-size: 19px; color: var(--cb-muted); max-width: 36ch; }
+.cb-hero .wp-block-image img { border-radius: 20px; aspect-ratio: 8 / 5.4; object-fit: cover; width: 100%; }
+.cb-promise { list-style: none; padding: 0; display: flex; gap: 22px; flex-wrap: wrap; font-size: 14px; color: var(--cb-muted); }
+.cb-promise li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--wp--preset--color--felt); display: inline-block; margin-right: 8px; }
+@media (max-width: 781px) { .cb-hero > .wp-block-column:last-child { order: -1; } }
+.cb-head { margin-top: var(--wp--preset--spacing--60) !important; display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; }
+.cb-head h2 { max-width: 18ch; font-size: clamp(32px, 4.2vw, 54px); }
+.cb-head p { color: var(--cb-muted); max-width: 44ch; }
+.cb-steps .wp-block-image img, .cb-card img { aspect-ratio: 4 / 3.3; object-fit: cover; width: 100%; border-radius: 16px; }
+.cb-steps p, .cb-muted { color: var(--cb-muted); }
+.cb-feature { border-radius: 24px; overflow: hidden; }
+.cb-feature > .wp-block-columns { gap: 0; margin: 0; align-items: stretch !important; }
+.cb-feature > .wp-block-columns > .wp-block-column { align-self: stretch; }
+.cb-feature > .wp-block-columns > .wp-block-column:last-child { display: flex; align-items: center; }
+.cb-feature .wp-block-image, .cb-feature .wp-block-image img { height: 100%; margin: 0; border-radius: 0; }
+.cb-feature .wp-block-image img { object-fit: cover; min-height: 320px; }
+.cb-feature h2 { font-size: clamp(32px, 3.8vw, 50px); }
+.cb-feature .cb-text { padding: clamp(28px, 4vw, 56px); }
+.cb-occasions .wp-block-image { position: relative; margin: 0; border-radius: 16px; overflow: hidden; }
+.cb-occasions .wp-block-image img { aspect-ratio: 10 / 11; object-fit: cover; width: 100%; transition: transform .6s cubic-bezier(.2,.8,.2,1); }
+.cb-occasions .wp-block-image:hover img { transform: scale(1.035); }
+.cb-occasions figcaption { position: absolute; left: 14px; bottom: 14px; margin: 0; background: var(--wp--preset--color--paper); color: var(--wp--preset--color--ink); font-weight: 600; font-size: 15px; padding: 9px 14px; border-radius: 999px; }
+.cb-cta { border-radius: 24px; margin-top: var(--wp--preset--spacing--60) !important; }
+.cb-cta .wp-block-heading { color: var(--wp--preset--color--paper); }
+.cb-occasions, .cb-steps { margin-bottom: var(--wp--preset--spacing--50) !important; }
+.cb-feature { margin-block: var(--wp--preset--spacing--50) !important; }
+.cb-cta h2 { max-width: 16ch; font-size: clamp(32px, 4.2vw, 56px); }
+
+/* Listes de produits WooCommerce (accueil, boutique) : cartes du site d'origine */
+.woocommerce ul.products, .wc-block-grid__products { gap: 20px; }
+.woocommerce ul.products li.product { margin: 0 0 12px; text-align: left; }
+.woocommerce ul.products li.product a img { border-radius: 16px; aspect-ratio: 4 / 3.3; object-fit: cover; background: var(--wp--preset--color--stone); margin-bottom: 12px; transition: transform .6s cubic-bezier(.2,.8,.2,1); }
+.woocommerce ul.products li.product a:hover img { transform: scale(1.02); }
+.woocommerce ul.products li.product a { text-decoration: none; }
+.woocommerce ul.products li.product .woocommerce-loop-product__title { font: 700 23px/1.1 var(--wp--preset--font-family--display); letter-spacing: -.02em; padding: 0; }
+.woocommerce ul.products li.product .price { color: var(--wp--preset--color--ink); font-weight: 600; font-size: 16px; }
+.cb-from { font-weight: 400; color: var(--cb-muted); font-size: .9em; }
+.cb-tagline { color: var(--cb-muted); font-size: 15px; margin: 4px 0 12px; }
+.woocommerce ul.products li.product .button { border-radius: 999px; }
+.cb-products ul.products li.product .button { display: none; } /* accueil : la carte entière est le lien, comme le site d'origine */
+@media (min-width: 900px) { .woocommerce ul.products.columns-3 li.product { width: calc((100% - 40px) / 3); margin-right: 20px; } .woocommerce ul.products.columns-3 li.product.last { margin-right: 0; } }
+
+/* Fiche produit */
+.cb-tiers { background: var(--wp--preset--color--stone); border-radius: 16px; padding: 14px 18px; margin: 16px 0; font-size: 14px; }
+.cb-tiers p { margin: 0 0 6px; } .cb-tiers ul { margin: 0; padding-left: 18px; } .cb-note { color: var(--cb-muted); margin-top: 8px !important; }
+
+/* Pied de page */
+.cb-footer a { text-decoration: none; }
+.cb-footer a:hover { color: var(--wp--preset--color--red); }
+.cb-footer h4 { margin-bottom: 12px; font-family: var(--wp--preset--font-family--body); font-size: 14px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.cb-footer ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; font-size: 15px; }
+.cb-legal { font-size: 13px; color: var(--cb-muted); }
+
+/* Contenu des pages */
+.wp-block-details summary { cursor: pointer; font-weight: 600; }
+.wp-block-table td { border-color: var(--cb-line); }
+mark.has-inline-color { padding: 0 2px; }

@@ -4,6 +4,7 @@ import { type Crop, RANKS, SUITS } from "@/lib/design.ts";
 import { cutHead } from "@/lib/headcut.ts";
 import { type Style, drawCourt, headBox, RATIO } from "@/lib/cardrender.ts";
 import { backModels, type BackModel } from "@/lib/backs.ts";
+import { CB } from "@/lib/env.ts";
 import BackStep, { BackPreview, type BackState, hasAlpha, initialBack } from "@/components/BackStep";
 
 // Studio de création : grand aperçu à gauche (dessiné comme le moteur l'imprimera), étapes à droite.
@@ -215,7 +216,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
           </div>
         )}
         <p className="stage-caption">{view === "back"
-          ? (models.find((m) => m.id === back.template)?.photo && back.photo ? "Glissez la photo pour la placer · le dos est identique sur les 55 cartes" : "Le dos, identique sur les 55 cartes")
+          ? (models.find((m) => m.id === back.template)?.photo && back.photo ? "Glissez la photo pour la placer · le dos est identique sur toutes les cartes" : `Le dos, identique sur les ${CB.spec.cards} cartes`)
           : current ? "Glissez le visage pour le placer · molette ou −/+ pour la taille" : `${label(selected)} · tête du haut et du bas`}</p>
       </div>
 
@@ -294,7 +295,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
                 <button className="btn red wide" disabled={busy || uploading} onClick={submit}>
                   {uploading ? "Envoi des photos…" : "Valider mon jeu"}
                 </button>
-                <p className="hint">Nous fabriquons les 55 cartes en qualité d&apos;impression et vous montrons le rendu final avant l&apos;ajout au panier.</p>
+                <p className="hint">Nous fabriquons vos {CB.spec.cards} cartes en qualité d&apos;impression et vous montrons le rendu final avant l&apos;ajout au panier.</p>
                 <button className="link" onClick={() => setStep(1)}>← Les visages</button>
               </div>
             )}

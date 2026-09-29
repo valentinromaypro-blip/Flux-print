@@ -75,13 +75,18 @@ final class CB_Rest
     {
         $product_id = (int) $r->get_param('product_id');
         $deck = (string) get_post_meta($product_id, '_cb_deck', true);
-        if (!$deck || !isset(CB_Settings::decks()[$deck])) {
+        $spec = CB_Settings::deck($deck);
+        if (!$spec) {
             return self::fail('Produit inconnu.');
         }
-        $kind = $r->get_param('kind') === 'pdf' ? 'pdf' : 'design';
+        $kind = $r->get_param('kind') === 'pdf' || !$spec['editor'] ? 'pdf' : 'design';
+        $media = (string) $r->get_param('media');
+        if (!isset(CB_Settings::MEDIA[$media])) {
+            $media = (string) (get_post_meta($product_id, '_cb_media', true) ?: 'cmdm-350g');
+        }
         $job = CB_Store::create_job([
             'session' => self::session(), 'product_id' => $product_id, 'kind' => $kind, 'deck' => $deck,
-            'media' => (string) (get_post_meta($product_id, '_cb_media', true) ?: 'cmdm-350g'),
+            'media' => $media, 'format' => $spec['formats'][0], 'cards' => $spec['cards_min'] ?? $spec['cards'],
         ]);
         return ['uid' => $job['uid'], 'card_px' => CB_Settings::card_px($deck)];
     }
@@ -146,9 +151,13 @@ final class CB_Rest
         CB_Check::nudge($job);
         $job = CB_Store::job($job['uid']);
         $report = $job['report'] ?: [];
+        $price = CB_Settings::price($job['deck'], 1, $job['cards'] ? (int) $job['cards'] : null, $job['media']);
         return [
             'uid' => $job['uid'],
             'status' => $job['status'],
+            'cards' => $job['cards'] ? (int) $job['cards'] : null,
+            'format' => CB_Settings::FORMATS[$job['format']]['label'] ?? null,
+            'price' => $price['unit'],
             'messages' => $report['messages'] ?? [],
             'previews' => array_map(
                 fn($n) => rest_url(self::NS . "/jobs/{$job['uid']}/preview/$n"),

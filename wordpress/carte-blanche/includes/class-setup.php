@@ -22,24 +22,57 @@ final class CB_Setup
         'entreprise' => ['jeu-de-cartes-entreprise.jpg', 'Dos de cartes personnalisés pour une entreprise'],
         'p54' => ['jeu-54-cartes-personnalise.jpg', 'Jeu de 54 cartes personnalisé'],
         'belote' => ['jeu-de-belote-personnalise.jpg', 'Jeu de belote personnalisé'],
+        'scene-hero' => ['scene-hero.jpg', 'Éventail de cartes Carte Blanche sur un tapis vert, avec leur étui'],
+        'scene-etui' => ['scene-etui.jpg', 'Jeu de cartes personnalisé et son étui'],
+        'scene-famille' => ['scene-famille.jpg', 'Jeu de cartes photo de famille'],
+        'scene-oracle' => ['scene-oracle.jpg', 'Cartes oracle au format tarot : la Lune, le Soleil, l’Étoile'],
+        'scene-detail' => ['scene-detail.jpg', 'Détail d’une carte personnalisée imprimée'],
+        'occ-mariage' => ['occasion-mariage.jpg', 'Dos de carte personnalisé pour un mariage'],
+        'occ-anniversaire' => ['occasion-anniversaire.jpg', 'Dos de carte personnalisé pour un anniversaire'],
+        'occ-evjf' => ['occasion-evjf.jpg', 'Dos de carte personnalisé pour un EVJF'],
+        'occ-entreprise' => ['occasion-entreprise.jpg', 'Dos de carte personnalisé pour une entreprise'],
     ];
 
+    /** Catalogue du site d'origine (services/print-engine/config/products) ; prix : CB_Settings::price(). */
     private const PRODUCTS = [
         'jeu-54' => [
-            'name' => 'Jeu de 54 cartes personnalisé', 'slug' => 'jeu-de-54-cartes-personnalise', 'deck' => '54', 'price' => '34.90', 'image' => 'p54',
-            'short' => 'Votre jeu de 54 cartes (52 cartes et 2 jokers) avec vos visages sur les rois, dames et valets, et un dos à votre image. Ou envoyez votre propre fichier PDF.',
+            'name' => 'Jeu de 54 cartes personnalisé', 'slug' => 'jeu-de-54-cartes-personnalise', 'deck' => '54', 'image' => 'scene-etui', 'order' => 1,
+            'tagline' => '54 cartes au format poker, votre dos, vos figures.',
+            'short' => 'Le format de référence des jeux de cartes, avec un dos à votre image et, si vous le souhaitez, vos visages sur les rois, dames et valets. Créez-le en ligne ou envoyez votre PDF.',
             'seo_title' => 'Jeu de 54 cartes personnalisé avec photos | %site%',
             'seo_desc' => 'Créez votre jeu de 54 cartes personnalisé : vos visages sur les 12 figures, un dos à vos couleurs avec prénom, date ou logo. Imprimé sur carton 350 g dans notre atelier.',
         ],
+        'photo' => [
+            'name' => 'Jeu de cartes photo, un dos par carte', 'slug' => 'jeu-de-cartes-photo-personnalise', 'deck' => '54-photo', 'image' => 'scene-famille', 'order' => 2,
+            'tagline' => '54 cartes, un dos différent pour chaque carte.',
+            'short' => 'Une photo ou un souvenir au dos de chaque carte : le cadeau qui se regarde autant qu’il se joue. Envoyez votre fichier PDF, nous le contrôlons en direct.',
+            'seo_title' => 'Jeu de cartes photo personnalisé : une photo par carte | %site%',
+            'seo_desc' => 'Jeu de 54 cartes photo avec un dos différent pour chaque carte : 54 photos, 54 souvenirs. Fichier contrôlé en direct, imprimé dans notre atelier.',
+        ],
+        'oracle' => [
+            'name' => 'Jeu oracle personnalisé', 'slug' => 'jeu-oracle-personnalise', 'deck' => 'oracle', 'image' => 'scene-oracle', 'order' => 3,
+            'tagline' => 'De 22 à 100 cartes, chacune unique.',
+            'short' => 'Pour les créatrices et créateurs d’oracles, de jeux de tirage ou de cartes d’affirmation : de 22 à 100 cartes, format tarot ou poker. Le prix s’ajuste au nombre de cartes de votre fichier.',
+            'seo_title' => 'Imprimer son jeu oracle personnalisé, de 22 à 100 cartes | %site%',
+            'seo_desc' => 'Faites imprimer votre oracle ou vos cartes de tirage : de 22 à 100 cartes, format tarot 70 × 120 mm ou poker. Contrôle du fichier en direct, fabrication en France.',
+        ],
+        'bridge' => [
+            'name' => 'Jeu de bridge personnalisé', 'slug' => 'jeu-de-bridge-personnalise', 'deck' => '54-bridge', 'image' => 'scene-detail', 'order' => 4,
+            'tagline' => '54 cartes au format bridge, plus étroit.',
+            'short' => 'Plus étroit, plus facile à tenir en main : le format préféré des joueurs de bridge et de tarot. Envoyez votre fichier PDF.',
+            'seo_title' => 'Jeu de bridge personnalisé, 54 cartes format bridge | %site%',
+            'seo_desc' => 'Jeu de cartes personnalisé au format bridge 57,2 × 88,9 mm : 54 cartes, votre dos et vos faces. Fichier contrôlé en direct, imprimé dans notre atelier.',
+        ],
         'belote' => [
-            'name' => 'Jeu de belote personnalisé (32 cartes)', 'slug' => 'jeu-de-belote-personnalise', 'deck' => '32', 'price' => '29.90', 'image' => 'belote',
-            'short' => 'Le jeu de 32 cartes pour la belote et la manille, avec vos visages sur les figures et un dos à votre nom.',
+            'name' => 'Jeu de belote personnalisé (32 cartes)', 'slug' => 'jeu-de-belote-personnalise', 'deck' => '32', 'image' => 'belote', 'order' => 5,
+            'tagline' => '32 cartes, du 7 à l’as.',
+            'short' => 'Pour la belote, la manille ou le piquet, avec votre dos personnalisé et, si vous le souhaitez, vos visages sur les figures.',
             'seo_title' => 'Jeu de belote personnalisé avec photos, 32 cartes | %site%',
             'seo_desc' => 'Jeu de belote personnalisé de 32 cartes : vos visages sur les rois, dames et valets, un dos à votre nom. Idéal pour un club, un bar ou un cadeau.',
         ],
     ];
 
-    private const MAIN_MENU = [['product', 'jeu-54', 'Créer mon jeu'], ['product', 'belote', 'Jeu de belote'], ['page', 'entreprise', 'Entreprises'],
+    private const MAIN_MENU = [['product', 'jeu-54', 'Créer mon jeu'], ['product', 'oracle', 'Oracles'], ['product', 'belote', 'Belote'], ['page', 'entreprise', 'Entreprises'],
         ['page', 'comment-ca-marche', 'Comment ça marche'], ['page', 'faq', 'FAQ']];
     private const FOOTER_MENU = [['page', 'atelier', 'L’atelier'], ['page', 'livraison', 'Livraison'], ['page', 'guide-pdf', 'Fichier PDF'], ['page', 'contact', 'Contact'],
         ['page', 'mentions', 'Mentions légales'], ['page', 'cgv', 'CGV'], ['page', 'confidentialite', 'Confidentialité']];
@@ -132,19 +165,21 @@ final class CB_Setup
         $term_id = is_wp_error($term) ? 0 : (int) $term['term_id'];
         foreach (self::PRODUCTS as $key => $p) {
             $id = self::$state['products'][$key] ?? 0;
-            if (!$id || !get_post($id)) {
+            if (!$id || !get_post($id) || get_post_status($id) === 'trash') {
                 $id = self::find($p['slug'], 'product');
             }
-            if ($id) {
+            $price = CB_Settings::price($p['deck'])['unit'];
+            if ($id && !self::untouched($id)) {
                 self::$state['products'][$key] = $id;
-                self::log('existant', "Produit : {$p['name']} (laissé tel quel)", $id);
+                self::log('existant', "Produit : {$p['name']} (modifié par vous, laissé tel quel)", $id);
                 continue;
             }
-            $product = new WC_Product_Simple();
+            $product = $id ? wc_get_product($id) : new WC_Product_Simple();
             $product->set_name($p['name']);
             $product->set_slug($p['slug']);
             $product->set_status('publish');
-            $product->set_regular_price($p['price']);
+            $product->set_regular_price((string) $price);
+            $product->set_menu_order($p['order']);
             $product->set_short_description($p['short']);
             $product->set_description(self::product_description($p['deck']));
             if ($term_id) {
@@ -153,13 +188,37 @@ final class CB_Setup
             if ($image = self::$state['images'][$p['image']] ?? 0) {
                 $product->set_image_id($image);
             }
-            $id = $product->save();
-            update_post_meta($id, '_cb_deck', $p['deck']);
-            update_post_meta($id, '_cb_media', 'cmdm-350g');
-            self::seo($id, $p['seo_title'], $p['seo_desc']);
-            self::$state['products'][$key] = $id;
-            self::log('créé', "Produit : {$p['name']} — prix provisoire {$p['price']} € à vérifier", $id);
+            $saved = $product->save();
+            update_post_meta($saved, '_cb_deck', $p['deck']);
+            update_post_meta($saved, '_cb_media', 'cmdm-350g');
+            update_post_meta($saved, '_cb_tagline', $p['tagline']);
+            self::seo($saved, $p['seo_title'], $p['seo_desc']);
+            self::mark($saved);
+            self::$state['products'][$key] = $saved;
+            $what = "Produit : {$p['name']} — " . number_format($price, 2, ',', ' ') . ' €' . (isset(CB_Settings::deck($p['deck'])['cards_min']) ? ' (prix de départ)' : '');
+            self::log($id ? 'mis à jour' : 'créé', $what, $saved);
         }
+    }
+
+    /** Empreinte du contenu tel que créé par la mise en place : sert à savoir s'il a été modifié depuis. */
+    private static function mark(int $id): void
+    {
+        clean_post_cache($id);
+        $post = get_post($id);
+        update_post_meta($id, '_cb_setup_hash', md5($post->post_title . '|' . $post->post_content . '|' . $post->post_excerpt . '|' . get_post_meta($id, '_regular_price', true)));
+    }
+
+    /** Contenu créé par la mise en place et jamais modifié depuis : il peut être mis à jour sans rien perdre. */
+    private static function untouched(int $id): bool
+    {
+        $post = get_post($id);
+        $hash = get_post_meta($id, '_cb_setup_hash', true);
+        if ($hash) {
+            return $hash === md5($post->post_title . '|' . $post->post_content . '|' . $post->post_excerpt . '|' . get_post_meta($id, '_regular_price', true));
+        }
+        // Créé par la première version du plugin (sans empreinte) : pas modifié depuis sa création
+        return (bool) get_post_meta($id, '_cb_seo_title', true)
+            && abs(strtotime($post->post_modified_gmt) - strtotime($post->post_date_gmt)) < 120;
     }
 
     /** Contenu existant de ce type à cette adresse (get_page_by_path mélange pages et médias). */
@@ -169,24 +228,36 @@ final class CB_Setup
         return (int) ($ids[0] ?? 0);
     }
 
-    private static function product_description(string $deck): string
+    private static function product_description(string $key): string
     {
-        $cards = $deck === '32' ? '32 cartes (du 7 à l’as), pour la belote, la manille ou la bataille' : '54 cartes : les 52 cartes classiques et 2 jokers';
-        return CB_Blocks::join([
-            CB_Blocks::h('Votre jeu, vos visages'),
-            CB_Blocks::p("Un jeu de $cards. Les douze figures (rois, dames, valets) peuvent recevoir chacune un visage : la tête est détourée automatiquement à partir de votre photo et placée en haut et en bas de la carte."),
-            CB_Blocks::h('Un dos à votre image'),
-            CB_Blocks::p('Huit modèles de dos : classique, art déco, rayures, monogramme, élégant, photo pleine carte, logo centré ou logo en motif. Choisissez vos couleurs, votre titre et votre texte.'),
-            CB_Blocks::h('Caractéristiques'),
-            CB_Blocks::table([
-                ['Format', '63,5 × 88,9 mm (format poker)'],
-                ['Carton', 'Couché mat 350 g'],
-                ['Impression', 'Numérique haute définition, recto verso, Xerox Iridesse'],
-                ['Fabrication', 'Dans notre atelier, en France'],
-            ]),
-            CB_Blocks::h('Votre propre fichier'),
-            CB_Blocks::p('Vous avez créé votre jeu vous-même ? Choisissez « J’ai mon fichier PDF » : nombre de pages, format et fond perdu sont contrôlés automatiquement.'),
+        $B = CB_Blocks::class;
+        $deck = CB_Settings::deck($key);
+        $fmt = implode(' ou ', array_map(fn($f) => CB_Settings::FORMATS[$f]['label'], $deck['formats']));
+        $specs = $B::table([
+            ['Format', $fmt],
+            ['Cartes', isset($deck['cards_min']) ? "De {$deck['cards_min']} à {$deck['cards_max']} cartes, selon votre fichier" : ($key === '32' ? '32 cartes, du 7 à l’as' : '54 cartes : 52 cartes et 2 jokers')],
+            ['Carton', 'Couché mat 350 g ou carte graphique 300 g'],
+            ['Impression', 'Numérique haute définition, recto verso, Xerox Iridesse'],
+            ['Fabrication', 'Dans notre atelier, en France'],
         ]);
+        $pdf = $B::p('Votre fichier est contrôlé dès l’envoi : nombre de pages, format, fond perdu. Vous voyez l’aperçu et, s’il y a un problème, ce qu’il faut corriger. <a href="/creer-son-jeu-de-cartes-en-pdf/">Préparer son fichier PDF</a>.');
+        if ($deck['editor']) {
+            return $B::join([
+                $B::h('Votre jeu, vos visages'),
+                $B::p('Les douze figures (rois, dames, valets) peuvent recevoir chacune un visage : la tête est détourée automatiquement à partir de votre photo et placée en haut et en bas de la carte.'),
+                $B::h('Un dos à votre image'),
+                $B::p('Huit modèles de dos : classique, art déco, rayures, monogramme, élégant, photo pleine carte, logo centré ou logo en motif. Choisissez vos couleurs, votre titre et votre texte.'),
+                $B::h('Caractéristiques'), $specs,
+                $B::h('Votre propre fichier'),
+                $B::p('Vous avez créé votre jeu vous-même ? Choisissez « J’ai mon fichier PDF ».'), $pdf,
+            ]);
+        }
+        $intro = [
+            '54-photo' => 'Chaque carte a son propre dos : 54 photos, 54 souvenirs. Votre PDF alterne les pages : face 1, dos 1, face 2, dos 2… soit 108 pages.',
+            '54-bridge' => 'Le format bridge (57,2 × 88,9 mm) est plus étroit que le format poker : il tient mieux en main, surtout pour les jeux à beaucoup de cartes. Votre PDF compte 55 pages : le dos, puis les 54 faces.',
+            'oracle' => 'De 22 à 100 cartes, chacune unique, au format tarot (70 × 120 mm) ou poker. Votre PDF commence par le dos commun, puis une page par carte : le nombre de cartes et le format sont détectés automatiquement, et le prix s’ajuste.',
+        ][$key] ?? '';
+        return $B::join([$B::h('Votre fichier, notre atelier'), $B::p($intro), $pdf, $B::h('Caractéristiques'), $specs]);
     }
 
     private static function pages(): void
@@ -201,9 +272,11 @@ final class CB_Setup
             }
             if (!$id) {
                 $id = wp_insert_post(['post_type' => 'page', 'post_status' => 'publish', 'post_title' => $def['title'], 'post_name' => $def['slug'], 'post_content' => '']);
-                $new[$key] = $id;
+                $new[$key] = [$id, 'créé'];
+            } elseif (self::untouched($id)) {
+                $new[$key] = [$id, 'mis à jour']; // jamais modifiée depuis la mise en place : nouvelle version
             } else {
-                self::log('existant', "Page : {$def['title']} (laissée telle quelle)", $id);
+                self::log('existant', "Page : {$def['title']} (modifiée par vous, laissée telle quelle)", $id);
             }
             self::$state['pages'][$key] = $id;
         }
@@ -213,11 +286,21 @@ final class CB_Setup
             fn($k) => isset(self::$state['products'][$k]) ? get_permalink(self::$state['products'][$k]) : home_url('/'),
             fn($k) => self::$state['images'][$k] ?? null,
         );
-        foreach ($new as $key => $id) {
+        foreach ($new as $key => [$id, $status]) {
             $def = $defs[$key];
-            wp_update_post(['ID' => $id, 'post_content' => wp_slash($def['content'])]);
+            $current = get_post($id);
+            if ($status === 'mis à jour' && $current->post_content === $def['content'] && $current->post_title === $def['title']) {
+                self::log('existant', "Page : {$def['title']} (déjà à jour)", $id);
+                continue;
+            }
+            wp_update_post(['ID' => $id, 'post_title' => wp_slash($def['title']), 'post_content' => wp_slash($def['content'])]);
             self::seo($id, $def['seo_title'], $def['seo_desc'], !empty($def['noindex']));
-            self::log('créé', "Page : {$def['title']}", $id);
+            if (!empty($def['focus'])) {
+                update_post_meta($id, '_yoast_wpseo_focuskw', $def['focus']);
+                update_post_meta($id, 'rank_math_focus_keyword', $def['focus']);
+            }
+            self::mark($id);
+            self::log($status, "Page : {$def['title']}", $id);
         }
     }
 

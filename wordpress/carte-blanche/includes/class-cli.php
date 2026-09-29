@@ -8,7 +8,7 @@ WP_CLI::add_command('carte-blanche', new class {
     public function setup(): void
     {
         foreach (CB_Setup::run() as [$status, $what]) {
-            WP_CLI::log(str_pad($status, 10) . $what);
+            WP_CLI::log(str_pad($status, 13) . $what);
         }
         WP_CLI::success('Site mis en place : ' . home_url('/'));
     }

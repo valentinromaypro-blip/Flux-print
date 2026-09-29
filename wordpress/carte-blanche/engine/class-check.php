@@ -74,7 +74,7 @@ final class CB_Check
         }
         $n = count($courts);
         $messages = [self::msg('ok', 'Votre jeu est prêt à imprimer',
-            CB_Settings::decks()[$job['deck']]['cards'] + 1 . ' cartes en qualité d’impression' . ($n ? " · $n figure" . ($n > 1 ? 's' : '') . ' personnalisée' . ($n > 1 ? 's' : '') : ''))];
+            CB_Settings::decks()[$job['deck']]['cards'] . ' cartes et le dos en qualité d’impression' . ($n ? " · $n figure" . ($n > 1 ? 's' : '') . ' personnalisée' . ($n > 1 ? 's' : '') : ''))];
         CB_Store::update_job($job['uid'], ['status' => 'approved', 'report' => ['messages' => $messages, 'previews' => $previews]]);
     }
 
@@ -171,43 +171,81 @@ final class CB_Check
             // Pages à 72 dpi : 1 pixel = 1 point, le format se lit directement
             array_map('unlink', glob("$dir/probe-*.jpg") ?: []);
             $pages = self::render_pages($pdf, "$dir/probe-%03d.jpg", 12);
-            $deck = CB_Settings::decks()[$job['deck']];
-            $expected_pages = $deck['cards'] + 1;
-            [$tw, $th] = $deck['trim'];
+            $n = count($pages);
+            $deck = CB_Settings::deck($job['deck']);
             $b = (float) CB_Settings::get('bleed_mm');
             $pt = fn($mm) => $mm / 25.4 * 72;
             $messages = [];
-            if (count($pages) !== $expected_pages) {
-                $messages[] = self::msg('error', 'Nombre de pages incorrect',
-                    count($pages) . " page(s) reçue(s), $expected_pages attendues : le dos en page 1, puis les {$deck['cards']} faces dans l’ordre du gabarit.");
+            $order = $deck['backs'] === 'individual'
+                ? 'recto verso alternés : face 1, dos 1, face 2, dos 2…'
+                : 'le dos en page 1, puis les faces dans l’ordre (pique, cœur, carreau, trèfle ; de l’as au roi ; puis les jokers)';
+            // Nombre de cartes : fixe, ou déduit du nombre de pages (oracle)
+            if (isset($deck['cards_min'])) {
+                $cards = $deck['backs'] === 'individual' ? intdiv($n, 2) : $n - 1;
+                $min = CB_Settings::pages_for($deck, $deck['cards_min']);
+                $max = CB_Settings::pages_for($deck, $deck['cards_max']);
+                if ($n < $min || $n > $max || ($deck['backs'] === 'individual' && $n % 2)) {
+                    $messages[] = self::msg('error', 'Nombre de pages incorrect',
+                        "$n page(s) reçue(s). De {$deck['cards_min']} à {$deck['cards_max']} cartes, soit $min à $max pages : $order.");
+                }
+            } else {
+                $cards = $deck['cards'];
+                $expected = CB_Settings::pages_for($deck, $cards);
+                if ($n !== $expected) {
+                    $messages[] = self::msg('error', 'Nombre de pages incorrect', "$n page(s) reçue(s), $expected attendues : $order.");
+                }
             }
+            // Format : l'un des formats acceptés, fond perdu compris
             $one = self::render_pages($pdf, "$dir/size-%03d.jpg", 72, 1, 1);
             $size = $one ? getimagesize($one[0]) : null;
             array_map('unlink', $one);
+            $format = $deck['formats'][0];
             if ($size) {
                 [$pw, $ph] = $size;
-                $near = fn($a, $b) => abs($a - $b) <= 4; // ± 1,4 mm
-                if ($near($pw, $pt($tw)) && $near($ph, $pt($th))) {
+                $near = fn($a, $c) => abs($a - $c) <= 4; // ± 1,4 mm
+                $found = null;
+                $trim_only = null;
+                foreach ($deck['formats'] as $f) {
+                    [$tw, $th] = CB_Settings::FORMATS[$f]['trim'];
+                    if ($near($pw, $pt($tw + 2 * $b)) && $near($ph, $pt($th + 2 * $b))) {
+                        $found = $f;
+                        break;
+                    }
+                    if ($near($pw, $pt($tw)) && $near($ph, $pt($th))) {
+                        $trim_only = $f;
+                    }
+                }
+                if ($found) {
+                    $format = $found;
+                } elseif ($trim_only) {
+                    [$tw, $th] = CB_Settings::FORMATS[$trim_only]['trim'];
+                    $fmt = fn($v) => str_replace('.', ',', (string) $v);
                     $messages[] = self::msg('error', 'Fond perdu manquant',
-                        "Vos pages font {$tw} × {$th} mm : ajoutez 3 mm de fond perdu de chaque côté (" . ($tw + 2 * $b) . ' × ' . ($th + 2 * $b) . ' mm). Utilisez notre gabarit.');
-                } elseif (!$near($pw, $pt($tw + 2 * $b)) || !$near($ph, $pt($th + 2 * $b))) {
+                        "Vos pages font {$fmt($tw)} × {$fmt($th)} mm : ajoutez 3 mm de fond perdu de chaque côté (" . $fmt($tw + 2 * $b) . ' × ' . $fmt($th + 2 * $b) . ' mm). Utilisez notre gabarit.');
+                } else {
+                    $expected = implode(' ou ', array_map(function ($f) use ($b) {
+                        [$tw, $th] = CB_Settings::FORMATS[$f]['trim'];
+                        return str_replace('.', ',', sprintf('%.1f × %.1f mm', $tw + 2 * $b, $th + 2 * $b));
+                    }, $deck['formats']));
                     $messages[] = self::msg('error', 'Format de page incorrect',
-                        sprintf('Pages de %.1f × %.1f mm, attendu %.1f × %.1f mm (fond perdu compris).', $pw / 72 * 25.4, $ph / 72 * 25.4, $tw + 2 * $b, $th + 2 * $b));
+                        str_replace('.', ',', sprintf('Pages de %.1f × %.1f mm', $pw / 72 * 25.4, $ph / 72 * 25.4)) . ", attendu $expected (fond perdu compris).");
                 }
             }
             array_map('unlink', $pages);
             $previews = [];
             foreach (self::render_pages($pdf, "$dir/pv-%03d.jpg", 150, 1, 2) as $i => $file) {
-                $name = $i === 0 ? 'back' : 'court';
+                $name = ($i === 0) === ($deck['backs'] !== 'individual') ? 'back' : 'court';
                 self::thumb($file, "$dir/preview-$name.jpg");
                 unlink($file);
                 $previews[] = $name;
             }
             $ok = !array_filter($messages, fn($m) => $m['level'] === 'error');
             if ($ok) {
-                array_unshift($messages, self::msg('ok', 'Votre fichier est prêt à imprimer', "$expected_pages pages contrôlées : nombre de pages, format et fond perdu."));
+                array_unshift($messages, self::msg('ok', 'Votre fichier est prêt à imprimer',
+                    "$cards cartes · " . CB_Settings::FORMATS[$format]['label'] . " · $n pages contrôlées : nombre de pages, format et fond perdu."));
             }
-            CB_Store::update_job($uid, ['status' => $ok ? 'approved' : 'rejected', 'report' => ['messages' => $messages, 'previews' => $previews]]);
+            CB_Store::update_job($uid, ['status' => $ok ? 'approved' : 'rejected', 'cards' => $cards, 'format' => $format,
+                'report' => ['messages' => $messages, 'previews' => $previews]]);
         } catch (Throwable $e) {
             CB_Store::update_job($uid, ['status' => 'failed', 'error' => $e->getMessage(),
                 'report' => ['messages' => [self::msg('error', 'Lecture du PDF impossible', 'Le fichier est peut-être protégé ou endommagé. Exportez-le à nouveau en PDF.')]]]);

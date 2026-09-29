@@ -24,11 +24,16 @@ final class CB_Woo
         add_action('wp_enqueue_scripts', [self::class, 'assets']);
         // Listes de produits : un jeu se crée sur sa fiche, pas d'ajout direct au panier
         add_filter('woocommerce_loop_add_to_cart_link', [self::class, 'loop_button'], 10, 2);
+        add_action('woocommerce_after_shop_loop_item_title', [self::class, 'loop_tagline'], 6);
         // Panier
         add_filter('woocommerce_add_to_cart_validation', [self::class, 'validate_add'], 10, 3);
         add_filter('woocommerce_add_cart_item_data', [self::class, 'cart_item_data'], 10, 2);
         add_filter('woocommerce_get_item_data', [self::class, 'cart_item_display'], 10, 2);
         add_filter('woocommerce_cart_item_thumbnail', [self::class, 'cart_thumbnail'], 10, 2);
+        add_action('woocommerce_before_calculate_totals', [self::class, 'cart_prices'], 20);
+        // Prix affichés : « dès … » et remises par quantité
+        add_filter('woocommerce_get_price_html', [self::class, 'price_html'], 10, 2);
+        add_action('woocommerce_before_add_to_cart_form', [self::class, 'tiers_table']);
         // Commande
         add_action('woocommerce_checkout_create_order_line_item', [self::class, 'order_item_meta'], 10, 3);
         add_action('woocommerce_store_api_checkout_order_processed', [self::class, 'link_order']);
@@ -91,9 +96,19 @@ final class CB_Woo
             'assets' => CB_URL . 'assets/',
             'productId' => $product_id,
             'deck' => $deck,
+            'spec' => self::spec_for_js($deck),
+            'image' => (string) wp_get_attachment_image_url((int) get_post_thumbnail_id($product_id), 'large'),
             'cardPx' => CB_Settings::card_px($deck),
             'bleedMm' => (float) CB_Settings::get('bleed_mm'),
         ]);
+    }
+
+    public static function loop_tagline(): void
+    {
+        global $product;
+        if ($product && ($t = get_post_meta($product->get_id(), '_cb_tagline', true))) {
+            echo '<p class="cb-tagline">' . esc_html($t) . '</p>';
+        }
     }
 
     public static function loop_button(string $html, $product): string
@@ -102,6 +117,65 @@ final class CB_Woo
             return $html;
         }
         return '<a href="' . esc_url($product->get_permalink()) . '" class="button wp-element-button">Créer mon jeu</a>';
+    }
+
+    private static function spec_for_js(string $deck): array
+    {
+        $d = CB_Settings::deck($deck);
+        $b = 2 * (float) CB_Settings::get('bleed_mm');
+        $media = [];
+        foreach (CB_Settings::MEDIA as $k => $m) {
+            $media[] = ['id' => $k, 'label' => $m['label'], 'hint' => $m['hint'], 'delta' => (float) ($d['pricing']['media'][$k] ?? 0)];
+        }
+        return [
+            'cards' => $d['cards'], 'cardsMin' => $d['cards_min'] ?? null, 'cardsMax' => $d['cards_max'] ?? null,
+            'backs' => $d['backs'], 'editor' => $d['editor'], 'media' => $media,
+            'pricing' => $d['pricing'],
+            'formats' => array_map(fn($f) => ['label' => CB_Settings::FORMATS[$f]['label'],
+                'page' => array_map(fn($v) => $v + $b, CB_Settings::FORMATS[$f]['trim'])], $d['formats']),
+        ];
+    }
+
+    /** Prix recalculé au panier : grille du jeu, nombre de cartes du fichier, carton, remise quantité. */
+    public static function cart_prices($cart): void
+    {
+        if (is_admin() && !wp_doing_ajax()) {
+            return;
+        }
+        foreach ($cart->get_cart() as $item) {
+            if (empty($item['cb_job']) || !($job = CB_Store::job($item['cb_job'])) || !CB_Settings::deck($job['deck'])) {
+                continue;
+            }
+            $price = CB_Settings::price($job['deck'], (int) $item['quantity'], $job['cards'] ? (int) $job['cards'] : null, $job['media']);
+            $item['data']->set_price($price['unit']);
+        }
+    }
+
+    public static function price_html(string $html, $product): string
+    {
+        $deck = self::is_studio_product($product) ? CB_Settings::deck((string) get_post_meta($product->get_id(), '_cb_deck', true)) : null;
+        if (!$deck || is_cart() || is_checkout()) {
+            return $html;
+        }
+        return '<span class="cb-from">dès</span> ' . $html;
+    }
+
+    public static function tiers_table(): void
+    {
+        global $product;
+        $key = $product && self::is_studio_product($product) ? (string) get_post_meta($product->get_id(), '_cb_deck', true) : '';
+        if (!($deck = CB_Settings::deck($key))) {
+            return;
+        }
+        $rows = [];
+        foreach ($deck['pricing']['tiers'] as [$min, $coef]) {
+            if ($coef < 1) {
+                $rows[] = sprintf('<li>dès %d jeux : <strong>−%d %%</strong></li>', $min, round((1 - $coef) * 100));
+            }
+        }
+        $extra = isset($deck['cards_min']) ? sprintf('<p class="cb-note">Prix pour %d cartes : %s € + %s € par carte, calculé d’après votre fichier.</p>',
+            $deck['cards_min'], number_format($deck['pricing']['unit'], 2, ',', ' '), number_format($deck['pricing']['per_card'], 2, ',', ' ')) : '';
+        echo '<div class="cb-tiers"><p><strong>Remises par quantité</strong></p><ul>' . implode('', $rows) . "</ul>$extra</div>";
     }
 
     public static function studio_mount(): void
@@ -144,8 +218,25 @@ final class CB_Woo
     {
         if (!empty($item['cb_job']) && ($job = CB_Store::job($item['cb_job']))) {
             $lines[] = ['key' => 'Création', 'value' => $job['kind'] === 'pdf' ? 'Votre fichier PDF, contrôlé' : 'Créée en ligne, contrôlée'];
+            foreach (self::job_details($job) as $k => $v) {
+                $lines[] = ['key' => $k, 'value' => $v];
+            }
         }
         return $lines;
+    }
+
+    /** Carton, format et nombre de cartes d'une création (panier, commande, e-mails). */
+    public static function job_details(array $job): array
+    {
+        $out = ['Carton' => CB_Settings::MEDIA[$job['media']]['label'] ?? $job['media']];
+        $deck = CB_Settings::deck($job['deck']);
+        if ($deck && count($deck['formats']) > 1) {
+            $out['Format'] = CB_Settings::FORMATS[$job['format']]['label'] ?? $job['format'];
+        }
+        if ($deck && isset($deck['cards_min']) && $job['cards']) {
+            $out['Cartes'] = (string) $job['cards'];
+        }
+        return $out;
     }
 
     public static function cart_thumbnail(string $html, array $item): string
@@ -163,6 +254,11 @@ final class CB_Woo
     {
         if (!empty($values['cb_job'])) {
             $item->add_meta_data('_cb_job', $values['cb_job'], true);
+            if ($job = CB_Store::job($values['cb_job'])) {
+                foreach (self::job_details($job) as $k => $v) {
+                    $item->add_meta_data($k, $v, true);
+                }
+            }
         }
     }
 
