@@ -35,6 +35,14 @@ if (defined('WP_CLI') && WP_CLI && is_file(CB_DIR . '/includes/class-cli.php')) 
 
 register_activation_hook(__FILE__, ['CB_Store', 'install']);
 
+// Multisite : chaque boutique du réseau garde son propre cookie de panier. Sinon, passer d'une
+// boutique WooCommerce du réseau à l'autre remplace le cookie de l'une par celui de l'autre et
+// vide le panier (constaté sur goodies-sport.fr). Le filtre doit être posé avant l'ouverture
+// de la session WooCommerce, d'où sa place ici.
+if (is_multisite()) {
+    add_filter('woocommerce_cookie', fn($name) => $name . '_' . get_current_blog_id());
+}
+
 add_action('plugins_loaded', function () {
     if (get_option('cb_db_version') !== CB_VERSION) {
         CB_Store::install();
