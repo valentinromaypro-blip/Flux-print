@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flux-print-engine"
+version = "0.1.0"
+description = "Moteur Flux-print : spécifications produit, gabarits et preflight PDF."
+requires-python = ">=3.10"
+# Dépendances volontairement sous licences permissives (pas d'AGPL liée au code).
+dependencies = [
+    "pikepdf>=8",        # MPL-2.0 (qpdf : Apache-2.0) — lecture/écriture PDF
+    "pypdfium2>=4",      # Apache-2.0 / BSD-3 — extraction du texte, rendus
+    "reportlab>=4",      # BSD — génération des gabarits
+    "Pillow>=10",        # MIT-CMU
+    "numpy>=1.24",       # BSD
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+flux-print = "flux_print.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["flux_print*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

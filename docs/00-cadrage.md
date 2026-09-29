@@ -16,6 +16,7 @@ Avant de lister les briques, cinq points de raisonnement qui changent l'architec
    - génération **déterministe et conforme par construction** (fonds perdus, profils ICC, polices incorporées) ;
    - contrôle de **sortie** automatisé (garde-fou, pas la ligne de défense principale).
    Le preflight classique reste utile, mais comme vérification finale, pas comme cœur du système.
+   > **Amendé (D3, `01-decisions.md`)** : les clients pourront aussi déposer leur propre PDF sur gabarit. Le preflight de fichiers arbitraires devient donc une brique centrale, développée en interne.
 
 3. **Aperçu écran = fichier imprimé.** Règle absolue : un seul moteur de rendu pour l'aperçu et le PDF de production. Si l'éditeur navigateur et le générateur PDF ont deux implémentations, ils divergeront (polices, césure, recadrage) et vous imprimerez des erreurs que le client n'a jamais vues. Le BAT (bon à tirer) montré au client doit être une rastérisation du PDF final.
 
@@ -148,7 +149,7 @@ C'est ici que se joue la qualité d'impression.
 | Rastérisation (aperçus, BAT) | MuPDF, pdfium, Ghostscript |
 | Preflight de sortie | callas pdfToolbox CLI/Server (standard industriel, payant), Enfocus PitStop Server ; contrôles maison complémentaires |
 
-**Recommandation** : moteur de rendu maison (Python : ReportLab ou Skia + lcms2) pour le contrôle total, validation finale par callas pdfToolbox (licence serveur) une fois le volume justifié ; en MVP, un jeu de contrôles maison + Ghostscript suffit.
+**Recommandation** : moteur de rendu maison (Python : ReportLab ou Skia + lcms2) pour le contrôle total, validation par notre propre moteur de preflight (`services/print-engine`). Pas de licence callas, conformément à D5 (`01-decisions.md`).
 
 ### 4.3 Aperçus
 - Aperçus basse définition générés à partir du **même** rendu (rastérisation du PDF), mis en cache par hash du document.
