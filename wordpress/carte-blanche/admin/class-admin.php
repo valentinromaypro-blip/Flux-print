@@ -9,12 +9,14 @@ final class CB_Admin
     {
         add_action('admin_menu', [self::class, 'menu']);
         add_action('admin_post_cb_setup', [self::class, 'run_setup']);
+        add_action('admin_post_cb_prod', [self::class, 'production_action']);
     }
 
     public static function menu(): void
     {
         add_menu_page('Carte Blanche', 'Carte Blanche', 'manage_woocommerce', 'carte-blanche', [self::class, 'diagnostic'], 'dashicons-images-alt2', 56);
         add_submenu_page('carte-blanche', 'Diagnostic', 'Diagnostic', 'manage_woocommerce', 'carte-blanche', [self::class, 'diagnostic']);
+        add_submenu_page('carte-blanche', 'Production', 'Production', 'manage_woocommerce', 'carte-blanche-production', [self::class, 'production']);
         add_submenu_page('carte-blanche', 'Mise en place du site', 'Mise en place', 'manage_options', 'carte-blanche-setup', [self::class, 'setup']);
     }
 
@@ -164,5 +166,185 @@ final class CB_Admin
         }
         echo '</tbody></table>';
         echo '<p style="max-width:960px">Extensions actives : <code>' . esc_html(implode(', ', array_map(fn($p) => dirname($p) === '.' ? $p : dirname($p), $plugins))) . '</code></p>';
+    }
+
+    // --- Production -------------------------------------------------------------------------------
+
+    private static function prod_url(array $args = []): string
+    {
+        return admin_url('admin.php?page=carte-blanche-production' . ($args ? '&' . http_build_query($args) : ''));
+    }
+
+    private static function action_url(string $do, array $args = []): string
+    {
+        return wp_nonce_url(admin_url('admin-post.php?' . http_build_query(['action' => 'cb_prod', 'do' => $do] + $args)), 'cb_prod');
+    }
+
+    public static function production_action(): void
+    {
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die('Accès refusé.');
+        }
+        check_admin_referer('cb_prod');
+        $do = sanitize_key($_GET['do'] ?? '');
+        $id = sanitize_text_field($_GET['lot'] ?? '');
+        $msg = '';
+        switch ($do) {
+            case 'run':
+                @set_time_limit(160);
+                $r = CB_Production::run_now(110);
+                $msg = sprintf('%d jeu(x) préparé(s), %d lot(s) créé(s).', $r['prepared'], count($r['lots']));
+                break;
+            case 'launch':
+                $key = sanitize_text_field(wp_unslash($_GET['group'] ?? ''));
+                @set_time_limit(160);
+                $ids = CB_Production::plan_lots($key);
+                foreach ($ids as $lot) {
+                    CB_Production::build_lot($lot);
+                }
+                $msg = $ids ? 'Lot ' . implode(', ', $ids) . ' créé.' : 'Aucun jeu à lancer.';
+                break;
+            case 'retry':
+                $uid = sanitize_key($_GET['job'] ?? '');
+                if (($job = CB_Store::job($uid)) && $job['status'] === 'failed') {
+                    CB_Store::update_job($uid, ['status' => 'paid', 'error' => null]);
+                    CB_Production::job_paid($uid);
+                    $msg = 'Préparation relancée.';
+                }
+                break;
+            case 'rebuild':
+                if (($lot = CB_Store::lot($id)) && $lot['status'] === 'failed') {
+                    CB_Production::build_lot($id);
+                    $msg = "Lot $id refait.";
+                }
+                break;
+            case 'printed':
+                CB_Production::mark_printed($id);
+                $msg = "Lot $id marqué imprimé.";
+                break;
+            case 'download':
+                $file = CB_Production::lot_file($id);
+                if (!is_file($file)) {
+                    wp_die('Fichier introuvable.');
+                }
+                nocache_headers();
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: attachment; filename="' . basename($file) . '"');
+                header('Content-Length: ' . filesize($file));
+                while (ob_get_level()) {
+                    ob_end_clean();
+                }
+                readfile($file);
+                exit;
+        }
+        wp_safe_redirect(self::prod_url($msg ? ['msg' => $msg] : []));
+        exit;
+    }
+
+    public static function production(): void
+    {
+        if (!empty($_GET['lot'])) {
+            self::lot_sheet(sanitize_text_field($_GET['lot']));
+            return;
+        }
+        $media = fn($m) => CB_Settings::MEDIA[$m]['label'] ?? $m;
+        $format = fn($f) => CB_Settings::FORMATS[$f]['label'] ?? $f;
+        $order_link = function ($id) {
+            $o = $id ? wc_get_order((int) $id) : null;
+            return $o ? '<a href="' . esc_url($o->get_edit_order_url()) . '">#' . esc_html($o->get_order_number()) . '</a> ' . esc_html($o->get_formatted_billing_full_name()) : '—';
+        };
+        echo '<div class="wrap"><h1>Carte Blanche · Production</h1>';
+        if (!empty($_GET['msg'])) {
+            echo '<div class="notice notice-success"><p>' . esc_html(wp_unslash($_GET['msg'])) . '</p></div>';
+        }
+        echo '<p style="max-width:860px">Automatique : chaque jeu payé est préparé en CMJN (PSO Coated v3, 350 dpi), puis les jeux de même format et même carton partent en lot '
+            . 'aux créneaux de <strong>' . implode(' et ', CB_Production::RULES['launch_times']) . '</strong> s’il y en a au moins ' . CB_Production::RULES['slot_min_decks']
+            . ', tout de suite si un livre est plein, et au plus tard après ' . CB_Production::RULES['max_wait_hours'] . ' h. '
+            . '<a class="button" href="' . esc_url(self::action_url('run')) . '">Traiter maintenant</a></p>';
+
+        // Jeux en préparation ou en erreur
+        $jobs = CB_Store::jobs_where("status IN ('paid', 'preparing', 'failed') AND order_id IS NOT NULL ORDER BY paid_at ASC");
+        echo '<h2>En préparation</h2>';
+        if (!$jobs) {
+            echo '<p>Aucun jeu en préparation.</p>';
+        } else {
+            echo '<table class="widefat striped"><thead><tr><th>Commande</th><th>Jeu</th><th>Exemplaires</th><th>État</th><th></th></tr></thead><tbody>';
+            foreach ($jobs as $j) {
+                $state = ['paid' => 'en attente', 'preparing' => 'en cours', 'failed' => '<span style="color:#c4172c">erreur : ' . esc_html((string) $j['error']) . '</span>'][$j['status']];
+                printf('<tr><td>%s</td><td>%s · %s</td><td>%d</td><td>%s</td><td>%s</td></tr>', $order_link($j['order_id']), esc_html(CB_Settings::deck($j['deck'])['label'] ?? $j['deck']),
+                    esc_html($j['kind'] === 'pdf' ? 'PDF' : 'studio'), (int) $j['copies'], $state,
+                    $j['status'] === 'failed' ? '<a href="' . esc_url(self::action_url('retry', ['job' => $j['uid']])) . '">Relancer</a>' : '');
+            }
+            echo '</tbody></table>';
+        }
+
+        // Jeux prêts en attente d'un lot
+        echo '<h2>Prêts, en attente de lot</h2>';
+        $groups = CB_Production::waiting();
+        if (!$groups) {
+            echo '<p>Aucun jeu en attente.</p>';
+        } else {
+            echo '<table class="widefat striped"><thead><tr><th>Format</th><th>Carton</th><th>Jeux</th><th>Attente</th><th>Départ prévu</th><th></th></tr></thead><tbody>';
+            foreach ($groups as $key => $g) {
+                $next = $g['decks'] >= $g['per_sheet'] ? 'livre plein : au prochain passage'
+                    : ($g['decks'] >= CB_Production::RULES['slot_min_decks'] ? 'au prochain créneau' : sprintf('encore %d jeu(x) pour un créneau, sinon après %d h', CB_Production::RULES['slot_min_decks'] - $g['decks'], CB_Production::RULES['max_wait_hours']));
+                printf('<tr><td>%s</td><td>%s</td><td>%d / %d par livre</td><td>%.0f h</td><td>%s</td><td><a class="button" href="%s">Lancer un lot maintenant</a></td></tr>',
+                    esc_html($format($g['format'])), esc_html($media($g['media'])), $g['decks'], $g['per_sheet'], $g['wait_hours'], esc_html($next),
+                    esc_url(self::action_url('launch', ['group' => $key])));
+            }
+            echo '</tbody></table>';
+        }
+
+        // Lots
+        echo '<h2>Lots</h2>';
+        $lots = CB_Store::recent_lots(30);
+        if (!$lots) {
+            echo '<p>Aucun lot pour l’instant.</p>';
+        } else {
+            echo '<table class="widefat striped"><thead><tr><th>Lot</th><th>Créé</th><th>Format · carton</th><th>Jeux</th><th>Feuilles SRA3</th><th>État</th><th>Fichiers</th><th></th></tr></thead><tbody>';
+            foreach ($lots as $l) {
+                $state = ['planned' => 'en file', 'building' => 'fabrication du PDF…', 'ready' => '<strong style="color:#1e7a4f">prêt à imprimer</strong>', 'printed' => 'imprimé',
+                    'failed' => '<span style="color:#c4172c">erreur : ' . esc_html((string) $l['error']) . '</span>'][$l['status']] ?? esc_html($l['status']);
+                $files = in_array($l['status'], ['ready', 'printed'], true)
+                    ? sprintf('<a class="button button-primary" href="%s">PDF d’impression</a> <a class="button" href="%s">Fiche de lot</a>',
+                        esc_url(self::action_url('download', ['lot' => $l['id']])), esc_url(self::prod_url(['lot' => $l['id']]))) : '';
+                $act = $l['status'] === 'ready' ? '<a href="' . esc_url(self::action_url('printed', ['lot' => $l['id']])) . '">Marquer imprimé</a>'
+                    : ($l['status'] === 'failed' ? '<a href="' . esc_url(self::action_url('rebuild', ['lot' => $l['id']])) . '">Refaire</a>' : '');
+                printf('<tr><td><code>%s</code><br><small>%s</small></td><td>%s</td><td>%s · %s</td><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+                    esc_html($l['id']), esc_html((string) $l['reason']), esc_html(get_date_from_gmt($l['created_at'], 'd/m H:i')), esc_html($format($l['format'])), esc_html($media($l['media'])),
+                    (int) $l['decks'], $l['sheets'] ? (int) $l['sheets'] : '—', $state, $files, $act);
+            }
+            echo '</tbody></table>';
+            echo '<p class="description">Fiery : échelle 100 %, sans rotation automatique ni imposition Fiery, recto verso <strong>petit côté</strong>, profil source CMJN FOGRA51 (PSO Coated v3).</p>';
+        }
+        echo '</div>';
+    }
+
+    /** Fiche de lot imprimable : pour chaque livre, la commande de chaque pile. */
+    private static function lot_sheet(string $id): void
+    {
+        $lot = CB_Store::lot($id);
+        if (!$lot || !$lot['manifest']) {
+            echo '<div class="wrap"><p>Lot introuvable.</p></div>';
+            return;
+        }
+        $m = $lot['manifest'];
+        echo '<div class="wrap cb-lot-sheet"><style>@media print{#adminmenumain,#wpadminbar,#wpfooter,.cb-noprint{display:none!important}#wpcontent{margin:0!important}}</style>';
+        echo '<p class="cb-noprint"><a href="' . esc_url(self::prod_url()) . '">← Production</a> · <a href="#" onclick="window.print();return false">Imprimer la fiche</a></p>';
+        printf('<h1>Fiche de lot %s</h1><p><strong>%s</strong> · %s · %s · %d jeux · %d feuilles SRA3 · recto verso petit côté</p>',
+            esc_html($id), esc_html(CB_Settings::FORMATS[$m['format']]['label'] ?? $m['format']), esc_html(CB_Settings::MEDIA[$m['media']]['label'] ?? $m['media']),
+            esc_html($m['layout']), (int) $lot['decks'], (int) $lot['sheets']);
+        echo '<p>Couper chaque livre de feuilles d’un seul coup : chaque pile est un jeu complet et trié, sa carte d’identification sur le dessus (à retirer avant la mise en étui). '
+            . 'Piles numérotées dans l’ordre de lecture de la feuille : de haut en bas, de gauche à droite (recto).</p>';
+        foreach ($m['books'] as $book) {
+            printf('<h2>Livre %d · feuilles %d à %d (%d feuilles)</h2>', $book['book'], $book['first_sheet'], $book['first_sheet'] + $book['sheets'] - 1, $book['sheets']);
+            echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th>Pile</th><th>Commande</th><th>Client</th><th>Exemplaire</th><th>Cartes</th><th>✓</th></tr></thead><tbody>';
+            foreach ($book['stacks'] as $s) {
+                printf('<tr><td><strong>%d</strong></td><td>#%s</td><td>%s</td><td>%d / %d</td><td>%d</td><td>☐</td></tr>', $s['stack'], esc_html($s['order']), esc_html($s['name']),
+                    $s['copy'], $s['copies'], $s['cards']);
+            }
+            echo '</tbody></table>';
+        }
+        echo '</div>';
     }
 }

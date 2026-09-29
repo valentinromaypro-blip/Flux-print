@@ -59,6 +59,7 @@ final class CB_Store
             id varchar(40) NOT NULL,
             status varchar(16) NOT NULL DEFAULT 'planned',
             media varchar(40) NOT NULL,
+            format varchar(16) NOT NULL DEFAULT 'poker',
             reason varchar(120) NULL,
             sheets int(11) NULL,
             decks int(11) NULL,
@@ -160,6 +161,31 @@ final class CB_Store
             $row['manifest'] = $row['manifest'] ? json_decode($row['manifest'], true) : null;
         }
         return $row;
+    }
+
+    public static function create_lot(array $fields): array
+    {
+        global $wpdb;
+        $wpdb->insert(self::lots(), $fields + ['created_at' => self::now()]);
+        return self::lot($fields['id']);
+    }
+
+    public static function update_lot(string $id, array $fields): void
+    {
+        global $wpdb;
+        if (array_key_exists('manifest', $fields) && is_array($fields['manifest'])) {
+            $fields['manifest'] = wp_json_encode($fields['manifest']);
+        }
+        $wpdb->update(self::lots(), $fields, ['id' => $id]);
+    }
+
+    /** @return array<int, array> lots, les plus récents d'abord */
+    public static function recent_lots(int $limit = 50): array
+    {
+        global $wpdb;
+        $rows = $wpdb->get_results($wpdb->prepare('SELECT id, status, media, format, reason, sheets, decks, error, created_at, generated_at, printed_at FROM '
+            . self::lots() . ' ORDER BY created_at DESC LIMIT %d', $limit), ARRAY_A) ?: [];
+        return $rows;
     }
 
     /** Journal lisible dans les notes de commande WooCommerce. */

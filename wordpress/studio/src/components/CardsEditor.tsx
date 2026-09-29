@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { type Crop, uid } from "@/lib/design.ts";
+import { type Crop, uid, revealPanel } from "@/lib/design.ts";
 import { backModels, type BackModel } from "@/lib/backs.ts";
 import { CB } from "@/lib/env.ts";
 import { format } from "@/lib/format.ts";
@@ -37,6 +37,8 @@ function CardCanvas({ card, look, width, className, onPointerDown, onPointerMove
 export default function CardsEditor({ busy, header, finish, status, onSubmit }: Props) {
   const min = CB.spec.cardsMin ?? 1, max = CB.spec.cardsMax ?? 100;
   const [step, setStep] = useState(0);
+  const panelRef = useRef<HTMLDivElement>(null), firstStep = useRef(true);
+  useEffect(() => revealPanel(panelRef.current, firstStep), [step]);
   const [models, setModels] = useState<BackModel[]>([]);
   const [back, setBackState] = useState<BackState>(initialBack);
   const [cards, setCards] = useState<Card[]>([]);
@@ -117,7 +119,7 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit }: 
           : current ? `Carte ${index + 1} sur ${cards.length} · glissez l'image pour la placer` : `${format().label} · de ${min} à ${max} cartes`}</p>
       </div>
 
-      <div className="panel">
+      <div className="panel" ref={panelRef}>
         {header}
         {status ?? (
           <>

@@ -1,6 +1,6 @@
 "use client";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { type Crop, RANKS, SUITS, uid } from "@/lib/design.ts";
+import { type Crop, RANKS, SUITS, uid, revealPanel } from "@/lib/design.ts";
 import { cutHead } from "@/lib/headcut.ts";
 import { type Style, drawCourt, headBox, RATIO } from "@/lib/cardrender.ts";
 import { backModels, type BackModel } from "@/lib/backs.ts";
@@ -60,6 +60,8 @@ function MiniCourt({ code, face, crop, style, selected, onSelect, onDropFace, on
 
 export default function Editor({ busy, header, finish, status, onSubmit }: Props) {
   const [step, setStep] = useState(0);
+  const panelRef = useRef<HTMLDivElement>(null), firstStep = useRef(true);
+  useEffect(() => revealPanel(panelRef.current, firstStep), [step]);
   const [back, setBackState] = useState<BackState>(initialBack);
   const [models, setModels] = useState<BackModel[]>([]);
   const setBack = (patch: Partial<BackState>) => setBackState((b) => ({ ...b, ...patch }));
@@ -220,7 +222,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
           : current ? "Glissez le visage pour le placer · molette ou −/+ pour la taille" : `${label(selected)} · tête du haut et du bas`}</p>
       </div>
 
-      <div className="panel">
+      <div className="panel" ref={panelRef}>
         {header}
         {status ?? (
           <>

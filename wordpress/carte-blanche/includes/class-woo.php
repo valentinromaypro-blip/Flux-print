@@ -296,6 +296,7 @@ final class CB_Woo
             $job = $uid ? CB_Store::job($uid) : null;
             if ($job && $job['status'] === 'approved') {
                 CB_Store::update_job($uid, ['status' => 'paid', 'paid_at' => CB_Store::now(), 'copies' => $item->get_quantity()]);
+                CB_Production::job_paid($uid);
                 $count += $item->get_quantity();
             }
         }

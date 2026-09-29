@@ -1,7 +1,7 @@
 /*
 Theme Name: Carte Blanche
 Description: Thème du site Carte Blanche : jeux de cartes personnalisés. Thème en blocs, léger, polices hébergées localement, compatible WooCommerce et le plugin Carte Blanche.
-Version: 1.0.0
+Version: 1.1.0
 Requires at least: 6.5
 Requires PHP: 8.1
 Author: Carte Blanche
@@ -17,10 +17,12 @@ h1, h2, h3 { text-wrap: balance; }
 
 /* En-tête */
 .cb-announce { font-size: 13.5px; text-align: center; }
-.cb-announce p { margin: 0; }
-.cb-header { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--wp--preset--color--paper) 92%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--cb-line); }
-.admin-bar .cb-header { top: 32px; }
-@media (max-width: 782px) { .admin-bar .cb-header { top: 0; } }
+.cb-announce p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* une ligne : hauteur fixe pour l’en-tête collant */
+/* En-tête collant : c'est la zone d'en-tête du gabarit qui colle (le bandeau vert remonte avec la page) */
+header.wp-block-template-part { position: sticky; top: -41px; z-index: 20; }
+.admin-bar header.wp-block-template-part { top: -9px; }
+@media (max-width: 782px) { .admin-bar header.wp-block-template-part { top: -41px; } }
+.cb-header { background: color-mix(in srgb, var(--wp--preset--color--paper) 92%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--cb-line); }
 .cb-logo { font: 800 22px/1 var(--wp--preset--font-family--display); letter-spacing: -.03em; white-space: nowrap; margin: 0; }
 .cb-logo a { text-decoration: none; color: inherit; }
 .cb-logo span, .cb-red { color: var(--wp--preset--color--red); }
