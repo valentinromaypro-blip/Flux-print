@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN touch /usr/local/share/extra-proxy.crt && npm ci --no-audit --no-fund
 COPY . .
-RUN npx next build
+RUN npm run build
 ENV NODE_ENV=production
 EXPOSE 3000
 CMD ["npx", "next", "start", "-p", "3000"]

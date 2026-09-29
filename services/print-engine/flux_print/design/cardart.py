@@ -52,7 +52,17 @@ SUITS = {"S": ("♠", INK), "H": ("♥", RED), "D": ("♦", RED), "C": ("♣", I
 def crop_photo(photo: Image.Image, crop: dict | None, ratio: float = 1.0) -> Image.Image:
     """Recadrage : zone de proportions `ratio` (largeur/hauteur), centrée en (x, y) normalisés,
     agrandie de `zoom` (1 = la plus grande zone possible)."""
-    photo = ImageOps.exif_transpose(photo).convert("RGB")
+    photo = ImageOps.exif_transpose(photo)
+    if "A" in photo.getbands():
+        # Tête détourée : on la centre (sans la rogner) dans un fond transparent aux bonnes proportions.
+        photo = photo.convert("RGBA")
+        w, h = photo.size
+        pw, ph = max(w, round(h * ratio)), max(h, round(w / ratio))
+        padded = Image.new("RGBA", (pw, ph), (0, 0, 0, 0))
+        padded.paste(photo, ((pw - w) // 2, (ph - h) // 2))
+        photo = padded
+    else:
+        photo = photo.convert("RGB")
     crop = crop or {}
     zoom = max(1.0, float(crop.get("zoom", 1)))
     w, h = photo.size

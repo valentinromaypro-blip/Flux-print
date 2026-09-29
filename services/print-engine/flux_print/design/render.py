@@ -5,7 +5,7 @@ Design d'un jeu de cartes (JSON stocké sur la ligne de commande) :
     {
       "back":   {"color": "#134536", "ink": "#F0E8D6", "title": "J & M", "subtitle": "12 · 06 · 2027",
                  "photo": {"path": "sessions/…/photos/….jpg", "zoom": 1.2, "x": 0.5, "y": 0.4}},
-      "style":  "gravure",            # traitement des visages : gravure (bleu du dessin) ou couleur
+      "style":  "couleur",            # traitement des visages : couleur ou gravure (bleu du dessin)
       "courts": {"H-K": {"name": "Papa", "photo": {"path": "…", "zoom": 2.5, "x": 0.52, "y": 0.35}}, …}
     }
 
@@ -85,7 +85,7 @@ def validate_design(design: dict, deck_code: str) -> dict:
         if not isinstance(court, dict):
             raise DesignError("Figure invalide.")
         courts[code] = {"name": str(court.get("name") or "")[:14], "photo": _photo_spec(court.get("photo"))}
-    style = design.get("style") or "gravure"
+    style = design.get("style") or "couleur"
     if style not in classic.STYLES:
         raise DesignError(f"Style inconnu : {style}")
     return {"back": clean_back, "style": style, "courts": courts}

@@ -1,9 +1,10 @@
 """Jeu classique personnalisable : les figures traditionnelles (dessins d'Adrian Kennard,
 domaine public CC0) dont la tête est remplacée par le visage du client.
 
-Le visage est recadré (zoom, x, y choisis par le client), traité en gravure aux
-couleurs du dessin (ou laissé en couleur), détouré en ovale fondu et glissé sous
-la couronne ; la tête du bas reçoit la même, retournée à 180°.
+Le visage est recadré (zoom, x, y choisis par le client), laissé en couleur ou
+traité en gravure aux couleurs du dessin, puis glissé sous la couronne ; la tête du
+bas reçoit la même, retournée à 180°. La tête arrive détourée par l'éditeur du site
+(PNG transparent) ; une photo ordinaire est découpée en ovale fondu.
 """
 
 from __future__ import annotations
@@ -13,14 +14,15 @@ from functools import lru_cache
 from pathlib import Path
 
 import resvg_py
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 from .cardart import crop_photo, draw_centered, font
 
 DIR = Path(__file__).parent / "classic"
 UNITS = (240, 336)
 LINE = (68, 68, 255)  # bleu des traits du dessin
-STYLES = {"gravure", "couleur"}
+LINE_DARK = (34, 34, 122)  # contour des visages
+STYLES = {"couleur", "gravure"}
 FACES: dict[str, list[float]] = {k: v for k, v in json.loads((DIR / "faces.json").read_text()).items()
                                  if not k.startswith("_")}
 
@@ -52,37 +54,45 @@ def stylise(face: Image.Image, style: str) -> Image.Image:
                              blackpoint=10, whitepoint=235, midpoint=110)
 
 
-def _face_layer(photo: Image.Image, slot: list[float], k: float, style: str) -> tuple[Image.Image, Image.Image, tuple[int, int]]:
-    """Visage détouré à coller : image, masque et coin haut-gauche (en pixels de la carte)."""
+def _face_layer(photo: Image.Image, slot: list[float], k: float, style: str) -> tuple[Image.Image, tuple[int, int]]:
+    """Visage à coller et son coin haut-gauche (en pixels de la carte).
+
+    Photo détourée (PNG avec transparence, tête seule) : on garde sa silhouette, cernée d'un
+    trait comme le dessin. Photo ordinaire : ovale fondu. Dans les deux cas, le haut de la
+    tête passe sous la couronne.
+    """
     cx, cy, rx, ry, top = slot
     w, h = round(2 * rx * k), round(2 * ry * k)
-    face = stylise(photo.resize((w, h), Image.LANCZOS), style)
-    mask = Image.new("L", (w, h), 0)
-    feather = max(2, round(1.6 * k))
-    ImageDraw.Draw(mask).ellipse((feather, feather, w - feather, h - feather), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(feather * 0.6))
-    cut = round((top - (cy - ry)) * k)  # le haut de la tête passe sous la couronne
+    face = photo.resize((w, h), Image.LANCZOS)
+    rgb = stylise(face.convert("RGB"), style)
+    stroke = max(2, round(1.1 * k))
+    if face.mode == "RGBA":
+        mask = face.getchannel("A")
+        ring = mask.point(lambda v: 255 if v > 110 else 0).filter(ImageFilter.MaxFilter(2 * stroke + 1))
+    else:
+        feather = max(2, round(1.6 * k))
+        mask = Image.new("L", (w, h), 0)
+        ImageDraw.Draw(mask).ellipse((feather, feather, w - feather, h - feather), fill=255)
+        mask = mask.filter(ImageFilter.GaussianBlur(feather * 0.6))
+        ring = Image.new("L", (w, h), 0)
+        ImageDraw.Draw(ring).ellipse((feather, feather, w - feather, h - feather), outline=255, width=stroke)
+    cut = round((top - (cy - ry)) * k)
+    layer = Image.new("RGBA", (w, h), LINE_DARK + (0,))
+    layer.putalpha(ring)
+    layer.paste(rgb, mask=mask)
     if cut > 0:
-        ImageDraw.Draw(mask).rectangle((0, 0, w, cut), fill=0)
-    outline = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    ImageDraw.Draw(outline).ellipse((feather, feather, w - feather, h - feather), outline=LINE + (255,),
-                                    width=max(2, round(1.1 * k)))
-    if cut > 0:
-        ImageDraw.Draw(outline).rectangle((0, 0, w, cut), fill=(0, 0, 0, 0))
-    layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    layer.paste(face, mask=mask)
-    layer.alpha_composite(outline)
-    return layer, ImageChops.lighter(mask, outline.getchannel("A")), (round((cx - rx) * k), round((cy - ry) * k))
+        ImageDraw.Draw(layer).rectangle((0, 0, w, cut), fill=(0, 0, 0, 0))
+    return layer, (round((cx - rx) * k), round((cy - ry) * k))
 
 
 def court(code: str, width: int, photo: Image.Image | None = None, crop: dict | None = None,
-          style: str = "gravure", name: str = "") -> Image.Image:
+          style: str = "couleur", name: str = "") -> Image.Image:
     """Figure à `width` px de large ; `photo` remplace les deux têtes."""
     img = card_image(code, width)
     k = width / UNITS[0]
     if photo is not None and code in FACES:
         slot = FACES[code]
-        layer, _, (x, y) = _face_layer(crop_photo(photo, crop, slot[2] / slot[3]), slot, k, style)
+        layer, (x, y) = _face_layer(crop_photo(photo, crop, slot[2] / slot[3]), slot, k, style)
         img.alpha_composite(layer, (x, y))
         flipped = layer.rotate(180)
         img.alpha_composite(flipped, (img.width - x - layer.width, img.height - y - layer.height))

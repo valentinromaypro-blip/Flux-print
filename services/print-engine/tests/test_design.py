@@ -41,7 +41,7 @@ def test_every_court_has_a_face_slot():
 
 
 def test_style_is_validated():
-    assert validate_design({}, "54")["style"] == "gravure"
+    assert validate_design({}, "54")["style"] == "couleur"
     with pytest.raises(DesignError):
         validate_design({"style": "sepia"}, "54")
 
@@ -51,3 +51,15 @@ def test_site_preview_uses_the_same_art():
     assert json.loads((SITE_CARDS / "faces.json").read_text()) == json.loads((classic.DIR / "faces.json").read_text())
     for svg in SITE_CARDS.glob("*.svg"):
         assert svg.read_bytes() == (classic.DIR / svg.name).read_bytes()
+
+
+def test_cut_out_head_keeps_its_silhouette():
+    head = Image.new("RGBA", (300, 380), (0, 0, 0, 0))
+    head.paste((210, 170, 140, 255), (60, 40, 240, 340))
+    face = classic.court("SQ", 480, head, {"zoom": 1, "x": 0.5, "y": 0.5})
+    cx, cy, rx, ry, _ = classic.FACES["SQ"]
+    k = 2
+    # le coin de la zone du visage reste le dessin d'origine (fond transparent autour de la tête)
+    corner = (round((cx - rx + 1) * k), round((cy + ry - 3) * k))
+    assert face.getpixel(corner) == classic.court("SQ", 480).getpixel(corner)
+    assert face.getpixel((round(cx * k), round(cy * k)))[:3] != classic.court("SQ", 480).getpixel((round(cx * k), round(cy * k)))[:3]

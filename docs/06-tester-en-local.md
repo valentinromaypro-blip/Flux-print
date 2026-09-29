@@ -49,8 +49,10 @@ Vous pouvez bien sûr tester avec vos propres fichiers : téléchargez le gabari
 
 Sur « Le jeu classique » ou « Le jeu de belote », onglet **Créer en ligne** :
 - **Dos** : couleur, texte principal, texte secondaire, photo (zoom et position) ;
-- **Figures** : pour chacun des 12 Rois, Dames et Valets, un prénom et une photo recadrée. Les figures sans photo gardent leur portrait illustré ;
+- **Figures** (dessin classique) : pour chacun des 12 Rois, Dames et Valets, un prénom et une photo. La tête est **détourée automatiquement dans le navigateur** (cheveux + visage) et remplace celle du personnage, en haut et en bas, en couleur ou en gravure. Les figures sans photo gardent leur visage d'origine ;
 - **Valider** : le moteur fabrique les 55 cartes en qualité d'impression (environ 20 s), les contrôle et affiche le vrai rendu du dos et de la première figure personnalisée.
+
+Le détourage utilise le modèle MediaPipe « selfie multiclass » (Apache-2.0, 16 Mo) et son moteur WASM (12 Mo), servis par le site : ils sont récupérés au build (`tools/fetch-segmenter.mjs`, accès à storage.googleapis.com nécessaire une fois). S'ils manquent, l'éditeur découpe la photo en ovale.
 
 Après une mise à jour du projet, relancez avec `docker compose down -v` puis `docker compose up --build` : la base est recréée avec les nouvelles tables.
 

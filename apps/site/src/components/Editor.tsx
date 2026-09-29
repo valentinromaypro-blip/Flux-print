@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { type Crop, type Design, RANKS, SUITS } from "@/lib/design.ts";
+import { cutHead } from "@/lib/headcut.ts";
 
 // Éditeur « création en ligne » : dos + figures. L'aperçu est dessiné dans le navigateur avec les
 // mêmes cartes que le moteur ; le rendu d'impression est fabriqué par le moteur puis contrôlé.
 
-type LocalPhoto = { url: string; path: string | null; crop: Crop; error?: string };
+type LocalPhoto = { url: string; path: string | null; crop: Crop; cut?: boolean; error?: string };
 type Style = "gravure" | "couleur";
 type Props = { product: string; disabled: boolean; onSubmit: (design: Design) => void };
 
@@ -15,7 +16,7 @@ const COLORS: [string, string, string][] = [
 ];
 const W = 254, H = 356; // aperçu à l'échelle 4 px/mm
 
-async function uploadPhoto(product: string, file: File): Promise<string> {
+async function uploadPhoto(product: string, file: Blob): Promise<string> {
   const res = await fetch("/api/uploads", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ product, size: file.size, kind: "photo", type: file.type }) });
   const out = await res.json();
@@ -30,8 +31,8 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 /** Même recadrage que le moteur (cardart.crop_photo). */
-function cropRect(img: HTMLImageElement, crop: Crop, ratio: number) {
-  const w = img.naturalWidth, h = img.naturalHeight;
+function cropRect(img: HTMLImageElement | HTMLCanvasElement, crop: Crop, ratio: number) {
+  const w = img instanceof HTMLImageElement ? img.naturalWidth : img.width, h = img instanceof HTMLImageElement ? img.naturalHeight : img.height;
   const cw = Math.min(w, h * ratio) / Math.max(1, crop.zoom), ch = cw / ratio;
   const cx = Math.min(Math.max(crop.x * w, cw / 2), w - cw / 2), cy = Math.min(Math.max(crop.y * h, ch / 2), h - ch / 2);
   return [cx - cw / 2, cy - ch / 2, cw, ch] as const;
@@ -83,7 +84,7 @@ const faceSlots = () => (slotsPromise ??= fetch("/cartes/faces.json").then((r) =
 function engrave(c: CanvasRenderingContext2D, w: number, h: number) {
   const im = c.getImageData(0, 0, w, h), d = im.data;
   let lo = 255, hi = 0;
-  for (let i = 0; i < d.length; i += 4) { const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; d[i] = g; lo = Math.min(lo, g); hi = Math.max(hi, g); }
+  for (let i = 0; i < d.length; i += 4) { const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; d[i] = g; if (d[i + 3] > 128) { lo = Math.min(lo, g); hi = Math.max(hi, g); } }
   const stops: [number, number[]][] = [[10, [18, 18, 96]], [110, [88, 88, 240]], [235, [255, 255, 255]]];
   for (let i = 0; i < d.length; i += 4) {
     const g = ((d[i] - lo) * 255) / Math.max(1, hi - lo);
@@ -104,19 +105,39 @@ async function drawCourt(canvas: HTMLCanvasElement, code: string, name: string, 
   if (photo) {
     const [cx, cy, rx, ry, top] = slots[art];
     const img = await loadImage(photo.url);
-    const fw = Math.round(2 * rx * k), fh = Math.round(2 * ry * k);
+    const fw = Math.round(2 * rx * k), fh = Math.round(2 * ry * k), ratio = rx / ry;
+    let src: HTMLImageElement | HTMLCanvasElement = img;
+    if (photo.cut) { // tête détourée : centrée sans rognage, comme cardart.crop_photo
+      const w = img.naturalWidth, h = img.naturalHeight;
+      const pad = document.createElement("canvas");
+      pad.width = Math.max(w, Math.round(h * ratio)); pad.height = Math.max(h, Math.round(w / ratio));
+      pad.getContext("2d")!.drawImage(img, Math.floor((pad.width - w) / 2), Math.floor((pad.height - h) / 2));
+      src = pad;
+    }
     const face = document.createElement("canvas"); face.width = fw; face.height = fh;
-    const f = face.getContext("2d")!;
-    f.drawImage(img, ...cropRect(img, photo.crop, rx / ry), 0, 0, fw, fh);
+    const f = face.getContext("2d", { willReadFrequently: true })!;
+    f.drawImage(src, ...cropRect(src, photo.crop, ratio), 0, 0, fw, fh);
     if (style === "gravure") engrave(f, fw, fh);
-    const e = 1.6 * k;
+    const e = 1.6 * k, stroke = 1.1 * k;
+    let ring: HTMLCanvasElement | null = null;
+    if (photo.cut) { // contour de la silhouette, couleur du trait
+      ring = document.createElement("canvas"); ring.width = fw; ring.height = fh;
+      const r = ring.getContext("2d")!;
+      for (let a = 0; a < 16; a++) r.drawImage(face, Math.cos(a * Math.PI / 8) * stroke, Math.sin(a * Math.PI / 8) * stroke);
+      r.globalCompositeOperation = "source-in"; r.fillStyle = "#22227A"; r.fillRect(0, 0, fw, fh);
+    }
     const head = (flip: boolean) => {
       c.save();
       if (flip) { c.translate(W, H); c.rotate(Math.PI); }
       c.beginPath(); c.rect(0, top * k, W, H); c.clip();
-      c.beginPath(); c.ellipse(cx * k, cy * k, rx * k - e, ry * k - e, 0, 0, Math.PI * 2);
-      c.save(); c.clip(); c.drawImage(face, (cx - rx) * k, (cy - ry) * k); c.restore();
-      c.strokeStyle = "#44F"; c.lineWidth = 1.1 * k; c.stroke();
+      const x = (cx - rx) * k, y = (cy - ry) * k;
+      if (ring) {
+        c.drawImage(ring, x, y); c.drawImage(face, x, y);
+      } else {
+        c.beginPath(); c.ellipse(cx * k, cy * k, rx * k - e, ry * k - e, 0, 0, Math.PI * 2);
+        c.save(); c.clip(); c.drawImage(face, x, y); c.restore();
+        c.strokeStyle = "#22227A"; c.lineWidth = stroke; c.stroke();
+      }
       c.restore();
     };
     head(false); head(true);
@@ -130,13 +151,17 @@ async function drawCourt(canvas: HTMLCanvasElement, code: string, name: string, 
   }
 }
 
-function PhotoField({ id, photo, product, disabled, onChange, initial = { zoom: 1, x: 0.5, y: 0.4 } }: {
-  id: string; initial?: Crop; photo: LocalPhoto | null; product: string; disabled: boolean; onChange: (p: LocalPhoto | null) => void;
+function PhotoField({ id, photo, product, disabled, onChange, initial = { zoom: 1, x: 0.5, y: 0.4 }, head = false }: {
+  id: string; initial?: Crop; head?: boolean; photo: LocalPhoto | null; product: string; disabled: boolean; onChange: (p: LocalPhoto | null) => void;
 }) {
   async function pick(file: File) {
-    const local: LocalPhoto = { url: URL.createObjectURL(file), path: null, crop: initial };
+    const pending: LocalPhoto = { url: URL.createObjectURL(file), path: null, crop: initial };
+    onChange(pending);
+    // Figures : la tête est détourée ici ; c'est le PNG détouré qui part à l'impression.
+    const cut = head ? await cutHead(file) : null;
+    const local: LocalPhoto = cut ? { url: URL.createObjectURL(cut), path: null, crop: { zoom: 1, x: 0.5, y: 0.5 }, cut: true } : pending;
     onChange(local);
-    try { onChange({ ...local, path: await uploadPhoto(product, file) }); }
+    try { onChange({ ...local, path: await uploadPhoto(product, cut ?? file) }); }
     catch (e) { onChange({ ...local, error: (e as Error).message }); }
   }
   const set = (k: keyof Crop, v: number) => photo && onChange({ ...photo, crop: { ...photo.crop, [k]: v } });
@@ -147,7 +172,7 @@ function PhotoField({ id, photo, product, disabled, onChange, initial = { zoom: 
         <input id={id} type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={disabled}
           onChange={(e) => e.target.files?.[0] && pick(e.target.files[0])} />
         {photo && <button className="link" disabled={disabled} onClick={() => onChange(null)}>Retirer</button>}
-        {photo && !photo.path && !photo.error && <span className="hint"><span className="spinner" />Envoi…</span>}
+        {photo && !photo.path && !photo.error && <span className="hint"><span className="spinner" />{head ? "Détourage et envoi…" : "Envoi…"}</span>}
         {photo?.error && <span className="error-text">{photo.error}</span>}
       </div>
       {photo && (
@@ -166,7 +191,7 @@ export default function Editor({ product, disabled, onSubmit }: Props) {
   const [backPhoto, setBackPhoto] = useState<LocalPhoto | null>(null);
   const [courts, setCourts] = useState<Record<string, { name: string; photo: LocalPhoto | null }>>({});
   const [selected, setSelected] = useState("H-K");
-  const [style, setStyle] = useState<Style>("gravure");
+  const [style, setStyle] = useState<Style>("couleur");
   const backCanvas = useRef<HTMLCanvasElement>(null);
   const courtCanvas = useRef<HTMLCanvasElement>(null);
   const court = courts[selected] ?? { name: "", photo: null };
@@ -223,14 +248,14 @@ export default function Editor({ product, disabled, onSubmit }: Props) {
         </div>
         <label className="field">Prénom sur la figure<input id="court-name" maxLength={14} value={court.name} disabled={disabled} placeholder="Papa, Mamie, Léo…" onChange={(e) => setCourt({ name: e.target.value })} /></label>
         <PhotoField id={`photo-${selected}`} photo={court.photo} product={product} disabled={disabled} onChange={(photo) => setCourt({ photo })}
-          initial={{ zoom: 2.2, x: 0.5, y: 0.38 }} />
+          initial={{ zoom: 2.2, x: 0.5, y: 0.38 }} head />
         <div className="row-actions" role="radiogroup" aria-label="Rendu des visages">
           <span className="hint">Rendu des visages</span>
-          {(["gravure", "couleur"] as const).map((v) => (
+          {(["couleur", "gravure"] as const).map((v) => (
             <button key={v} className="chip" role="radio" aria-checked={style === v} aria-pressed={style === v} disabled={disabled} onClick={() => setStyle(v)}>
-              {v === "gravure" ? "Gravure (comme le dessin)" : "Photo couleur"}</button>))}
+              {v === "gravure" ? "Gravure (bleu du dessin)" : "Photo couleur"}</button>))}
         </div>
-        <p className="hint">Le visage remplace la tête du personnage, sous sa couronne, en haut et en bas de la carte. Photo de face, bien éclairée : cadrez le visage du front au menton. Les figures sans photo gardent leur visage d'origine.</p>
+        <p className="hint">La tête est détourée automatiquement et remplace celle du personnage, sous sa couronne, en haut et en bas de la carte. Photo de face, bien éclairée, une seule personne. Les figures sans photo gardent leur visage d'origine.</p>
       </div>
 
       <button className="btn red" disabled={disabled || uploading} onClick={submit}>

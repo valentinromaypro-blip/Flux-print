@@ -37,7 +37,7 @@ export function cleanDesign(input: unknown, session: string): Design {
     const ph = photo(c?.photo, session);
     if (name || ph) courts[code] = { name, photo: ph };
   }
-  const style = d.style ?? "gravure";
+  const style = d.style ?? "couleur";
   if (style !== "gravure" && style !== "couleur") throw new Error("Style inconnu.");
   return {
     style,
