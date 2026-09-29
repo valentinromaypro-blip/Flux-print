@@ -29,7 +29,7 @@ export default async function Home() {
               {p.code === "jeu-poker-54-dos-individuels" && <span className="badge">Le plus offert</span>}
               <div className="ph"><img src={`/img/${p.shop.image}.jpg`} alt="" /></div>
               <div className="meta"><h3>{p.shop.title}</h3>
-                <span className="price"><small>dès </small>{formatEuros(fromPrice(p.shop.pricing, Number(p.options.cards?.default ?? 0) || undefined))}</span></div>
+                <span className="price"><small>dès </small>{formatEuros(fromPrice(p.shop.pricing, Number(p.options.cards?.min ?? 0) || undefined))}</span></div>
               <p>{p.shop.tagline}</p>
             </Link>
           ))}

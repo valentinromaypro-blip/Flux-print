@@ -2,6 +2,14 @@
 
 Moteur web-to-print mono-produit / mono-niche : vitrines personnalisables, éditeur contraint, génération PDF/X, preflight automatisé et pipeline commande → mise en machine.
 
+## Tester tout le parcours
+
+```bash
+docker compose up --build   # puis http://localhost:3000
+```
+
+Guide pas à pas : [Tester en local](docs/06-tester-en-local.md).
+
 ## Documentation
 - [Cadrage technique et fonctionnel](docs/00-cadrage.md)
 - [Décisions actées](docs/01-decisions.md)

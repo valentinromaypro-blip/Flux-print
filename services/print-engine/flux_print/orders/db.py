@@ -143,6 +143,18 @@ class Database:
                 "update public.order_items set status = 'prepared', batch_id = null where batch_id = %s", (batch_id,)
             )
 
+    # --- Demandes de lot (back-office) ---------------------------------------------------
+
+    def take_batch_requests(self) -> list[dict]:
+        return self.conn.execute(
+            """update public.batch_requests set handled_at = now()
+                where handled_at is null returning *"""
+        ).fetchall()
+
+    def answer_batch_requests(self, ids: list[int], result: dict) -> None:
+        if ids:
+            self.conn.execute("update public.batch_requests set result = %s where id = any(%s)", (Jsonb(result), ids))
+
     # --- Journal ---------------------------------------------------------------------
 
     def event(self, entity: str, entity_id: str, type_: str, payload: dict | None = None) -> None:

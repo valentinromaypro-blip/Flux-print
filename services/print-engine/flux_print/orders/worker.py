@@ -91,11 +91,12 @@ class Worker:
     # --- Boucle ----------------------------------------------------------------------
 
     def run_once(self, force_batches: bool = False) -> dict[str, int]:
-        return {
-            "checked": self.check_uploads(),
-            "prepared": self.prepare_paid(),
-            "batches": len(self.generate_batches(force=force_batches)),
-        }
+        checked = self.check_uploads()
+        prepared = self.prepare_paid()
+        requests = self.db.take_batch_requests()
+        batches = self.generate_batches(force=force_batches or bool(requests))
+        self.db.answer_batch_requests([r["id"] for r in requests], {"batches": batches})
+        return {"checked": checked, "prepared": prepared, "batches": len(batches)}
 
     def run_forever(self, interval_s: float = 30.0) -> None:
         while True:

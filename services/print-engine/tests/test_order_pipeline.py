@@ -256,3 +256,15 @@ def test_wrong_card_count_is_rejected(db, files, tmp_path):
     item = db.add_item(order["id"], "oracle", "cmdm-350g", 1, f"i/{order['id']}/o.pdf", options={"cards": 44})
     Worker(db, files, _settings()).check_uploads()
     assert db.item(item["id"])["status"] == "rejected"
+
+
+def test_batch_request_from_back_office(db, files, tmp_path):
+    worker = Worker(db, files, _settings(min_fill_ratio=0.99, max_wait_hours=999))
+    _, item = _order(db, files, tmp_path, _deck(tmp_path, "d32.pdf", "jeu-poker-32"), product="jeu-poker-32")
+    worker.run_once()
+    assert db.item(item["id"])["status"] == "prepared"  # seuils non atteints
+    db.conn.execute("insert into public.batch_requests (requested_by) values ('atelier')")
+    assert worker.run_once()["batches"] == 1
+    assert db.item(item["id"])["status"] == "batched"
+    req = db.conn.execute("select * from public.batch_requests").fetchone()
+    assert req["handled_at"] and len(req["result"]["batches"]) == 1

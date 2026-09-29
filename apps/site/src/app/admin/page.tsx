@@ -7,7 +7,8 @@ export const metadata = { title: "Atelier · Carte Blanche" };
 type OrderRow = { number: string; email: string | null; status: string; total_cents: number; created_at: Date; items: { product: string; status: string; copies: number }[] };
 type BatchRow = { id: string; media: string; status: string; sheets: number | null; impressions: number | null; fill_ratio: string | null; pdf_path: string | null; created_at: Date; items: number };
 
-export default async function Admin() {
+export default async function Admin({ searchParams }: { searchParams: Promise<{ lot?: string }> }) {
+  const { lot } = await searchParams;
   const db = sql();
   const orders = await db<OrderRow[]>`
     select o.number, o.email, o.status, o.total_cents, o.created_at,
@@ -33,7 +34,13 @@ export default async function Admin() {
         <div><span className="muted">Jeux prêts à amalgamer</span><b>{k.prepared}</b></div>
         <div><span className="muted">Chiffre d&apos;affaires encaissé</span><b>{formatEuros(k.revenue)}</b></div>
       </div>
-      <h2>Lots SRA3</h2>
+      <div className="head" style={{ marginTop: 36, marginBottom: 14 }}>
+        <h2 style={{ margin: 0 }}>Lots SRA3</h2>
+        <form method="post" action="/api/admin/batch-request">
+          <button className="btn red" type="submit" disabled={k.prepared === 0}>Lancer un lot maintenant ({k.prepared} jeu{k.prepared > 1 ? "x" : ""} prêt{k.prepared > 1 ? "s" : ""})</button>
+        </form>
+      </div>
+      {lot === "demande" && <p className="msg ok" style={{ marginBottom: 14 }}><b>Lot demandé.</b> Le fichier SRA3 apparaît ici dans quelques secondes : rechargez la page.</p>}
       <div className="scroll"><table>
         <thead><tr><th>Lot</th><th>Support</th><th>Lignes</th><th>Feuilles</th><th>Remplissage</th><th>État</th><th>Fichiers</th></tr></thead>
         <tbody>{batches.map((b) => (

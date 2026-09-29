@@ -1,0 +1,54 @@
+# Démonstration complète sur votre ordinateur : site, base de données, moteur d'impression.
+#   docker compose up --build      puis ouvrir http://localhost:3000
+#   Atelier : http://localhost:3000/admin  (identifiant libre, mot de passe : atelier)
+name: carte-blanche-demo
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: flux
+      POSTGRES_DB: flux
+    volumes:
+      - ./supabase:/flux/supabase:ro
+      - ./deploy/local/initdb:/docker-entrypoint-initdb.d:ro
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d flux"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+  engine:
+    build: ./services/print-engine
+    environment:
+      FLUX_DATABASE_URL: "host=db port=5432 user=postgres password=flux dbname=flux"
+      FLUX_STORAGE: "local:/data/storage"
+    command: ["sh", "-c", "flux-print sync-catalog && flux-print worker --interval 3"]
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  site:
+    build: ./apps/site
+    environment:
+      FLUX_DATABASE_URL: "postgres://postgres:flux@db:5432/flux"
+      FLUX_STORAGE: "local:/data/storage"
+      SESSION_SECRET: "demo-locale-uniquement-demo-locale-uniquement"
+      SITE_URL: "http://localhost:3000"
+      PAYMENT_PROVIDER: "test"
+      ALLOW_TEST_PAYMENTS: "true"
+      ADMIN_PASSWORD: "atelier"
+    ports:
+      - "3000:3000"
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:
+  storage:
