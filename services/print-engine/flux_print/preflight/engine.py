@@ -191,6 +191,10 @@ def run_preflight(
     if measure_ink:
         _check_tac(report, pdf_path, spec, output_icc)
 
+    # Nom lisible de la page (« Face — Roi de cœur ») pour les messages au client.
+    for finding in report.findings:
+        if finding.page and finding.page <= spec.page_count:
+            finding.details.setdefault("page_label", spec.pages[finding.page - 1].label)
     return report
 
 

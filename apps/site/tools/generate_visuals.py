@@ -337,6 +337,43 @@ def deck_stack(scene, card_top, center, angle, scale, count=26, dx=0.6, dy=-0.9)
     place(scene, card_top, (center[0] + count * dx, center[1] + count * dy), angle, scale, shadow=0, lift=0)
 
 
+def oracle_card(title: str, motif: str, bg, ink) -> Image.Image:
+    """Carte oracle au format tarot 70 × 120 mm."""
+    w, h, r = 700 * SS, 1200 * SS, 35 * SS
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), r, fill=bg)
+    d.rounded_rectangle((34 * SS, 34 * SS, w - 34 * SS, h - 34 * SS), 18 * SS, outline=ink, width=3 * SS)
+    cx, cy = w / 2, h * 0.42
+    if motif == "moon":
+        d.ellipse((cx - 170 * SS, cy - 170 * SS, cx + 170 * SS, cy + 170 * SS), fill=ink)
+        d.ellipse((cx - 100 * SS, cy - 200 * SS, cx + 220 * SS, cy + 140 * SS), fill=bg)
+    elif motif == "sun":
+        for i in range(24):
+            a = math.radians(i * 15)
+            d.line((cx + math.cos(a) * 150 * SS, cy + math.sin(a) * 150 * SS, cx + math.cos(a) * 230 * SS,
+                    cy + math.sin(a) * 230 * SS), fill=ink, width=6 * SS)
+        d.ellipse((cx - 120 * SS, cy - 120 * SS, cx + 120 * SS, cy + 120 * SS), fill=ink)
+    elif motif == "star":
+        pts = [(cx + math.cos(math.radians(-90 + i * 36)) * (220 if i % 2 == 0 else 80) * SS,
+                cy + math.sin(math.radians(-90 + i * 36)) * (220 if i % 2 == 0 else 80) * SS) for i in range(10)]
+        d.polygon(pts, fill=ink)
+    elif motif == "eye":
+        d.ellipse((cx - 230 * SS, cy - 110 * SS, cx + 230 * SS, cy + 110 * SS), outline=ink, width=8 * SS)
+        d.ellipse((cx - 70 * SS, cy - 70 * SS, cx + 70 * SS, cy + 70 * SS), fill=ink)
+    else:  # dos
+        for k in range(7):
+            rr = (60 + k * 40) * SS
+            d.ellipse((cx - rr, h / 2 - rr, cx + rr, h / 2 + rr), outline=ink, width=2 * SS)
+        d.text((cx, h / 2), "✦", font=suit_glyph(90 * SS), fill=ink, anchor="mm")
+        return img.resize((700, 1200), Image.LANCZOS)
+    for dx, dy in ((-230, -380), (230, -380), (-250, 150), (240, 180)):
+        d.text((cx + dx * SS, cy + dy * SS), "✦", font=suit_glyph(34 * SS), fill=ink, anchor="mm")
+    d.text((cx, h * 0.78), title, font=font("serif", 64 * SS), fill=ink, anchor="mm")
+    d.line((cx - 60 * SS, h * 0.84, cx + 60 * SS, h * 0.84), fill=ink, width=2 * SS)
+    return img.resize((700, 1200), Image.LANCZOS)
+
+
 def to_jpeg(img: Image.Image, path: Path, quality=84):
     img.convert("RGB").save(path, "JPEG", quality=quality, optimize=True, progressive=True)
 
@@ -398,7 +435,18 @@ def main(font_root: str, out: str) -> None:
     detail = Image.composite(blur, base, mask)
     to_jpeg(light(detail, 0.25, 0.3, 0.3), out_dir / "scene-detail.jpg")
 
-    # 5. Dos par occasion
+    # 5. Oracle au format tarot
+    midnight, sand = (28, 36, 64), (232, 214, 176)
+    W, H = 1600, 1200
+    s5 = light(texture((W, H), (58, 52, 48), grain=8, fibers=6000, seed=21), 0.4, 0.35, 0.2).convert("RGBA")
+    for card, x, y, a in ((oracle_card("", "back", midnight, sand), 330, 640, 12),
+                          (oracle_card("La Lune", "moon", midnight, sand), 640, 600, 4),
+                          (oracle_card("Le Soleil", "sun", sand, midnight), 950, 610, -5),
+                          (oracle_card("L'Étoile", "star", midnight, sand), 1260, 650, -13)):
+        place(s5, card, (x, y), a, 0.72, shadow=24, lift=14)
+    to_jpeg(s5, out_dir / "scene-oracle.jpg")
+
+    # 6. Dos par occasion
     occasions = {
         "mariage": back_card((246, 241, 230), (160, 124, 60), "J & M", "12 · 06 · 2027", motif="dot"),
         "anniversaire": back_card((196, 23, 44), (252, 236, 220), "40", "CLAIRE · 2027"),

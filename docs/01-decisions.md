@@ -20,6 +20,8 @@
 | D16 | 2026-09-29 | **Seuls des lots SRA3 préimposés entrent dans le Fiery.** | `flux-print dispatch` contrôle le lot (format SRA3 sur chaque page, PDF/X-4 avec profil, cohérence avec le manifeste), puis le dépose de façon atomique dans le hot folder correspondant au support et au mode d'impression. Tout autre fichier est refusé. Les manifestes sont archivés hors des hot folders. |
 | D17 | 2026-09-29 | Priorité : **toute la chaîne jusqu'à la génération du fichier SRA3** ; lien Fiery ensuite. | Schéma Supabase (commandes, lignes, lots, journal, RLS), worker Python qui contrôle, prépare et amalgame automatiquement. Voir `docs/04-chaine-commande.md`. |
 | D18 | 2026-09-29 | Paiement : **Stripe ou Revolut Business**. Univers du site n°1 proposé : **Carte Blanche** (à valider). | Prestataire de paiement abstrait, les deux implémentés et choisis par configuration. Proposition visuelle : `docs/design/carte-blanche-proposition.html`. |
+| D19 | 2026-09-29 | Ajout du produit **oracle** (22 à 100 cartes, tarot ou poker). | Type de produit « jeu sur mesure » dans le moteur ; options client validées ; 10 cartes tarot par feuille SRA3. |
+| D20 | 2026-09-29 | **Site et back-office sur mesure** (Next.js + Supabase), **pas de WordPress/WooCommerce**. | Voir `docs/05-site-et-back-office.md`. |
 
 ## Politique de licences (conséquence de D5)
 

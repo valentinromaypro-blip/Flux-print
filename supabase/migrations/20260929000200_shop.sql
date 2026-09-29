@@ -22,3 +22,8 @@ alter table public.order_items
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('templates', 'templates', true, 52428800, array['application/pdf'])
 on conflict (id) do nothing;
+
+-- Le panier (commande « draft ») existe avant que le client ne donne son e-mail.
+alter table public.orders alter column email drop not null;
+alter table public.orders add constraint orders_email_required
+  check (status in ('draft', 'cancelled') or email is not null);

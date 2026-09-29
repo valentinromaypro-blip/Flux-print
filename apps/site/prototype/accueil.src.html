@@ -67,7 +67,8 @@ header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; back
 .head p { color: var(--muted); max-width: 44ch; }
 
 /* Produits */
-.products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.products { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+@media (max-width: 1100px) { .products { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 900px) { .products { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 580px) { .products { grid-template-columns: 1fr; } }
 .product { display: grid; gap: 14px; min-width: 0; }
@@ -192,14 +193,19 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
     <div class="products">
       <a class="product" href="#comment">
         <div class="ph"><img src="{{scene-etui}}" alt="Jeu Carte Blanche en pile, son étui vert et l'As de pique."></div>
-        <div class="meta"><h3>Le jeu classique</h3><span class="price">Prix à définir</span></div>
+        <div class="meta"><h3>Le jeu classique</h3><span class="price">dès 24,90 €</span></div>
         <p>54 cartes au format poker, votre dos personnalisé, étui assorti.</p>
       </a>
       <a class="product" href="#famille">
         <span class="badge">Le plus offert</span>
         <div class="ph"><img src="{{scene-famille}}" alt="Quatre figures personnalisées : Mamie, Maman, Papa et Léo."></div>
-        <div class="meta"><h3>Le jeu de famille</h3><span class="price">Prix à définir</span></div>
+        <div class="meta"><h3>Le jeu de famille</h3><span class="price">dès 32,90 €</span></div>
         <p>Vos proches deviennent Rois, Dames et Valets, avec leur prénom.</p>
+      </a>
+      <a class="product" href="#oracle">
+        <div class="ph"><img src="{{scene-oracle}}" alt="Cartes oracle au format tarot : la Lune, le Soleil, l'Étoile."></div>
+        <div class="meta"><h3>L'oracle</h3><span class="price">dès 18,16 €</span></div>
+        <p>De 22 à 100 cartes uniques, format tarot ou poker, coins arrondis.</p>
       </a>
       <a class="product" href="#occasions">
         <div class="ph"><img src="{{occasion-entreprise}}" alt="Dos de cartes noirs au logo d'une entreprise fictive, Studio Nord."></div>
@@ -221,6 +227,17 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
           <li>Aperçu de chaque carte avant paiement</li>
         </ul>
         <div><a class="btn" href="#comment">Composer mon jeu de famille</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section container" id="oracle" style="padding-bottom:0">
+    <div class="feature">
+      <img src="{{scene-oracle}}" alt="Oracle au format tarot, dos et trois cartes illustrées.">
+      <div class="txt">
+        <h2>Votre oracle, de 22 à 100 cartes</h2>
+        <p>Format tarot ou poker, chaque carte unique. Vous choisissez le nombre de cartes : le prix s'ajuste en direct (28 centimes la carte, dégressif dès 5 exemplaires).</p>
+        <div><a class="btn" href="#comment">Créer mon oracle</a></div>
       </div>
     </div>
   </section>
@@ -325,7 +342,7 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
       <div><h4>Aide</h4><ul><li>Comment ça marche</li><li>Suivi de commande</li><li>Livraison</li><li>Contact</li></ul></div>
       <div><h4>Maison</h4><ul><li>L'atelier</li><li>CGV</li><li>Mentions légales</li><li>Confidentialité</li></ul></div>
     </div>
-    <div class="note">Maquette : les visuels sont des rendus de nos propres cartes, en attendant les photos des jeux imprimés à l'atelier. Prix et délais à définir.</div>
+    <div class="note">Maquette : les visuels sont des rendus de nos propres cartes, en attendant les photos des jeux imprimés à l'atelier. Prix fictifs pour la maquette ; délais à définir.</div>
     <div class="legal"><span>© 2026 Carte Blanche</span><span>Paiement sécurisé · Stripe ou Revolut</span></div>
   </div>
 </footer>
