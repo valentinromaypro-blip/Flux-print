@@ -325,3 +325,37 @@ footer.site-footer { padding-block: 56px 40px; border-top: 1px solid var(--line)
   .stage { width: min(100%, 300px); padding: 14px; }
   .court-grid { grid-template-columns: repeat(4, 1fr); row-gap: 14px; }
 }
+
+/* Fiche commande (atelier) */
+.bo-head h1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bo-head h1 .status { font-size: 13px; }
+.order-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 18px; align-items: start; }
+.addr { font-style: normal; display: grid; gap: 2px; font-size: 16px; line-height: 1.45; background: #F7F6F2; border-radius: 12px; padding: 14px 16px; }
+.addr b { font-size: 17px; }
+.ship { display: grid; gap: 12px; }
+.kv { display: flex; justify-content: space-between; gap: 12px; font-size: 14.5px; border-bottom: 1px solid var(--line); padding-block: 8px; }
+.mono { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+.item { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 18px; padding-block: 16px; border-top: 1px solid var(--line); }
+.item:first-of-type { border-top: 0; }
+.item h3 { font-size: 17px; margin: 0 0 4px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.thumbs-row { display: flex; gap: 8px; }
+.thumbs-row img { width: 96px; border-radius: 6px; box-shadow: 0 2px 8px #0002; background: #fff; }
+.thumbs-row .ph { width: 96px; aspect-ratio: 5 / 7; border-radius: 6px; background: var(--stone); }
+.files { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.file { display: grid; gap: 2px; border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 14px; min-width: 190px; }
+.file span { font-size: 12.5px; color: var(--muted); }
+.file:hover { border-color: var(--ink); }
+.file.main { border-color: var(--felt); background: var(--ok-bg); }
+.timeline-v { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; }
+.timeline-v li { display: grid; grid-template-columns: 150px 1fr; gap: 12px; }
+.packing-slip { display: none; }
+@media (max-width: 900px) { .order-grid, .item { grid-template-columns: 1fr; } }
+@media print {
+  .bo-nav, .bo-main > :not(.packing-slip), .no-print { display: none !important; }
+  .bo { display: block; background: #fff; }
+  .packing-slip { display: grid; gap: 24px; font-size: 14px; color: #000; }
+  .slip-head { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; font-size: 18px; }
+  .slip-addr { display: grid; gap: 2px; font-size: 20px; border: 2px solid #000; padding: 18px; width: 60%; margin-left: auto; }
+  .packing-slip table { width: 100%; border-collapse: collapse; }
+  .packing-slip th, .packing-slip td { border-bottom: 1px solid #999; padding: 8px; text-align: left; }
+}

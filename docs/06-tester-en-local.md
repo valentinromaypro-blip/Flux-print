@@ -41,7 +41,7 @@ Vous pouvez bien sûr tester avec vos propres fichiers : téléchargez le gabari
 4. **Fichier fautif** : sur le jeu classique, déposez `jeu-54-a-corriger.pdf`. Lisez les messages, puis « Déposer un fichier corrigé ».
 5. **Panier** : adresse, puis **Payer**. Sur la page de paiement de test, « Simuler un paiement accepté ».
 6. **Suivi de commande** : l'étape « Fichiers préparés pour l'impression » passe au vert quand le lot est créé.
-7. **Atelier** : http://localhost:3000/admin — identifiant au choix, mot de passe **atelier**. Le tableau de bord de pilotage : chiffre d'affaires, flux de production étape par étape, liste « À faire » (lots à imprimer, commandes à expédier, erreurs à relancer, clients à relancer), charge de la presse par carton, commandes et lots SRA3.
+7. **Atelier** : http://localhost:3000/admin — identifiant au choix, mot de passe **atelier**. Le tableau de bord de pilotage : chiffre d'affaires, flux de production étape par étape, liste « À faire » (lots à imprimer, commandes à expédier, erreurs à relancer, clients à relancer), charge de la presse par carton, commandes et lots SRA3. Chaque commande a sa **fiche** (clic sur son numéro) : adresse de livraison, fichier client, PDF d'impression CMJN, lot SRA3 avec les feuilles où se trouve le jeu, historique, bon de livraison à imprimer, et expédition (transporteur, n° de suivi).
 
    Pour le voir rempli avant d'avoir de vraies commandes, chargez 30 jours d'activité fictive :
    ```bash

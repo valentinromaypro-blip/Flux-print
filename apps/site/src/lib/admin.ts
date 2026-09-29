@@ -5,7 +5,7 @@ import { sql } from "@/lib/db.ts";
 export const PRESS_IMPRESSIONS_PER_MIN = 60;
 
 export type Stage = { key: string; label: string; hint: string; count: number; oldest: Date | null; tone: "ok" | "warn" | "err" | "idle" };
-export type Todo = { kind: "print" | "failed" | "ship" | "urgent" | "fix"; title: string; detail: string; id: string; href?: string; action?: string; since: Date };
+export type Todo = { kind: "print" | "failed" | "ship" | "urgent" | "fix"; title: string; detail: string; id: string; number?: string; href?: string; action?: string; since: Date };
 export type Batch = { id: string; media: string; status: string; sheets: number | null; impressions: number | null; fill_ratio: string | null; pdf_path: string | null; created_at: Date; items: number; orders: string[] };
 export type OrderRow = { number: string; email: string | null; status: string; total_cents: number; created_at: Date; paid_at: Date | null; due_date: string | null; items: { product: string; status: string; copies: number; design: boolean }[] };
 
@@ -87,26 +87,26 @@ export async function dashboard() {
     select i.id, o.number, i.product_code, i.error, i.updated_at from public.order_items i join public.orders o on o.id = i.order_id
      where i.status = 'failed' order by i.updated_at limit 10`;
   for (const f of failed) {
-    todo.push({ kind: "failed", id: f.id, since: f.updated_at, action: "retry_item",
+    todo.push({ kind: "failed", id: f.id, number: f.number, since: f.updated_at, action: "retry_item",
       title: `Erreur moteur · ${f.number}`, detail: `${f.product_code} · ${(f.error ?? "").slice(0, 110)}` });
   }
-  const toShip = await db<{ id: string; number: string; email: string; updated_at: Date }[]>`
-    select id, number, email, updated_at from public.orders where status = 'printed' order by updated_at limit 10`;
+  const toShip = await db<{ id: string; number: string; email: string; city: string | null; updated_at: Date }[]>`
+    select id, number, email, shipping_address->>'city' as city, updated_at from public.orders where status = 'printed' order by updated_at limit 20`;
   for (const o of toShip) {
-    todo.push({ kind: "ship", id: o.id, since: o.updated_at, action: "order_shipped", title: `Expédier ${o.number}`, detail: o.email });
+    todo.push({ kind: "ship", id: o.id, number: o.number, since: o.updated_at, title: `Expédier ${o.number}`, detail: [o.email, o.city].filter(Boolean).join(" · ") });
   }
   const urgent = await db<{ id: string; number: string; due_date: string; updated_at: Date }[]>`
     select id, number, to_char(due_date, 'DD/MM') as due_date, updated_at from public.orders
      where status in ('paid', 'in_production') and due_date is not null and due_date <= current_date + 2 order by due_date limit 10`;
   for (const o of urgent) {
-    todo.push({ kind: "urgent", id: o.id, since: o.updated_at, title: `Urgent · ${o.number}`, detail: `À expédier au plus tard le ${o.due_date}` });
+    todo.push({ kind: "urgent", id: o.id, number: o.number, since: o.updated_at, title: `Urgent · ${o.number}`, detail: `À expédier au plus tard le ${o.due_date}` });
   }
   const fix = await db<{ id: string; number: string; email: string | null; updated_at: Date }[]>`
     select o.id, o.number, o.email, max(i.updated_at) as updated_at from public.order_items i join public.orders o on o.id = i.order_id
      where i.status = 'rejected' and i.updated_at < now() - interval '48 hours' and o.email is not null
      group by o.id order by 4 limit 10`;
   for (const o of fix) {
-    todo.push({ kind: "fix", id: o.id, since: o.updated_at, title: `Relancer ${o.email}`, detail: `${o.number} · fichier à corriger depuis plus de 48 h` });
+    todo.push({ kind: "fix", id: o.id, number: o.number, since: o.updated_at, title: `Relancer ${o.email}`, detail: `${o.number} · fichier à corriger depuis plus de 48 h` });
   }
 
   const orders = await db<OrderRow[]>`

@@ -75,7 +75,6 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
   const { k } = d;
   const basket = k.orders30 ? Math.round(k.rev30 / k.orders30) : 0;
   const rejectRate = k.checked30 ? Math.round((k.rejected30 / k.checked30) * 100) : 0;
-  const engineOk = k.lastEvent && Date.now() - new Date(k.lastEvent).getTime() < 24 * 3600 * 1000;
   const ORDER: Todo["kind"][] = ["urgent", "failed", "print", "ship", "fix"];
   const todo = [...d.todo].sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
   // Au-delà de 4 actions du même type, on résume (le détail est dans « Commandes »).
@@ -83,21 +82,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
   const hidden = ORDER.map((kind) => [kind, todo.filter((t) => t.kind === kind).length - 4] as const).filter(([, n]) => n > 0);
 
   return (
-    <div className="bo">
-      <aside className="bo-nav">
-        <div className="bo-logo">Carte <span>Blanche</span><small>Atelier</small></div>
-        <nav>
-          <a href="#pilotage">Pilotage</a>
-          <a href="#a-faire">À faire {todo.length > 0 && <i>{todo.length}</i>}</a>
-          <a href="#production">Production</a>
-          <a href="#presse">Presse</a>
-          <a href="#commandes">Commandes</a>
-          <a href="#lots">Lots SRA3</a>
-        </nav>
-        <div className={`engine ${engineOk ? "ok" : "off"}`}><i />Moteur · dernière activité {ago(k.lastEvent)}</div>
-        <a className="bo-shop" href="/">← Voir la boutique</a>
-      </aside>
-
+    <>
       <main className="bo-main">
         <header className="bo-head" id="pilotage">
           <div><h1>Pilotage</h1><p className="muted">{new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} · 30 derniers jours</p></div>
@@ -127,11 +112,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
             {shown.map((t) => (
               <li key={`${t.kind}-${t.id}`}>
                 <span className={`pill ${TODO_LABEL[t.kind][1]}`}>{TODO_LABEL[t.kind][0]}</span>
-                <div><b>{t.title}</b><span className="muted">{t.detail}</span></div>
+                <div><b>{t.number ? <a href={`/admin/commandes/${t.number}`}>{t.title}</a> : t.title}</b><span className="muted">{t.detail}</span></div>
                 <span className="muted when">{ago(t.since)}</span>
                 <div className="acts">
                   {t.href && <a className="btn ghost small" href={t.href}>PDF</a>}
-                  {t.action && (
+                  {t.kind === "ship" ? <a className="btn small" href={`/admin/commandes/${t.number}#expedition`}>Expédier →</a> : t.action && (
                     <form method="post" action="/api/admin/actions">
                       <input type="hidden" name="action" value={t.action} /><input type="hidden" name="id" value={t.id} />
                       <button className="btn small" type="submit">{{ batch_printed: "Imprimé ✓", order_shipped: "Expédiée ✓", retry_item: "Relancer" }[t.action]}</button>
@@ -175,7 +160,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
           <div className="scroll"><table>
             <thead><tr><th>N°</th><th>Client</th><th>Contenu</th><th>Total</th><th>État</th><th>Payée</th><th>Échéance</th></tr></thead>
             <tbody>{d.orders.map((o) => (
-              <tr key={o.number}><td><b>{o.number}</b></td><td>{o.email}</td>
+              <tr key={o.number}><td><a className="link" href={`/admin/commandes/${o.number}`}><b>{o.number}</b></a></td><td>{o.email}</td>
                 <td>{o.items.map((i, n) => <div key={n}>{i.copies} × {i.product}{i.design ? " · en ligne" : " · PDF"} <span className={`status ${i.status}`}>{STATUS[i.status] ?? i.status}</span></div>)}</td>
                 <td className="num">{formatEuros(o.total_cents)}</td><td><span className={`status ${o.status}`}>{STATUS[o.status] ?? o.status}</span></td>
                 <td>{o.paid_at ? new Date(o.paid_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}</td>
@@ -189,7 +174,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
           <div className="scroll"><table>
             <thead><tr><th>Lot</th><th>Support</th><th>Commandes</th><th>Feuilles</th><th>Remplissage</th><th>État</th><th>Fichiers</th></tr></thead>
             <tbody>{d.batches.map((b) => (
-              <tr key={b.id}><td><b>{b.id}</b></td><td>{MEDIA[b.media] ?? b.media}</td><td>{b.orders.join(", ") || "—"}</td>
+              <tr key={b.id}><td><b>{b.id}</b></td><td>{MEDIA[b.media] ?? b.media}</td><td>{b.orders.length ? b.orders.map((n, i) => <span key={n}>{i ? ", " : ""}<a href={`/admin/commandes/${n}`}>{n}</a></span>) : "—"}</td>
                 <td className="num">{b.sheets ?? "—"} <span className="muted">({b.impressions ?? "—"} faces)</span></td>
                 <td>{b.fill_ratio ? <div className="fill"><i style={{ width: `${Math.round(Number(b.fill_ratio) * 100)}%` }} /><span>{Math.round(Number(b.fill_ratio) * 100)} %</span></div> : "—"}</td>
                 <td><span className={`status ${b.status}`}>{STATUS[b.status] ?? b.status}</span></td>
@@ -199,6 +184,6 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
           </table></div>
         </section>
       </main>
-    </div>
+    </>
   );
 }

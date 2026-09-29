@@ -1,5 +1,6 @@
 -- Données de démonstration pour visualiser le tableau de bord de l'atelier (30 jours d'activité fictive).
 -- Base locale uniquement ! Les commandes créées sont marquées « demo » (e-mail en @exemple.fr).
+-- Aucune ligne n'est laissée dans un état que le moteur traite (approved payée, prepared) : il n'y a pas de vrais fichiers.
 --   docker compose exec db psql -U postgres -d flux -f /flux/supabase/seed/demo.sql
 -- Pour les retirer : delete from public.orders where email like '%@exemple.fr'; delete from public.batches where id like 'L-DEMO-%';
 begin;
@@ -29,12 +30,19 @@ begin
       b := case when paid < now() - interval '15 days' then 'L-DEMO-01' when med = 'cmdm-350g' then 'L-DEMO-02' else 'L-DEMO-03' end;
     elsif paid < now() - interval '4 days' then st := 'printed'; ist := 'batched'; b := case when med = 'cmdm-350g' then 'L-DEMO-02' else 'L-DEMO-03' end;
     elsif paid < now() - interval '1 day' then st := 'in_production'; ist := 'batched'; b := case when med = 'cmdm-350g' then 'L-DEMO-04' else 'L-DEMO-05' end;
-    else st := 'paid'; ist := (array['prepared','prepared','approved','checking'])[1 + floor(random() * 4)]; b := null;
+    else st := 'paid'; ist := 'checking'; b := null;  -- jamais « approved » ni « prepared » : le vrai moteur les traiterait
     end if;
-    insert into public.orders (email, status, total_cents, paid_at, created_at, updated_at, payment_ref, due_date)
+    insert into public.orders (email, status, total_cents, paid_at, created_at, updated_at, payment_ref, due_date, shipping_address,
+                               shipped_at, carrier, tracking_number)
     values (firsts[1 + floor(random() * 12)] || n || '@exemple.fr', st, price + 490, paid, paid - interval '20 minutes',
             least(now(), paid + interval '4 days'), 'demo',
-            case when n % 11 = 0 and st = 'paid' then current_date + 1 end)
+            case when n % 11 = 0 and st = 'paid' then current_date + 1 end,
+            jsonb_build_object('name', initcap(firsts[1 + n % 12]) || ' ' || (array['Martin','Bernard','Dubois','Thomas','Robert','Petit','Durand','Leroy'])[1 + n % 8],
+                               'line1', (1 + n * 7 % 90) || ' ' || (array['rue des Lilas','avenue Jean Jaurès','rue Victor Hugo','boulevard Voltaire','place du Marché'])[1 + n % 5],
+                               'postal_code', (array['75011','69003','33000','44000','13006','59800','67000','31000'])[1 + n % 8],
+                               'city', (array['Paris','Lyon','Bordeaux','Nantes','Marseille','Lille','Strasbourg','Toulouse'])[1 + n % 8], 'country', 'FR'),
+            case when st = 'shipped' then least(now(), paid + interval '4 days') end,
+            case when st = 'shipped' then 'Colissimo' end, case when st = 'shipped' then '6A' || (10000000000 + n * 7919)::text end)
     returning id into o;
     if random() < 0.7 then  -- création en ligne, sinon PDF déposé
       insert into public.order_items (order_id, product_code, media, copies, status, batch_id, design, preflight_report, created_at, updated_at)
@@ -46,7 +54,7 @@ begin
   end loop;
 
   -- Cas à traiter : une erreur moteur, un fichier refusé depuis 3 jours, deux paniers non payés
-  insert into public.orders (email, status, total_cents, paid_at, payment_ref) values ('marc.demo@exemple.fr', 'paid', 3480, now() - interval '3 hours', 'demo') returning id into o;
+  insert into public.orders (email, status, total_cents, paid_at, payment_ref, shipping_address) values ('marc.demo@exemple.fr', 'paid', 3480, now() - interval '3 hours', 'demo', '{"name": "Marc Lefèvre", "line1": "4 impasse des Tilleuls", "postal_code": "21000", "city": "Dijon", "country": "FR"}') returning id into o;
   insert into public.order_items (order_id, product_code, media, copies, status, error, design)
   values (o, 'jeu-poker-54', 'cmdm-350g', 1, 'failed', 'check: RuntimeError: photo illisible (fichier HEIC renommé en .jpg)', '{"demo": true}');
   insert into public.orders (email, status, total_cents) values ('asso.demo@exemple.fr', 'awaiting_payment', 0) returning id into o;

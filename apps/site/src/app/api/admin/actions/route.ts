@@ -19,8 +19,10 @@ export async function POST(request: Request) {
       await tx`insert into public.events (entity, entity_id, type, payload) values ('batch', ${id}, 'printed', '{}')`;
     });
   } else if (action === "order_shipped") {
-    await db`update public.orders set status = 'shipped' where id = ${id} and status = 'printed'`;
-    await db`insert into public.events (entity, entity_id, type, payload) values ('order', ${id}, 'shipped', '{}')`;
+    const carrier = String(form.get("carrier") ?? "").slice(0, 40) || null, tracking = String(form.get("tracking") ?? "").trim().slice(0, 60) || null;
+    await db`update public.orders set status = 'shipped', shipped_at = now(), carrier = ${carrier}, tracking_number = ${tracking}
+              where id = ${id} and status = 'printed'`;
+    await db`insert into public.events (entity, entity_id, type, payload) values ('order', ${id}, 'shipped', ${db.json({ carrier, tracking })})`;
   } else if (action === "retry_item") {
     await db`update public.order_items
                 set status = case when error like 'prepare:%' then 'approved' else 'uploaded' end, error = null
@@ -29,5 +31,6 @@ export async function POST(request: Request) {
   } else {
     return new Response("Action inconnue.", { status: 400 });
   }
-  return Response.redirect(new URL("/admin#a-faire", request.url), 303);
+  const back = String(form.get("back") ?? "");
+  return Response.redirect(new URL(back.startsWith("/admin") ? back : "/admin#a-faire", request.url), 303);
 }
