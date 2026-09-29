@@ -52,7 +52,7 @@ final class CB_Setup
         'oracle' => [
             'name' => 'Jeu oracle personnalisé', 'slug' => 'jeu-oracle-personnalise', 'deck' => 'oracle', 'image' => 'scene-oracle', 'order' => 3,
             'tagline' => 'De 22 à 100 cartes, chacune unique.',
-            'short' => 'Pour les créatrices et créateurs d’oracles, de jeux de tirage ou de cartes d’affirmation : de 22 à 100 cartes, format tarot ou poker. Le prix s’ajuste au nombre de cartes de votre fichier.',
+            'short' => 'Pour les créatrices et créateurs d’oracles, de jeux de tirage ou de cartes d’affirmation : de 22 à 100 cartes, format tarot ou poker, coins arrondis. Le prix s’ajuste au nombre de cartes de votre fichier.',
             'seo_title' => 'Imprimer son jeu oracle personnalisé, de 22 à 100 cartes | %site%',
             'seo_desc' => 'Faites imprimer votre oracle ou vos cartes de tirage : de 22 à 100 cartes, format tarot 70 × 120 mm ou poker. Contrôle du fichier en direct, fabrication en France.',
         ],
@@ -238,6 +238,7 @@ final class CB_Setup
             ['Cartes', isset($deck['cards_min']) ? "De {$deck['cards_min']} à {$deck['cards_max']} cartes, selon votre fichier" : ($key === '32' ? '32 cartes, du 7 à l’as' : '54 cartes : 52 cartes et 2 jokers')],
             ['Carton', 'Couché mat 350 g ou carte graphique 300 g'],
             ['Impression', 'Numérique haute définition, recto verso, Xerox Iridesse'],
+            ['Finition', 'Coins arrondis'],
             ['Fabrication', 'Dans notre atelier, en France'],
         ]);
         $pdf = $B::p('Votre fichier est contrôlé dès l’envoi : nombre de pages, format, fond perdu. Vous voyez l’aperçu et, s’il y a un problème, ce qu’il faut corriger. <a href="/creer-son-jeu-de-cartes-en-pdf/">Préparer son fichier PDF</a>.');

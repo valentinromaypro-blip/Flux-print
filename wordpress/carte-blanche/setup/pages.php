@@ -67,7 +67,7 @@ return [
                     [B::image($img('scene-oracle'), 'Cartes oracle au format tarot : la Lune, le Soleil, l’Étoile')],
                     [B::group([
                         B::h('Votre oracle, de 22 à 100 cartes'),
-                        B::p('Format tarot ou poker, chaque carte unique. Envoyez votre fichier : le nombre de cartes est détecté et le prix s’ajuste.', false, false, 'cb-muted'),
+                        B::p('Format tarot ou poker, chaque carte unique, coins arrondis. Envoyez votre fichier : le nombre de cartes est détecté et le prix s’ajuste.', false, false, 'cb-muted'),
                         B::buttons([['Créer mon oracle', $pr('oracle')]]),
                     ], 'cb-text', null, null, '', 'flow', '')],
                 ], true, false, '', ['58%', '42%']),
@@ -175,6 +175,7 @@ return [
                 ['Carton au choix', 'Carte graphique 300 g'],
                 ['Format des cartes', '63,5 × 88,9 mm (format poker)'],
                 ['Impression', 'Recto verso, couleur'],
+                ['Finition', 'Coins arrondis'],
             ]),
             B::h('La fabrication'),
             B::p('Les cartes de plusieurs jeux sont imprimées ensemble sur de grandes feuilles, puis coupées au massicot. Chaque jeu est assemblé dans l’ordre et vérifié avant expédition. ' . B::todo('étui, finitions')),
