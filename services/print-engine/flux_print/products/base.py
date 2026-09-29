@@ -23,6 +23,8 @@ class PreflightPolicy:
     allow_rgb: bool = True
     # Tons directs non prévus au produit : bloquants par défaut.
     allow_spot_colors: bool = False
+    # Tons directs reconnus par la presse (encres spéciales : or, argent, blanc…).
+    allowed_spot_names: frozenset[str] = frozenset()
     # Couleur d'accompagnement utilisée par nos gabarits pour les repères.
     # Sa présence dans un fichier client signifie que les repères n'ont pas été retirés.
     guide_spot_name: str = "FLUX-GUIDE"

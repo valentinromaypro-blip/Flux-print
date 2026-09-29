@@ -1,0 +1,9 @@
+code = "jeu-bridge-54"
+type = "playing_cards"
+label = "Jeu de 54 cartes bridge, dos commun"
+media = "carton-jeu-310g"
+
+[params]
+format = "bridge"
+deck = "54"
+backs = "common"

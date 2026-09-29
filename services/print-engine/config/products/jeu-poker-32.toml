@@ -1,0 +1,9 @@
+code = "jeu-poker-32"
+type = "playing_cards"
+label = "Jeu de 32 cartes poker (belote), dos commun"
+media = "carton-jeu-310g"
+
+[params]
+format = "poker"
+deck = "32"
+backs = "common"

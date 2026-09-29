@@ -1,0 +1,36 @@
+# Presse numérique de l'atelier.
+# Les valeurs marquées « À MESURER » sont des valeurs de départ prudentes :
+# elles doivent être remplacées par les mesures faites sur nos machines.
+
+code = "xerox-iridesse"
+name = "Xerox Iridesse Production Press"
+# Contrôleur d'impression (DFE) : à confirmer (Fiery ou FreeFlow Print Server).
+dfe = "à confirmer"
+
+# Retournement recto/verso : "long_edge" (grand côté) ou "short_edge".
+duplex_flip = "long_edge"
+
+# Encres spéciales (5e et 6e groupes). Les noms doivent correspondre EXACTEMENT
+# aux noms de tons directs attendus par le contrôleur : À CONFIRMER sur le DFE.
+specialty_inks = ["Gold", "Silver", "White", "Clear", "Fluorescent Pink"]
+
+# Tolérance de repérage recto/verso annoncée : À MESURER sur feuille de test.
+registration_tolerance_mm = 0.5
+
+# Profil de sortie déclaré dans les PDF (OutputIntent PDF/X-4) et utilisé pour
+# convertir le RVB en CMJN. Standard européen actuel pour papier couché :
+# PSO Coated v3 (FOGRA51). Fichier à déposer dans config/icc/ (voir README).
+[output]
+icc_profile = "icc/PSO_Coated_v3.icc"
+output_condition_identifier = "FOGRA51"
+output_condition = "PSO Coated v3 — ISO 12647-2:2013, papier couché PS1"
+registry = "http://www.color.org"
+
+[[sheets]]
+code = "SRA3"
+label = "SRA3 32 × 45 cm"
+width_mm = 320.0
+height_mm = 450.0
+# Marge réservée sur chaque bord : zone non imprimable (À MESURER)
+# + traits de coupe + identification de la feuille.
+reserved_margin_mm = 10.0

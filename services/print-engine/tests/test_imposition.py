@@ -5,7 +5,7 @@ import pypdfium2 as pdfium
 import pytest
 from reportlab.lib.colors import CMYKColor
 
-from conftest import make_pdf
+from conftest import make_pdf, make_prepared_pdf
 from flux_print.products.playing_cards import FORMATS, build_document_spec
 from flux_print.production import SHEET_32X45, Job, SheetOrder, compute_layout, impose
 from flux_print.production.imposition import Piece, build_sequence, plan_sheets
@@ -60,7 +60,7 @@ def test_sequence_with_separators():
 @pytest.fixture
 def deck_jobs(tmp_path):
     spec = build_document_spec("poker", "54", "common")
-    return spec, [Job(f"CMD-{i}", make_pdf(tmp_path / f"j{i}.pdf", spec), spec) for i in range(3)]
+    return spec, [Job(f"CMD-{i}", make_prepared_pdf(tmp_path / f"j{i}.pdf", spec), spec) for i in range(3)]
 
 
 def test_three_decks_fill_nine_sheets_without_separators(tmp_path, deck_jobs):
@@ -102,7 +102,7 @@ def _is_red(image, x_pt, y_pt, height_pt, scale):
 
 def test_card_orientation_recto_and_verso(tmp_path):
     spec = build_document_spec("poker", "32", "common")
-    job = Job("O", make_pdf(tmp_path / "o.pdf", spec, drawer=_marker_page), spec)
+    job = Job("O", make_prepared_pdf(tmp_path / "o.pdf", spec, drawer=_marker_page), spec)
     result = impose([job], tmp_path / "o-lot.pdf", separators=False, order="sequential")
     slot = result.layout.slots[0]
     assert slot.rotation == 90

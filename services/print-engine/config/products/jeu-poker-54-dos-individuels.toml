@@ -1,0 +1,9 @@
+code = "jeu-poker-54-dos-individuels"
+type = "playing_cards"
+label = "Jeu de 54 cartes poker, un dos par carte"
+media = "carton-jeu-310g"
+
+[params]
+format = "poker"
+deck = "54"
+backs = "individual"

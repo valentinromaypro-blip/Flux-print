@@ -38,7 +38,8 @@ from reportlab.pdfgen import canvas
 
 from ..products.base import DocumentSpec
 from ..units import mm_to_pt, pt_to_mm
-from .sheet import SHEET_32X45, Layout, SheetSpec, Slot, compute_layout
+from .pdfx import apply_pdfx4
+from .sheet import MARK_LENGTH_MM, MARK_OFFSET_MM, SRA3, Layout, MarkStyle, SheetSpec, Slot, compute_layout
 
 REGISTRATION = CMYKColor(1, 1, 1, 1)
 BLACK = CMYKColor(0, 0, 0, 1)
@@ -118,13 +119,18 @@ def plan_sheets(sequence: list[Piece], per_sheet: int, order: SheetOrder) -> lis
 def impose(
     jobs: list[Job],
     output: str | Path,
-    sheet: SheetSpec = SHEET_32X45,
+    sheet: SheetSpec = SRA3,
     order: SheetOrder | str = SheetOrder.CUT_STACK,
     separators: bool = True,
     rotation: int | None = None,
     batch_id: str | None = None,
     manifest_path: str | Path | None = None,
+    marks: MarkStyle | str = MarkStyle.EDGE,
+    output_profile=None,
+    press_name: str = "",
 ) -> BatchResult:
+    """Impose un lot. `output_profile` (config.OutputProfile) : si fourni et
+    son fichier ICC présent, le PDF de sortie est finalisé en PDF/X-4."""
     if not jobs:
         raise ValueError("Aucune commande à imposer.")
     keys = {job.spec.gang_key for job in jobs}
@@ -134,16 +140,20 @@ def impose(
     if len({(p.trim_w_mm, p.trim_h_mm) for p in spec.pages}) != 1:
         raise NotImplementedError("Imposition de pièces de formats mixtes non prise en charge.")
 
+    for job in jobs:
+        _check_job_matches_spec(job)
+
     order = SheetOrder(order)
     output = Path(output)
     batch_id = batch_id or datetime.now(timezone.utc).strftime("L%Y%m%d-%H%M%S")
     page = spec.pages[0]
-    layout = compute_layout(sheet, page.trim_w_mm, page.trim_h_mm, spec.bleed_mm, rotation=rotation)
+    layout = compute_layout(sheet, page.trim_w_mm, page.trim_h_mm, spec.bleed_mm, rotation=rotation, marks=marks)
     sequence = build_sequence(jobs, separators)
     sheets = plan_sheets(sequence, layout.per_sheet, order)
     duplex = spec.duplex
 
-    marks_pdf = _marks(layout, len(sheets), duplex, batch_id, spec)
+    condition = output_profile.identifier if output_profile is not None else "sans profil"
+    marks_pdf = _marks(layout, sheets, duplex, batch_id, spec, f"{press_name} · {condition}".strip(" ·"))
     sources: dict[str, pikepdf.Pdf] = {f"job:{j.job_id}": pikepdf.open(j.pdf_path) for j in jobs}
     if separators:
         for job in jobs:
@@ -192,17 +202,44 @@ def impose(
                     resources["/XObject"] = xobjects
                     # Contenu en premier, repères par-dessus.
                     sheet_page.contents_add(out.make_stream("\n".join(ops).encode()), prepend=True)
-            out.docinfo["/Title"] = f"Lot {batch_id} — {layout.describe()}"
-            out.save(output)
+            title = f"Lot {batch_id} — {layout.describe()}"
+            out.docinfo["/Title"] = title
+            pdfx = output_profile is not None and output_profile.available
+            if pdfx:
+                apply_pdfx4(out, output_profile.icc_path, output_profile.identifier, output_profile.condition,
+                            output_profile.registry, title=title)
+            out.save(output, min_version="1.6")
     finally:
         for pdf in sources.values():
             pdf.close()
 
     result = BatchResult(batch_id, layout, order, sheets, len(sequence), output)
     result.manifest = _manifest(result, jobs, spec, duplex)
+    result.manifest["pdfx4"] = pdfx
+    result.manifest["output_condition"] = condition
+    result.manifest["press"] = press_name
     if manifest_path is not None:
         Path(manifest_path).write_text(json.dumps(result.manifest, ensure_ascii=False, indent=2))
     return result
+
+
+def _check_job_matches_spec(job: Job) -> None:
+    """Dernier garde-fou : le fichier doit correspondre au produit imposé."""
+    spec = job.spec
+    tol = spec.policy.geometry_tolerance_mm
+    with pikepdf.open(job.pdf_path) as pdf:
+        if len(pdf.pages) != spec.page_count:
+            raise ValueError(f"{job.job_id} : {len(pdf.pages)} pages, {spec.page_count} attendues pour {spec.code}.")
+        for number, (page, page_spec) in enumerate(zip(pdf.pages, spec.pages), start=1):
+            if "/TrimBox" not in page.obj:
+                raise ValueError(f"{job.job_id} p.{number} : pas de TrimBox, fichier non préparé (flux-print prepare).")
+            x0, y0, x1, y1 = (float(v) for v in page.obj["/TrimBox"])
+            w, h = pt_to_mm(abs(x1 - x0)), pt_to_mm(abs(y1 - y0))
+            if int(page.obj.get("/Rotate", 0)) % 180:
+                w, h = h, w
+            if abs(w - page_spec.trim_w_mm) > tol or abs(h - page_spec.trim_h_mm) > tol:
+                raise ValueError(f"{job.job_id} p.{number} : format fini {w:.1f} × {h:.1f} mm, "
+                                 f"attendu {page_spec.trim_w_mm} × {page_spec.trim_h_mm} mm.")
 
 
 def _bleed_rect(page: pikepdf.Page, spec: DocumentSpec) -> list[float]:
@@ -235,7 +272,9 @@ def _placement(xobj: pikepdf.Object, slot: Slot) -> tuple[float, ...]:
     return (cos, sin, -sin, cos, -dx0 * cos + dy0 * sin + ex, -dx0 * sin - dy0 * cos + ey)
 
 
-def _marks(layout: Layout, n_sheets: int, duplex: bool, batch_id: str, spec: DocumentSpec) -> bytes:
+def _marks(layout: Layout, sheets: list[list[Piece | None]], duplex: bool, batch_id: str, spec: DocumentSpec,
+           press_info: str) -> bytes:
+    n_sheets = len(sheets)
     sheet = layout.sheet
     W, H = sheet.width_pt, sheet.height_pt
     buf = io.BytesIO()
@@ -245,24 +284,28 @@ def _marks(layout: Layout, n_sheets: int, duplex: bool, batch_id: str, spec: Doc
     ys = sorted({round(v, 3) for s in layout.slots for v in (s.trim[1], s.trim[3])})
     gx0, gx1 = min(s.x for s in layout.slots), max(s.x + s.w for s in layout.slots)
     gy0, gy1 = min(s.y for s in layout.slots), max(s.y + s.h for s in layout.slots)
-    offset, length = mm_to_pt(1.5), mm_to_pt(5)
+    offset, length = mm_to_pt(MARK_OFFSET_MM), mm_to_pt(MARK_LENGTH_MM)
 
     for s in range(n_sheets):
         # Recto : traits de coupe, marques de découpe numérique, identification.
         c.setStrokeColor(REGISTRATION)
         c.setLineWidth(0.25)
-        for x in xs:
-            c.line(x, gy1 + offset, x, min(gy1 + offset + length, H))
-            c.line(x, gy0 - offset, x, max(gy0 - offset - length, 0))
-        for y in ys:
-            c.line(gx0 - offset, y, max(gx0 - offset - length, 0), y)
-            c.line(gx1 + offset, y, min(gx1 + offset + length, W), y)
+        if layout.marks is MarkStyle.EDGE:
+            for x in xs:
+                c.line(x, gy1 + offset, x, min(gy1 + offset + length, H))
+                c.line(x, gy0 - offset, x, max(gy0 - offset - length, 0))
+            for y in ys:
+                c.line(gx0 - offset, y, max(gx0 - offset - length, 0), y)
+                c.line(gx1 + offset, y, min(gx1 + offset + length, W), y)
+        else:
+            occupied = [slot for slot, piece in zip(layout.slots, sheets[s]) if piece is not None]
+            _per_piece_marks(c, occupied, length)
         c.setFillColor(BLACK)
         size, inset = mm_to_pt(3), mm_to_pt(sheet.margin_mm / 2) - mm_to_pt(1.5)
         for x, y in ((inset, inset), (W - inset - size, inset), (inset, H - inset - size), (W - inset - size, H - inset - size)):
             c.rect(x, y, size, size, stroke=0, fill=1)
         _sheet_label(c, sheet, f"{batch_id}|{s + 1}|R", f"Lot {batch_id} · feuille {s + 1}/{n_sheets} · RECTO · "
-                     f"{spec.media} · {layout.describe()}")
+                     f"{spec.media} · {layout.describe()} · {press_info}")
         c.showPage()
         if duplex:
             c.setFillColor(BLACK)
@@ -270,6 +313,19 @@ def _marks(layout: Layout, n_sheets: int, duplex: bool, batch_id: str, spec: Doc
             c.showPage()
     c.save()
     return buf.getvalue()
+
+
+def _per_piece_marks(c: canvas.Canvas, slots: list[Slot], length: float) -> None:
+    """Traits de coupe aux quatre coins de chaque pièce posée, hors fond perdu."""
+    for slot in slots:
+        tx0, ty0, tx1, ty1 = slot.trim
+        bx0, by0, bx1, by1 = slot.x, slot.y, slot.x + slot.w, slot.y + slot.h
+        for y in (ty0, ty1):
+            c.line(bx0, y, bx0 - length, y)
+            c.line(bx1, y, bx1 + length, y)
+        for x in (tx0, tx1):
+            c.line(x, by0, x, by0 - length)
+            c.line(x, by1, x, by1 + length)
 
 
 def _sheet_label(c: canvas.Canvas, sheet: SheetSpec, code: str, text: str) -> None:

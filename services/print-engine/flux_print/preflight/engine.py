@@ -92,6 +92,7 @@ def run_preflight(
 
         grouped: dict[str, list[int]] = defaultdict(list)
         spot_names: set[str] = set()
+        specialty_inks: set[str] = set()
         fonts_seen: dict[str, tuple[int, pikepdf.Object]] = {}
         geometries: dict[int, _Geometry] = {}
 
@@ -136,7 +137,11 @@ def run_preflight(
                 grouped["color.lab"].append(number)
             if policy.guide_spot_name in scan.spot_names:
                 grouped["content.guide_marks"].append(number)
-            page_spots = scan.spot_names - {policy.guide_spot_name}
+            special = scan.spot_names & policy.allowed_spot_names
+            if special:
+                specialty_inks |= special
+                grouped["color.specialty_ink"].append(number)
+            page_spots = scan.spot_names - {policy.guide_spot_name} - policy.allowed_spot_names
             if page_spots:
                 spot_names |= page_spots
                 grouped["color.spot"].append(number)
@@ -151,7 +156,7 @@ def run_preflight(
             for key, font in scan.fonts.items():
                 fonts_seen.setdefault(key, (number, font))
 
-        _emit_grouped(report, grouped, spot_names, spec)
+        _emit_grouped(report, grouped, spot_names, spec, specialty_inks)
 
         for number, font in fonts_seen.values():
             if not font_is_embedded(font):
@@ -277,7 +282,9 @@ _GROUPED_MESSAGES = {
 }
 
 
-def _emit_grouped(report: Report, grouped: dict[str, list[int]], spot_names: set[str], spec: DocumentSpec) -> None:
+def _emit_grouped(
+    report: Report, grouped: dict[str, list[int]], spot_names: set[str], spec: DocumentSpec, specialty_inks: set[str]
+) -> None:
     policy = spec.policy
     for code, pages in grouped.items():
         where = _pages_label(pages)
@@ -297,6 +304,14 @@ def _emit_grouped(report: Report, grouped: dict[str, list[int]], spot_names: set
                 f"Tons directs non prévus ({', '.join(sorted(spot_names))}) sur {where}.",
                 pages=pages,
                 spots=sorted(spot_names),
+            )
+        elif code == "color.specialty_ink":
+            report.add(
+                code,
+                Severity.INFO,
+                f"Encres spéciales utilisées ({', '.join(sorted(specialty_inks))}) sur {where}.",
+                pages=pages,
+                inks=sorted(specialty_inks),
             )
         elif code == "content.hairline":
             report.add(

@@ -76,3 +76,13 @@ def image_reader(width_px: int, height_px: int, mode: str = "RGB") -> ImageReade
 
 def spot(name: str) -> CMYKColorSep:
     return CMYKColorSep(0, 0.5, 1, 0, spotName=name)
+
+
+def make_prepared_pdf(path: Path, spec, **kwargs) -> Path:
+    """PDF passé par le preflight avec normalisation des boîtes, comme en production."""
+    from flux_print.preflight import run_preflight
+
+    raw = make_pdf(path.with_suffix(".raw.pdf"), spec, **kwargs)
+    report = run_preflight(raw, spec, normalized_output=path, measure_ink=False)
+    assert report.passed, report.to_dict()
+    return path

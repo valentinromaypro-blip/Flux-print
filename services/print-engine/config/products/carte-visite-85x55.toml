@@ -1,0 +1,10 @@
+# Exemple de produit futur : aucun code à écrire, uniquement cette fiche.
+code = "carte-visite-85x55"
+type = "flat"
+label = "Carte de visite 85 × 55 mm recto/verso"
+media = "couche-mat-350g"
+
+[params]
+trim_mm = [85.0, 55.0]
+sides = 2
+safe_mm = 3.0

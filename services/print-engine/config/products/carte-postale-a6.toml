@@ -1,0 +1,9 @@
+code = "carte-postale-a6"
+type = "flat"
+label = "Carte postale A6 recto/verso"
+media = "couche-mat-350g"
+
+[params]
+trim_mm = [105.0, 148.0]
+sides = 2
+safe_mm = 4.0

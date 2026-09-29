@@ -1,8 +1,16 @@
 """Feuille machine et calcul de la grille de pose (step-and-repeat).
 
-Format de référence de l'atelier : 32 × 45 cm, impression numérique.
-La grille place les pièces fond perdu contre fond perdu (écart entre deux
-coupes = 2 × fond perdu) dans la zone utile, centrée sur la feuille.
+Format de référence de l'atelier : SRA3 32 × 45 cm, impression numérique
+(les feuilles disponibles sont décrites par presse dans `config/presses`).
+
+Deux styles de traits de coupe :
+- EDGE (défaut) : pièces fond perdu contre fond perdu, traits de coupe
+  prolongés en bordure de grille, à chaque ligne de coupe. En pose
+  régulière, chaque coupe traverse la feuille : c'est ce qu'il faut
+  pour le massicot, et chaque pièce a ses traits de coupe ;
+- PER_PIECE : un écart est ménagé entre les pièces pour tracer les
+  traits de coupe de chaque pièce à ses propres coins. Nécessaire pour
+  une coupe pièce par pièce ; coûte des poses.
 """
 
 from __future__ import annotations
@@ -11,6 +19,16 @@ from dataclasses import dataclass
 from enum import Enum
 
 from ..units import mm_to_pt
+
+
+class MarkStyle(str, Enum):
+    EDGE = "edge"
+    PER_PIECE = "per_piece"
+
+
+# Traits de coupe : longueur et écart par rapport à la zone de fond perdu.
+MARK_LENGTH_MM = 4.0
+MARK_OFFSET_MM = 1.5
 
 
 class Flip(str, Enum):
@@ -39,7 +57,8 @@ class SheetSpec:
         return mm_to_pt(self.height_mm)
 
 
-SHEET_32X45 = SheetSpec("32x45", 320.0, 450.0)
+SRA3 = SheetSpec("SRA3", 320.0, 450.0)
+SHEET_32X45 = SRA3  # alias historique
 
 
 @dataclass(frozen=True)
@@ -75,6 +94,7 @@ class Layout:
     rows: int
     rotation: int
     slots: tuple[Slot, ...]
+    marks: MarkStyle = MarkStyle.EDGE
 
     @property
     def per_sheet(self) -> int:
@@ -90,14 +110,18 @@ def compute_layout(
     trim_w_mm: float,
     trim_h_mm: float,
     bleed_mm: float,
-    gap_mm: float = 0.0,
+    gap_mm: float | None = None,
     rotation: int | None = None,
+    marks: MarkStyle = MarkStyle.EDGE,
 ) -> Layout:
     """Grille maximisant le nombre de poses.
 
     `rotation` force l'orientation (0 ou 90) : utile pour respecter le sens
     des fibres du support. À nombre de poses égal, 0° est préféré.
     """
+    marks = MarkStyle(marks)
+    if gap_mm is None:
+        gap_mm = MARK_LENGTH_MM if marks is MarkStyle.PER_PIECE else 0.0
     avail_w = sheet.width_mm - 2 * sheet.margin_mm
     avail_h = sheet.height_mm - 2 * sheet.margin_mm
     candidates = []
@@ -124,4 +148,4 @@ def compute_layout(
             slots.append(
                 Slot(len(slots), mm_to_pt(x), mm_to_pt(y), mm_to_pt(step_w), mm_to_pt(step_h), rot, mm_to_pt(bleed_mm))
             )
-    return Layout(sheet, cols, rows, rot, tuple(slots))
+    return Layout(sheet, cols, rows, rot, tuple(slots), marks)

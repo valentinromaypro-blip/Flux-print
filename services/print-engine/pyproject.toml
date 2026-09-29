@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "flux-print-engine"
 version = "0.1.0"
 description = "Moteur Flux-print : spécifications produit, gabarits et preflight PDF."
-requires-python = ">=3.10"
+requires-python = ">=3.11"  # tomllib
 # Dépendances volontairement sous licences permissives (pas d'AGPL liée au code).
 dependencies = [
     "pikepdf>=8",        # MPL-2.0 (qpdf : Apache-2.0) — lecture/écriture PDF

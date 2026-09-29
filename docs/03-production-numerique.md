@@ -1,29 +1,46 @@
-# Production numérique sur feuille 32 × 45 cm
+# Production numérique : Xerox Iridesse, SRA3 32 × 45 cm
 
 Décision D7 : tous les produits sont imprimés en **numérique**, sur feuille **32 × 45 cm** (SRA3). Ce choix permet de gérer la donnée variable (chaque pose est différente) et de regrouper le plus de commandes possible sur un même tirage.
 
 ## 1. Chaîne mise en place
 
 ```
-PDF client ──► preflight ──► PDF normalisé ─┐
-PDF client ──► preflight ──► PDF normalisé ─┼─► regroupement (même gang_key)
-PDF client ──► preflight ──► PDF normalisé ─┘          │
-                                                        ▼
-                             séquence de pièces (+ séparateurs de commande)
-                                                        │
-                                          répartition « coupe et empile »
-                                                        │
-                                                        ▼
-                            PDF de lot 32 × 45 recto/verso + manifeste JSON
+PDF client ─► prepare : preflight ─► boîtes PDF ─► conversion CMJN FOGRA51 ─► PDF de commande prêt
+                                                                                   │
+            plusieurs commandes compatibles (même support, format, recto/verso) ◄─┘
+                                                                                   │
+                          séquence de pièces + séparateurs ─► « coupe et empile »  │
+                                                                                   ▼
+             SRA3 32 × 45 préimposé, PDF/X-4, OutputIntent FOGRA51, traits de coupe,
+             fond perdu 3 mm, repères, QR code de feuille  +  manifeste JSON
 ```
 
 ```bash
-flux-print impose --format poker --deck 54 cmd-001.pdf cmd-002.pdf:2 cmd-003.pdf \
-  -o lot.pdf --manifest lot.json [--order cut_stack|sequential] [--no-separators] \
-  [--flip long_edge|short_edge] [--rotation 0|90]
+flux-print config                                               # presses, feuilles, produits
+flux-print gabarit --product jeu-poker-54 gabarit.pdf
+flux-print prepare --product jeu-poker-54 client.pdf -o cmd-001.pdf
+flux-print impose  --product jeu-poker-54 cmd-001.pdf cmd-002.pdf:2 -o lot.pdf --manifest lot.json \
+  [--sheet SRA3] [--marks edge|per_piece] [--order cut_stack|sequential] [--no-separators] [--rotation 0|90]
 ```
 
-## 2. Poses par feuille (marge réservée de 10 mm par bord, fond perdu 3 mm)
+## 1 bis. Contenu du PDF de production (à envoyer au contrôleur de l'Iridesse)
+
+| Élément | Valeur |
+|---|---|
+| Format | SRA3 320 × 450 mm, une page par face (recto, verso, recto…) |
+| Norme | PDF/X-4 (PDF 1.6), transparences conservées |
+| Couleur | CMJN. Profil de sortie **FOGRA51 / PSO Coated v3** incorporé (OutputIntent). Le RVB est converti en amont ; noirs et gris RVB en noir seul (K) |
+| Encres spéciales | Tons directs nommés comme sur le contrôleur (`Gold`, `Silver`, `White`, `Clear`, `Fluorescent Pink` : **noms à confirmer**) conservés tels quels |
+| Fond perdu | 3 mm sur toutes les pièces (règle imposée par la configuration) |
+| Traits de coupe | 0,25 pt en couleur de repérage : prolongés à chaque ligne de coupe (`edge`), ou aux coins de chaque pièce (`per_piece`) |
+| Repères | 4 carrés de repérage pour la découpe automatisée des coins, QR code et libellé de feuille (lot, n° de feuille, recto/verso, support, presse, profil) |
+| Coins arrondis | Non tracés : opération de façonnage séparée |
+
+**Pourquoi une conversion CMJN maison ?** Ghostscript 10 ne permet pas de choisir le profil CMJN de destination en sortie PDF. En plus, il transforme le texte noir RVB en noir quadri (72/67/67/88), illisible en petit corps. Notre convertisseur (LittleCMS, licence MIT) utilise le vrai profil FOGRA51 et respecte les profils incorporés aux photos. Il laisse intactes les encres spéciales et les boîtes PDF.
+
+**Validation PDF/X :** aucun validateur PDF/X open source n'existe. La conformité est donc assurée à la construction. À faire une fois : passer un lot dans le preflight du contrôleur de l'Iridesse ou d'Acrobat pour confirmer.
+
+## 2. Poses par feuille SRA3 (marge réservée de 10 mm par bord, fond perdu 3 mm, traits `edge`)
 
 | Format | Poses | Disposition | 1 jeu de 54 | 1 jeu de 32 |
 |---|---|---|---|---|
@@ -31,6 +48,10 @@ flux-print impose --format poker --deck 54 cmd-001.pdf cmd-002.pdf:2 cmd-003.pdf
 | Bridge 57,2 × 88,9 | 18 | 3 × 6, cartes pivotées | 3 feuilles pleines | 2 feuilles |
 | Mini 44 × 63 | 36 | 6 × 6 | 1,5 feuille | 1 feuille (4 poses libres) |
 | Tarot 61 × 112 | 12 | 4 × 3 | 4,5 feuilles | — |
+
+| Carte de visite 85 × 55 | 21 | 3 × 7 | — | — |
+
+Avec des traits de coupe par pièce (`per_piece`), l'écart de 4 mm entre les pièces coûte des poses : 16 au lieu de 18 pour une carte poker. En pose régulière, le style `edge` suffit : chaque coupe traverse toute la feuille et chaque pièce a ses traits sur les deux bords.
 
 Un jeu de 54 cartes au format poker occupe exactement 3 feuilles. Sans séparateurs, 3 jeux remplissent 9 feuilles à 100 %. Avec séparateurs, il faut 165 pièces, soit 10 feuilles (remplissage de 91,7 %).
 
@@ -50,7 +71,9 @@ Un jeu de 54 cartes au format poker occupe exactement 3 feuilles. Sans séparate
 
 1. **Sens des fibres.** Pour tenir 18 poses, les cartes sont pivotées : leur grand côté est parallèle au côté de 32 cm de la feuille. Pour que les fibres suivent la longueur de la carte (meilleure tenue et meilleur « claquant » du jeu), il faut un carton 32 × 45 **en fibres courtes**. En fibres longues, il faut forcer l'orientation avec `--rotation 0`, ce qui donne 16 poses (−11 % de rendement).
 2. **Repérage recto/verso de la presse.** Il est typiquement de ±0,5 à 1 mm en numérique. Pour un jeu de cartes, c'est le point critique : un dos décalé rend les cartes reconnaissables. Il faut imprimer une feuille de test (croix au centre de chaque pose, au recto et au verso) sur la presse réelle, mesurer l'écart, puis prévoir une **correction du décalage recto/verso** dans la définition de la feuille. C'est une évolution simple à ajouter.
-3. **Marge non imprimable et pinces** : le paramètre `margin_mm` (10 mm) doit être ajusté selon la presse.
+3. **Marge non imprimable** de l'Iridesse sur SRA3 : `reserved_margin_mm` (10 mm) dans `config/presses/xerox-iridesse.toml`, à mesurer.
+3 bis. **Noms des encres spéciales** tels que le contrôleur les attend : à relever sur le DFE et à reporter dans `specialty_inks`.
+3 ter. **Profil FOGRA51** : déposer `PSO_Coated_v3.icc` dans `config/icc/`. Sans lui, le PDF est produit sans OutputIntent et la commande l'annonce.
 4. **Ordre de sortie des feuilles** (face dessus ou face dessous) : il détermine si la pile 1 commence par la feuille 1. On ajoutera un paramètre d'inversion quand on connaîtra la presse.
 5. **Découpe et coins arrondis.**
    - Avec un outil de découpe par format, **un seul format par feuille** : c'est le cas actuel.
