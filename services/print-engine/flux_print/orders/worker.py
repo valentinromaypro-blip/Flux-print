@@ -40,7 +40,7 @@ class ProductionSettings:
     press: str = "xerox-iridesse"
     sheet: str = "SRA3"
     rules: BatchingRules = field(default_factory=BatchingRules)
-    order: str = "lanes"
+    order: str = "deck_stack"
     marks: str = "edge"
     preview_pages: int = 2
     preview_width_px: int = 600
@@ -61,15 +61,16 @@ class ProductionSettings:
                 urgent_days=int(b.get("urgent_days", 2)),
                 min_sheets=int(b.get("min_sheets", 1)),
                 separators=bool(b.get("separators", True)),
-                order=b.get("order", "lanes"),
+                order=b.get("order", "deck_stack"),
                 deck_stack_min_decks=int(b.get("deck_stack_min_decks", 9)),
                 max_cut_sheets=int(b.get("max_cut_sheets", 100)),
                 sheet_cost=float(b.get("sheet_cost_eur", 0.25)),
                 merge_cost=float(b.get("merge_cost_eur", 0.03)),
                 cut_cost=float(b.get("cut_cost_eur", 1.5)),
                 launch_times=tuple(b.get("launch_times", ())),
+                slot_min_decks=int(b.get("slot_min_decks", 1)),
             ),
-            order=b.get("order", "lanes"),
+            order=b.get("order", "deck_stack"),
             marks=b.get("marks", "edge"),
             preview_pages=int(p.get("pages", 2)),
             preview_width_px=int(p.get("width_px", 600)),

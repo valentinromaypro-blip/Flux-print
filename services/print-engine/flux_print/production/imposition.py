@@ -454,20 +454,25 @@ def _separator_pdf(job: Job, duplex: bool) -> bytes:
     c = canvas.Canvas(buf, pagesize=(pw, ph))
     for copy in range(job.copies):
         for side in (("RECTO", "VERSO") if duplex else ("RECTO",)):
-            c.setFillColor(CMYKColor(0, 0, 0, 0.15))
+            # Carte d'identification lisible d'un coup d'œil sur le dessus de la pile (fond clair : peu d'encre)
+            order = job.job_id.rsplit("-", 1)[0] if job.job_id.count("-") >= 2 else job.job_id
+            c.setFillColor(CMYKColor(0, 0, 0, 0.06))
             c.rect(0, 0, pw, ph, stroke=0, fill=1)
             c.setFillColor(BLACK)
             c.setFont(_FONT, 7)
-            c.drawCentredString(pw / 2, ph - bleed - mm_to_pt(8), "SÉPARATEUR")
-            c.setFont(_FONT, 9)
-            c.drawCentredString(pw / 2, ph - bleed - mm_to_pt(14), job.job_id)
-            c.setFont(_FONT, 6)
-            c.drawCentredString(pw / 2, ph - bleed - mm_to_pt(19),
-                                f"Exemplaire {copy + 1}/{job.copies} · {len(spec.imposition_units())} pièces")
-            qr = min(tw, th) * 0.5
-            _qr(c, f"{job.job_id}|{copy + 1}", (pw - qr) / 2, bleed + mm_to_pt(8), qr)
+            c.drawCentredString(pw / 2, ph - bleed - mm_to_pt(9), "JEU POUR LA COMMANDE")
+            size = min(26, 26 * mm_to_pt(52) / max(1, pdfmetrics.stringWidth(order, _FONT, 26)))
+            c.setFont(_FONT, size)
+            c.drawCentredString(pw / 2, ph - bleed - mm_to_pt(20), order)
+            c.setFont(_FONT, 13)
+            c.drawCentredString(pw / 2, ph - bleed - mm_to_pt(29),
+                                f"Jeu {copy + 1} / {job.copies}" if job.copies > 1 else "Jeu unique")
+            c.setFont(_FONT, 6.5)
+            c.drawCentredString(pw / 2, ph - bleed - mm_to_pt(35), f"{len(spec.imposition_units())} cartes · {job.job_id}")
+            qr = min(tw, th) * 0.38
+            _qr(c, f"{job.job_id}|{copy + 1}", (pw - qr) / 2, bleed + mm_to_pt(9), qr)
             c.setFont(_FONT, 5)
-            c.drawCentredString(pw / 2, bleed + mm_to_pt(4), side)
+            c.drawCentredString(pw / 2, bleed + mm_to_pt(4.5), f"{side} · à retirer avant mise en étui")
             c.showPage()
     c.setPageSize((pw, ph))
     c.save()

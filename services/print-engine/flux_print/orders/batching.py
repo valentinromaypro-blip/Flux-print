@@ -27,7 +27,7 @@ class BatchingRules:
     urgent_days: int = 2
     min_sheets: int = 1
     separators: bool = True
-    order: str = "lanes"
+    order: str = "deck_stack"
     # Pile = jeu (deck_stack) : en dessous de ce nombre de jeux, passage en coupe et empile compact.
     deck_stack_min_decks: int = 9
     # Piles alignées (lanes) : hauteur de coupe maximale et coûts utilisés pour choisir la hauteur.
@@ -37,6 +37,7 @@ class BatchingRules:
     cut_cost: float = 1.5
     # Créneaux presse (heure de Paris) : à chaque créneau, les jeux payés avant partent en lot.
     launch_times: tuple[str, ...] = ()
+    slot_min_decks: int = 1  # jeux minimum pour partir à un créneau (sinon créneau suivant)
 
 
 @dataclass
@@ -140,11 +141,13 @@ def plan_batches(
             group.reason = "forcé"
         elif urgent:
             group.reason = "commande urgente"
-        elif slot and oldest <= slot:
+        elif slot and oldest <= slot and group.decks >= rules.slot_min_decks:
             group.reason = f"créneau {slot.astimezone(PARIS):%H:%M}"
         elif waited_h >= rules.max_wait_hours:
             group.reason = f"attente {waited_h:.0f} h"
-        elif rules.launch_times and group.sheets >= rules.max_cut_sheets:
+        elif rules.launch_times and group.order == "deck_stack" and group.decks >= group.layout.per_sheet:
+            group.reason = "livre plein"
+        elif rules.launch_times and group.order != "deck_stack" and group.sheets >= rules.max_cut_sheets:
             group.reason = "volume : un livre plein"
         elif not rules.launch_times and group.sheets >= rules.min_sheets and group.launch_fill >= rules.min_fill_ratio:
             group.reason = f"remplissage {group.launch_fill:.0%}"

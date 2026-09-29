@@ -108,7 +108,7 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
           {lanes
             ? <li>Chaque pile n&apos;appartient qu&apos;à un seul jeu. Pour un jeu sur plusieurs piles, <b>poser la première pile sur la suivante</b>, dans l&apos;ordre indiqué ci-dessous (1/3 sur 2/3 sur 3/3) : le jeu est complet et trié.</li>
             : deck
-            ? <li>Chaque pile est <b>un jeu complet et trié</b> : la mettre en étui selon le plan ci-dessous (vue du recto, feuille posée normalement).</li>
+            ? <li>Chaque pile est <b>un jeu complet et trié</b>. La carte du dessus indique la commande et l&apos;exemplaire : la retirer, mettre le jeu en étui, ranger l&apos;étui avec la commande. Le plan ci-dessous sert de contrôle.</li>
             : <li>Poser la pile 1 sur la pile 2, puis l&apos;ensemble sur la pile 3, etc. : les jeux se suivent dans l&apos;ordre des commandes.</li>}
           <li>Coins arrondis, mise en étui, puis « Imprimé ✓ » dans l&apos;atelier.</li>
         </ol>
