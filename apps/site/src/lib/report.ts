@@ -32,11 +32,12 @@ const COPY: Record<string, { title: string; help: string } | ((f: Finding) => { 
   "ink.tac": { title: "Des zones sont très chargées en encre", help: "Elles risquent de maculer. Éclaircissez légèrement les aplats très sombres." },
 };
 
-export function customerMessages(report: PreflightReport | null): CustomerMessage[] {
+/** `skip` : codes à taire (ex. color.rgb pour une création en ligne, rendue par nos soins). */
+export function customerMessages(report: PreflightReport | null, skip: string[] = []): CustomerMessage[] {
   if (!report) return [];
   const byCode = new Map<string, CustomerMessage>();
   for (const f of report.findings) {
-    if (f.severity === "info") continue;
+    if (f.severity === "info" || skip.includes(f.code)) continue;
     const entry = COPY[f.code];
     const copy = typeof entry === "function" ? entry(f) : entry ?? { title: f.message, help: "" };
     const key = `${f.code}:${f.severity}`;

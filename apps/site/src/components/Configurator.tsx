@@ -108,23 +108,14 @@ export default function Configurator({ product }: { product: Product }) {
   const approved = item?.status === "approved";
   const rejected = item?.status === "rejected" || item?.status === "failed";
 
-  return (
-    <div className="container config">
-      <div className="gallery">
-        <div className="main"><img src={`/img/${image}.jpg`} alt={product.shop.title} /></div>
-        <div className="thumbs">
-          {images.map((i) => (
-            <button key={i} aria-pressed={i === image} onClick={() => setImage(i)} aria-label="Voir cette photo"><img src={`/img/${i}.jpg`} alt="" /></button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <div className="panel-title">
-          <h1>{product.shop.title}</h1>
-          <p>{product.shop.description}</p>
-        </div>
-
+  const switcher = product.editor && (phase === "idle" || phase === "error") && (
+    <div className="seg" role="tablist" aria-label="Mode de création">
+      <button role="tab" aria-selected={mode === "editor"} onClick={() => setMode("editor")}>Créer en ligne</button>
+      <button role="tab" aria-selected={mode === "upload"} onClick={() => setMode("upload")}>J&apos;ai mon fichier PDF</button>
+    </div>
+  );
+  const finish = (
+      <>
         {Object.entries(product.options).map(([key, spec]) => (
           <div className="block" key={key}>
             <h2>{spec.label}{spec.kind === "number" && <small>{spec.min} à {spec.max}</small>}</h2>
@@ -179,41 +170,9 @@ export default function Configurator({ product }: { product: Product }) {
           </div>
         </div>
 
-        <div className="block">
-          <h2>{mode === "editor" ? "Votre jeu" : "Votre fichier"}{mode === "upload" && <small>PDF de {pages} pages</small>}</h2>
-          {product.editor && (phase === "idle" || phase === "error") && (
-            <div className="chips" role="tablist">
-              <button className="chip" role="tab" aria-pressed={mode === "editor"} onClick={() => setMode("editor")}>Créer en ligne</button>
-              <button className="chip" role="tab" aria-pressed={mode === "upload"} onClick={() => setMode("upload")}>J&apos;ai mon fichier PDF</button>
-            </div>
-          )}
-          {mode === "editor" && (phase === "idle" || phase === "error") && (
-            <>
-              <Editor product={product.code} disabled={false} onSubmit={submitDesign} />
-              {error && <p className="error-text">{error}</p>}
-            </>
-          )}
-          {mode === "upload" && (
-          <p className="hint">
-            Partez de notre gabarit : il contient le fond perdu, la zone de sécurité et l&apos;ordre des pages.{" "}
-            <a className="link" href={`/api/templates/${product.code}/${format}`}>Télécharger le gabarit</a>
-          </p>
-          )}
-
-          {mode === "editor" && (phase === "idle" || phase === "error") ? null : phase === "idle" || phase === "error" ? (
-            <>
-              <div className={`dropzone${over ? " over" : ""}`} role="button" tabIndex={0}
-                onClick={() => input.current?.click()} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && input.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
-                onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) upload(f); }}>
-                <b>Déposez votre PDF ici</b>
-                <span className="hint">ou cliquez pour le choisir · 300 Mo maximum</span>
-                <input ref={input} id="file" type="file" accept="application/pdf" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-              </div>
-              {error && <p className="error-text">{error}</p>}
-              {!product.editor && <div className="soon">Pas de logiciel de graphisme ? La création en ligne arrive bientôt sur ce produit.</div>}
-            </>
-          ) : (
+      </>
+  );
+  const check = (
             <div className="check" aria-live="polite">
               {phase === "uploading" && (
                 <><p><span className="spinner" />Envoi de {file?.name} · {progress} %</p>
@@ -234,16 +193,63 @@ export default function Configurator({ product }: { product: Product }) {
               {phase === "done" && approved && (
                 <div className="row-actions">
                   <Link className="btn red" href="/panier">Ajouté au panier · voir le panier</Link>
-                  <button className="link" onClick={restart}>Créer un autre jeu</button>
+                  <button className="link" onClick={restart}>{mode === "editor" ? "Créer une variante" : "Créer un autre jeu"}</button>
                 </div>
               )}
               {phase === "done" && rejected && (
                 <div className="row-actions">
-                  <button className="btn" onClick={restart}>Déposer un fichier corrigé</button>
+                  <button className="btn" onClick={restart}>{mode === "editor" ? "Modifier mon jeu" : "Déposer un fichier corrigé"}</button>
                 </div>
               )}
             </div>
-          )}
+  );
+
+  if (mode === "editor") {
+    return (
+      <Editor product={product.code} busy={locked} onSubmit={submitDesign}
+        header={<div className="panel-title"><h1>{product.shop.title}</h1>{switcher}{error && <p className="error-text">{error}</p>}</div>}
+        finish={finish} status={phase === "idle" || phase === "error" ? null : check} />
+    );
+  }
+
+  return (
+    <div className="container config">
+      <div className="gallery">
+        <div className="main"><img src={`/img/${image}.jpg`} alt={product.shop.title} /></div>
+        <div className="thumbs">
+          {images.map((i) => (
+            <button key={i} aria-pressed={i === image} onClick={() => setImage(i)} aria-label="Voir cette photo"><img src={`/img/${i}.jpg`} alt="" /></button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="panel-title">
+          <h1>{product.shop.title}</h1>
+          <p>{product.shop.description}</p>
+          {switcher}
+        </div>
+        {finish}
+        <div className="block">
+          <h2>Votre fichier<small>PDF de {pages} pages</small></h2>
+          <p className="hint">
+            Partez de notre gabarit : il contient le fond perdu, la zone de sécurité et l&apos;ordre des pages.{" "}
+            <a className="link" href={`/api/templates/${product.code}/${format}`}>Télécharger le gabarit</a>
+          </p>
+          {phase === "idle" || phase === "error" ? (
+            <>
+              <div className={`dropzone${over ? " over" : ""}`} role="button" tabIndex={0}
+                onClick={() => input.current?.click()} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && input.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+                onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) upload(f); }}>
+                <b>Déposez votre PDF ici</b>
+                <span className="hint">ou cliquez pour le choisir · 300 Mo maximum</span>
+                <input ref={input} id="file" type="file" accept="application/pdf" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+              </div>
+              {error && <p className="error-text">{error}</p>}
+              {!product.editor && <div className="soon">Pas de logiciel de graphisme ? La création en ligne arrive bientôt sur ce produit.</div>}
+            </>
+          ) : check}
         </div>
       </div>
     </div>

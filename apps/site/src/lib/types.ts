@@ -56,6 +56,7 @@ export type OrderItem = {
   status: ItemStatus;
   preflight_report: PreflightReport | null;
   preview_paths: string[];
+  design: unknown | null; // création en ligne (null pour un PDF déposé)
   unit_price_cents: number | null;
   total_cents: number | null;
   created_at: string;

@@ -33,7 +33,8 @@ export async function presentItem(item: OrderItem) {
     details: product ? describeOptions(product, item) : [],
     copies: item.copies,
     status: item.status,
-    messages: customerMessages(item.preflight_report),
+    // Création en ligne : le RVB vient de notre propre rendu, l'avertissement ne concerne pas le client.
+    messages: customerMessages(item.preflight_report, item.design ? ["color.rgb"] : []),
     previews: item.preview_paths.map((p) => `/api/files/previews/${p}`),
     unitPriceCents: item.unit_price_cents,
     totalCents: item.total_cents,

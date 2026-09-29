@@ -277,7 +277,7 @@ def test_online_design_rendered_checked_and_batched(db, files, tmp_path):
     Image.new("RGB", (900, 1200), (180, 120, 90)).save(photo)
     files.upload("uploads", "sessions/s1/photos/papa.jpg", photo, "image/jpeg")
     design = {"back": {"color": "#1C2440", "ink": "#E8D6B0", "title": "J & M", "subtitle": "2027"},
-              "courts": {"H-K": {"name": "Papa", "photo": {"path": "sessions/s1/photos/papa.jpg", "zoom": 1.2}}}}
+              "courts": {"H-K": {"photo": {"path": "sessions/s1/photos/papa.jpg", "zoom": 1.2}}}}
     order = db.create_order("design@example.fr")
     item = db.add_item(order["id"], "jeu-poker-54", "cmdm-350g", 1, None, design=design)
     db.mark_paid(order["id"], "test")

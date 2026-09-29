@@ -1,20 +1,35 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { type Crop, type Design, RANKS, SUITS } from "@/lib/design.ts";
 import { cutHead } from "@/lib/headcut.ts";
+import { type Back, type Style, drawBack, drawCourt, headBox, RATIO } from "@/lib/cardrender.ts";
 
-// Éditeur « création en ligne » : dos + figures. L'aperçu est dessiné dans le navigateur avec les
-// mêmes cartes que le moteur ; le rendu d'impression est fabriqué par le moteur puis contrôlé.
+// Studio de création : grand aperçu à gauche (dessiné comme le moteur l'imprimera), étapes à droite.
+// 1. Le dos · 2. Les visages (photos détourées, glissées sur les figures) · 3. Finitions et commande.
 
-type LocalPhoto = { url: string; path: string | null; crop: Crop; cut?: boolean; error?: string };
-type Style = "gravure" | "couleur";
-type Props = { product: string; disabled: boolean; onSubmit: (design: Design) => void };
+type Photo = { id: string; url: string; path: string | null; cut: boolean; busy: boolean; error?: string };
+type Assign = { face: string; crop: Crop };
+type Props = {
+  product: string; busy: boolean; header: ReactNode; finish: ReactNode; status: ReactNode;
+  onSubmit: (design: Design) => void;
+};
 
 const COLORS: [string, string, string][] = [
   ["Vert tapis", "#134536", "#F0E8D6"], ["Nuit", "#1C2440", "#E8D6B0"], ["Noir", "#16161A", "#E6E4DE"],
   ["Rouge", "#B3152A", "#FCEFE6"], ["Crème", "#F3EBDD", "#9C7A3C"], ["Rose", "#EEC4C8", "#78203C"],
 ];
-const W = 254, H = 356; // aperçu à l'échelle 4 px/mm
+const COURTS = SUITS.flatMap(([s]) => [...RANKS].reverse().map(([r]) => `${s}-${r}`)); // R, D, V de chaque couleur
+const CENTER: Crop = { zoom: 1, x: 0.5, y: 0.5 };
+const OVAL: Crop = { zoom: 2.2, x: 0.5, y: 0.38 }; // photo non détourée : cadrage de départ sur le visage
+const STEPS = ["Le dos", "Les visages", "Finitions"];
+const label = (code: string) => {
+  const [s, r] = code.split("-");
+  return `${RANKS.find(([k]) => k === r)![2]} de ${SUITS.find(([k]) => k === s)![2]}`;
+};
+const glyph = (code: string) => {
+  const [s, r] = code.split("-");
+  return `${RANKS.find(([k]) => k === r)![1]}${SUITS.find(([k]) => k === s)![1]}`;
+};
 
 async function uploadPhoto(product: string, file: Blob): Promise<string> {
   const res = await fetch("/api/uploads", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -26,241 +41,296 @@ async function uploadPhoto(product: string, file: Blob): Promise<string> {
   return out.path as string;
 }
 
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = url; });
-}
-
-/** Même recadrage que le moteur (cardart.crop_photo). */
-function cropRect(img: HTMLImageElement | HTMLCanvasElement, crop: Crop, ratio: number) {
-  const w = img instanceof HTMLImageElement ? img.naturalWidth : img.width, h = img instanceof HTMLImageElement ? img.naturalHeight : img.height;
-  const cw = Math.min(w, h * ratio) / Math.max(1, crop.zoom), ch = cw / ratio;
-  const cx = Math.min(Math.max(crop.x * w, cw / 2), w - cw / 2), cy = Math.min(Math.max(crop.y * h, ch / 2), h - ch / 2);
-  return [cx - cw / 2, cy - ch / 2, cw, ch] as const;
-}
-
-function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  c.beginPath(); c.roundRect(x, y, w, h, r);
-}
-
-async function drawBack(canvas: HTMLCanvasElement, back: Design["back"], photo: LocalPhoto | null) {
-  const c = canvas.getContext("2d")!;
-  c.clearRect(0, 0, W, H);
-  roundRect(c, 0, 0, W, H, 14); c.fillStyle = back.color; c.fill();
-  c.strokeStyle = back.ink; c.lineWidth = 1.2; roundRect(c, 11, 11, W - 22, H - 22, 6); c.stroke();
-  const ix = 17.6, iy = 17.6, iw = W - 35.2, ih = H - 35.2;
-  c.save(); roundRect(c, ix, iy, iw, ih, 3); c.clip();
-  if (photo) {
-    const img = await loadImage(photo.url);
-    c.drawImage(img, ...cropRect(img, photo.crop, iw / ih), ix, iy, iw, ih);
-  } else {
-    c.globalAlpha = 0.27; c.fillStyle = back.ink;
-    for (let row = 0, y = iy; y < iy + ih + 18; row++, y += 18.4) {
-      for (let x = ix + (row % 2 ? 9.2 : 0); x < ix + iw + 18; x += 18.4) {
-        c.beginPath(); c.moveTo(x, y - 3.6); c.lineTo(x + 3.6, y); c.lineTo(x, y + 3.6); c.lineTo(x - 3.6, y); c.fill();
-      }
-    }
-  }
-  c.restore(); c.globalAlpha = 1;
-  if (photo && !back.title && !back.subtitle) return;
-  c.beginPath(); c.arc(W / 2, H / 2, 60, 0, Math.PI * 2); c.fillStyle = back.color; c.fill();
-  c.lineWidth = 1.6; c.strokeStyle = back.ink; c.stroke();
-  c.beginPath(); c.arc(W / 2, H / 2, 54.4, 0, Math.PI * 2); c.lineWidth = 0.8; c.stroke();
-  c.fillStyle = back.ink; c.textAlign = "center"; c.textBaseline = "middle";
-  if (back.subtitle) {
-    c.font = "600 23px Georgia, serif"; c.fillText(back.title, W / 2, H / 2 - 10, 100);
-    c.font = "600 9.5px system-ui, sans-serif"; c.fillText(back.subtitle, W / 2, H / 2 + 19, 100);
-  } else {
-    c.font = "800 44px system-ui, sans-serif"; c.fillText(back.title || (photo ? "" : "CB"), W / 2, H / 2 + 2, 100);
-  }
-}
-
-// Figures classiques (A. Kennard, CC0) : mêmes fichiers et mêmes emplacements de visage que le moteur
-// (flux_print/design/classic). Unités de la carte : 240 × 336.
-type Slot = [number, number, number, number, number];
-let slotsPromise: Promise<Record<string, Slot>> | null = null;
-const faceSlots = () => (slotsPromise ??= fetch("/cartes/faces.json").then((r) => r.json()));
-
-/** Gravure : niveaux de gris étirés puis dégradé bleu nuit → bleu du trait → blanc (cf. classic.stylise). */
-function engrave(c: CanvasRenderingContext2D, w: number, h: number) {
-  const im = c.getImageData(0, 0, w, h), d = im.data;
-  let lo = 255, hi = 0;
-  for (let i = 0; i < d.length; i += 4) { const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; d[i] = g; if (d[i + 3] > 128) { lo = Math.min(lo, g); hi = Math.max(hi, g); } }
-  const stops: [number, number[]][] = [[10, [18, 18, 96]], [110, [88, 88, 240]], [235, [255, 255, 255]]];
-  for (let i = 0; i < d.length; i += 4) {
-    const g = ((d[i] - lo) * 255) / Math.max(1, hi - lo);
-    const [[a, ca], [b, cb]] = g < stops[1][0] ? [stops[0], stops[1]] : [stops[1], stops[2]];
-    const t = Math.min(1, Math.max(0, (g - a) / (b - a)));
-    for (let k = 0; k < 3; k++) d[i + k] = ca[k] + (cb[k] - ca[k]) * t;
-  }
-  c.putImageData(im, 0, 0);
-}
-
-async function drawCourt(canvas: HTMLCanvasElement, code: string, name: string, photo: LocalPhoto | null, style: Style) {
-  const c = canvas.getContext("2d")!;
-  const art = code.replace("-", "");
-  const [card, slots] = await Promise.all([loadImage(`/cartes/${art}.svg`), faceSlots()]);
-  const k = W / 240;
-  c.clearRect(0, 0, W, H);
-  c.drawImage(card, 0, 0, W, H);
-  if (photo) {
-    const [cx, cy, rx, ry, top] = slots[art];
-    const img = await loadImage(photo.url);
-    const fw = Math.round(2 * rx * k), fh = Math.round(2 * ry * k), ratio = rx / ry;
-    let src: HTMLImageElement | HTMLCanvasElement = img;
-    if (photo.cut) { // tête détourée : centrée sans rognage, comme cardart.crop_photo
-      const w = img.naturalWidth, h = img.naturalHeight;
-      const pad = document.createElement("canvas");
-      pad.width = Math.max(w, Math.round(h * ratio)); pad.height = Math.max(h, Math.round(w / ratio));
-      pad.getContext("2d")!.drawImage(img, Math.floor((pad.width - w) / 2), Math.floor((pad.height - h) / 2));
-      src = pad;
-    }
-    const face = document.createElement("canvas"); face.width = fw; face.height = fh;
-    const f = face.getContext("2d", { willReadFrequently: true })!;
-    f.drawImage(src, ...cropRect(src, photo.crop, ratio), 0, 0, fw, fh);
-    if (style === "gravure") engrave(f, fw, fh);
-    const e = 1.6 * k, stroke = 1.1 * k;
-    let ring: HTMLCanvasElement | null = null;
-    if (photo.cut) { // contour de la silhouette, couleur du trait
-      ring = document.createElement("canvas"); ring.width = fw; ring.height = fh;
-      const r = ring.getContext("2d")!;
-      for (let a = 0; a < 16; a++) r.drawImage(face, Math.cos(a * Math.PI / 8) * stroke, Math.sin(a * Math.PI / 8) * stroke);
-      r.globalCompositeOperation = "source-in"; r.fillStyle = "#22227A"; r.fillRect(0, 0, fw, fh);
-    }
-    const head = (flip: boolean) => {
-      c.save();
-      if (flip) { c.translate(W, H); c.rotate(Math.PI); }
-      c.beginPath(); c.rect(0, top * k, W, H); c.clip();
-      const x = (cx - rx) * k, y = (cy - ry) * k;
-      if (ring) {
-        c.drawImage(ring, x, y); c.drawImage(face, x, y);
-      } else {
-        c.beginPath(); c.ellipse(cx * k, cy * k, rx * k - e, ry * k - e, 0, 0, Math.PI * 2);
-        c.save(); c.clip(); c.drawImage(face, x, y); c.restore();
-        c.strokeStyle = "#22227A"; c.lineWidth = stroke; c.stroke();
-      }
-      c.restore();
-    };
-    head(false); head(true);
-  }
-  if (name) {
-    c.font = `600 ${11 * k}px Georgia, serif`;
-    const w = c.measureText(name.toUpperCase()).width + 22 * k, h = 17 * k;
-    roundRect(c, W / 2 - w / 2, H / 2 - h / 2, w, h, 3 * k); c.fillStyle = "#FFFAEB"; c.fill();
-    c.strokeStyle = "#44F"; c.lineWidth = 1.1 * k; c.stroke();
-    c.fillStyle = "#BE141E"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(name.toUpperCase(), W / 2, H / 2 + 0.5 * k);
-  }
-}
-
-function PhotoField({ id, photo, product, disabled, onChange, initial = { zoom: 1, x: 0.5, y: 0.4 }, head = false }: {
-  id: string; initial?: Crop; head?: boolean; photo: LocalPhoto | null; product: string; disabled: boolean; onChange: (p: LocalPhoto | null) => void;
+function MiniCourt({ code, face, crop, style, selected, onSelect, onDropFace, onDropFiles }: {
+  code: string; face: Photo | null; crop: Crop; style: Style; selected: boolean;
+  onSelect: () => void; onDropFace: (id: string) => void; onDropFiles: (files: File[]) => void;
 }) {
-  async function pick(file: File) {
-    const pending: LocalPhoto = { url: URL.createObjectURL(file), path: null, crop: initial };
-    onChange(pending);
-    // Figures : la tête est détourée ici ; c'est le PNG détouré qui part à l'impression.
-    const cut = head ? await cutHead(file) : null;
-    const local: LocalPhoto = cut ? { url: URL.createObjectURL(cut), path: null, crop: { zoom: 1, x: 0.5, y: 0.5 }, cut: true } : pending;
-    onChange(local);
-    try { onChange({ ...local, path: await uploadPhoto(product, cut ?? file) }); }
-    catch (e) { onChange({ ...local, error: (e as Error).message }); }
-  }
-  const set = (k: keyof Crop, v: number) => photo && onChange({ ...photo, crop: { ...photo.crop, [k]: v } });
+  const ref = useRef<HTMLCanvasElement>(null);
+  const [over, setOver] = useState(false);
+  useEffect(() => { if (ref.current) drawCourt(ref.current, code, face, crop, style).catch(() => {}); }, [code, face, crop, style]);
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <div className="row-actions">
-        <label className="btn ghost" htmlFor={id} style={{ padding: "11px 16px" }}>{photo ? "Changer la photo" : "Ajouter une photo"}</label>
-        <input id={id} type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={disabled}
-          onChange={(e) => e.target.files?.[0] && pick(e.target.files[0])} />
-        {photo && <button className="link" disabled={disabled} onClick={() => onChange(null)}>Retirer</button>}
-        {photo && !photo.path && !photo.error && <span className="hint"><span className="spinner" />{head ? "Détourage et envoi…" : "Envoi…"}</span>}
-        {photo?.error && <span className="error-text">{photo.error}</span>}
-      </div>
-      {photo && (
-        <div className="grid2" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-          <label className="field">Zoom<input type="range" min={1} max={4} step={0.05} value={photo.crop.zoom} disabled={disabled} onChange={(e) => set("zoom", Number(e.target.value))} /></label>
-          <label className="field">Horizontal<input type="range" min={0} max={1} step={0.01} value={photo.crop.x} disabled={disabled} onChange={(e) => set("x", Number(e.target.value))} /></label>
-          <label className="field">Vertical<input type="range" min={0} max={1} step={0.01} value={photo.crop.y} disabled={disabled} onChange={(e) => set("y", Number(e.target.value))} /></label>
-        </div>
-      )}
-    </div>
+    <button className={`mini${selected ? " on" : ""}${over ? " over" : ""}`} onClick={onSelect} aria-pressed={selected}
+      aria-label={`${label(code)}${face ? " · personnalisée" : ""}`}
+      onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault(); setOver(false);
+        const id = e.dataTransfer.getData("text/x-face");
+        if (id) onDropFace(id); else if (e.dataTransfer.files.length) onDropFiles([...e.dataTransfer.files]);
+      }}>
+      <canvas ref={ref} width={192} height={Math.round(192 * RATIO)} />
+      <span className="tag">{glyph(code)}{face && <i aria-hidden>●</i>}</span>
+    </button>
   );
 }
 
-export default function Editor({ product, disabled, onSubmit }: Props) {
-  const [back, setBack] = useState({ color: "#134536", ink: "#F0E8D6", title: "", subtitle: "" });
-  const [backPhoto, setBackPhoto] = useState<LocalPhoto | null>(null);
-  const [courts, setCourts] = useState<Record<string, { name: string; photo: LocalPhoto | null }>>({});
+export default function Editor({ product, busy, header, finish, status, onSubmit }: Props) {
+  const [step, setStep] = useState(0);
+  const [back, setBack] = useState<Back>({ color: "#134536", ink: "#F0E8D6", title: "", subtitle: "" });
+  const [backPhoto, setBackPhoto] = useState<Photo | null>(null);
+  const [backCrop, setBackCrop] = useState<Crop>(CENTER);
+  const [faces, setFaces] = useState<Photo[]>([]);
+  const [courts, setCourts] = useState<Record<string, Assign>>({});
   const [selected, setSelected] = useState("H-K");
   const [style, setStyle] = useState<Style>("couleur");
-  const backCanvas = useRef<HTMLCanvasElement>(null);
-  const courtCanvas = useRef<HTMLCanvasElement>(null);
-  const court = courts[selected] ?? { name: "", photo: null };
-  const uploading = [backPhoto, ...Object.values(courts).map((c) => c.photo)].some((p) => p && !p.path && !p.error);
+  const [over, setOver] = useState(false);
+  const stage = useRef<HTMLCanvasElement>(null);
+  const picker = useRef<HTMLInputElement>(null);
+  const backPicker = useRef<HTMLInputElement>(null);
+  const drag = useRef<{ x: number; y: number; crop: Crop; w: number; h: number } | null>(null);
+  const pendingTarget = useRef<string | null>(null);
 
-  useEffect(() => { if (backCanvas.current) drawBack(backCanvas.current, { ...back, photo: null }, backPhoto); }, [back, backPhoto]);
-  useEffect(() => { if (courtCanvas.current) drawCourt(courtCanvas.current, selected, court.name, court.photo, style); }, [selected, court.name, court.photo, style]);
+  const faceOf = (id?: string) => faces.find((f) => f.id === id) ?? null;
+  const current = courts[selected];
+  const currentFace = faceOf(current?.face);
+  const done = Object.keys(courts).filter((c) => faceOf(courts[c].face)).length;
+  const uploading = [backPhoto, ...faces].some((p) => p?.busy);
+  const view = step === 0 ? "back" : "court";
 
-  const setCourt = (patch: Partial<{ name: string; photo: LocalPhoto | null }>) =>
-    setCourts((all) => ({ ...all, [selected]: { ...court, ...patch } }));
-  const done = Object.entries(courts).filter(([, c]) => c.name || c.photo).length;
+  // Grand aperçu
+  useEffect(() => {
+    const c = stage.current;
+    if (!c) return;
+    const job = view === "back" ? drawBack(c, back, backPhoto, backCrop) : drawCourt(c, selected, currentFace, current?.crop ?? CENTER, style);
+    job.catch(() => {});
+  }, [view, back, backPhoto, backCrop, selected, currentFace, current, style]);
+
+  // Photos : détourage, envoi, et pose sur la figure visée (la première photo seulement).
+  const addFaces = useCallback(async (files: File[], target: string | null) => {
+    let dest = target;
+    for (const file of files.filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type)).slice(0, 12)) {
+      const id = crypto.randomUUID(), assignTo = dest;
+      dest = null;
+      setFaces((all) => [...all, { id, url: URL.createObjectURL(file), path: null, cut: false, busy: true }]);
+      if (assignTo) { setCourts((all) => ({ ...all, [assignTo]: { face: id, crop: OVAL } })); setSelected(assignTo); }
+      const cut = await cutHead(file);
+      if (cut) {
+        const url = URL.createObjectURL(cut);
+        setFaces((all) => all.map((f) => (f.id === id ? { ...f, url, cut: true } : f)));
+        if (assignTo) setCourts((all) => (all[assignTo]?.face === id ? { ...all, [assignTo]: { face: id, crop: CENTER } } : all));
+      }
+      try {
+        const path = await uploadPhoto(product, cut ?? file);
+        setFaces((all) => all.map((f) => (f.id === id ? { ...f, path, busy: false } : f)));
+      } catch (e) {
+        setFaces((all) => all.map((f) => (f.id === id ? { ...f, busy: false, error: (e as Error).message } : f)));
+      }
+    }
+  }, [product]);
+
+  function assign(code: string, id: string) {
+    const f = faceOf(id);
+    if (!f || f.error) return;
+    setCourts((all) => ({ ...all, [code]: { face: id, crop: f.cut ? CENTER : OVAL } }));
+    setSelected(code);
+  }
+  function autofill() {
+    const usable = faces.filter((f) => !f.error);
+    if (!usable.length) return;
+    const next = { ...courts };
+    COURTS.filter((c) => !next[c]).forEach((c, i) => {
+      const f = usable[i % usable.length];
+      next[c] = { face: f.id, crop: f.cut ? CENTER : OVAL };
+    });
+    setCourts(next);
+  }
+  function removeFace(id: string) {
+    setFaces((all) => all.filter((f) => f.id !== id));
+    setCourts((all) => Object.fromEntries(Object.entries(all).filter(([, a]) => a.face !== id)));
+  }
+  const setCrop = (patch: Partial<Crop>) =>
+    setCourts((all) => (all[selected] ? { ...all, [selected]: { ...all[selected], crop: { ...all[selected].crop, ...patch } } } : all));
+  const zoomBy = (f: number) => {
+    if (!current) return;
+    const [lo, hi] = currentFace?.cut ? [0.5, 2.5] : [1, 4];
+    setCrop({ zoom: +Math.min(hi, Math.max(lo, current.crop.zoom * f)).toFixed(3) });
+  };
+
+  // Glisser le visage dans le grand aperçu
+  async function down(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (view !== "court" || !current) return;
+    const c = e.currentTarget, id = e.pointerId, start = { x: e.clientX, y: e.clientY, crop: current.crop };
+    c.setPointerCapture(id);
+    const box = await headBox(selected, c.width), scale = c.getBoundingClientRect().width / c.width;
+    drag.current = { ...start, w: box.w * scale, h: box.h * scale };
+  }
+  function move(e: React.PointerEvent<HTMLCanvasElement>) {
+    const d = drag.current;
+    if (!d) return;
+    const dx = (e.clientX - d.x) / d.w, dy = (e.clientY - d.y) / d.h;
+    const clamp = (v: number) => +Math.min(1, Math.max(0, v)).toFixed(3);
+    // tête détourée : on déplace la tête ; photo ordinaire : on déplace le cadre dans la photo (sens inverse)
+    const k = currentFace?.cut ? 1 : -0.5 / d.crop.zoom;
+    setCrop({ x: clamp(d.crop.x + k * dx), y: clamp(d.crop.y + k * dy) });
+  }
 
   function submit() {
-    const ref = (p: LocalPhoto | null) => (p?.path ? { path: p.path, ...p.crop } : null);
+    const ref = (p: Photo | null, crop: Crop) => (p?.path ? { path: p.path, ...crop } : null);
     onSubmit({
-      back: { ...back, photo: ref(backPhoto) },
+      back: { ...back, photo: ref(backPhoto, backCrop) },
       style,
-      courts: Object.fromEntries(Object.entries(courts).filter(([, c]) => c.name || c.photo).map(([k, c]) => [k, { name: c.name, photo: ref(c.photo) }])),
+      courts: Object.fromEntries(Object.entries(courts).flatMap(([code, a]) => {
+        const p = ref(faceOf(a.face), a.crop);
+        return p ? [[code, { photo: p }]] : [];
+      })),
     });
   }
 
+  async function pickBack(file: File) {
+    const id = crypto.randomUUID();
+    setBackPhoto({ id, url: URL.createObjectURL(file), path: null, cut: false, busy: true });
+    setBackCrop(CENTER);
+    try {
+      const path = await uploadPhoto(product, file);
+      setBackPhoto((p) => (p?.id === id ? { ...p, path, busy: false } : p));
+    } catch (e) {
+      setBackPhoto((p) => (p?.id === id ? { ...p, busy: false, error: (e as Error).message } : p));
+    }
+  }
+
   return (
-    <div style={{ display: "grid", gap: 18 }}>
-      <div className="previews" style={{ gap: 16 }}>
-        <figure style={{ margin: 0, display: "grid", gap: 6, justifyItems: "center" }}><canvas ref={backCanvas} width={W} height={H} style={{ width: 150, height: "auto" }} aria-label="Aperçu du dos" /><span className="hint">Dos</span></figure>
-        <figure style={{ margin: 0, display: "grid", gap: 6, justifyItems: "center" }}><canvas ref={courtCanvas} width={W} height={H} style={{ width: 190, height: "auto" }} aria-label="Aperçu de la figure" /><span className="hint">{RANKS.find(([r]) => r === selected.split("-")[1])![2]} de {SUITS.find(([s]) => s === selected.split("-")[0])![2]}</span></figure>
+    <div className="container studio">
+      <div className="stage-col">
+        <div className={`stage${over ? " over" : ""}`}
+          onDragOver={(e) => { if (view === "court") { e.preventDefault(); setOver(true); } }} onDragLeave={() => setOver(false)}
+          onDrop={(e) => {
+            e.preventDefault(); setOver(false);
+            const id = e.dataTransfer.getData("text/x-face");
+            if (id) assign(selected, id); else addFaces([...e.dataTransfer.files], selected);
+          }}>
+          <canvas ref={stage} width={720} height={Math.round(720 * RATIO)} aria-label={view === "back" ? "Aperçu du dos" : `Aperçu : ${label(selected)}`}
+            className={view === "court" && current ? "grab" : ""}
+            onPointerDown={down} onPointerMove={move} onPointerUp={() => (drag.current = null)} onPointerCancel={() => (drag.current = null)}
+            onWheel={(e) => { if (view === "court" && current) zoomBy(e.deltaY < 0 ? 1.05 : 1 / 1.05); }} />
+          {view === "court" && !current && (
+            <button className="stage-empty" onClick={() => { pendingTarget.current = selected; picker.current?.click(); }}>
+              <b>＋</b><span>Mettre un visage sur {label(selected).toLowerCase()}</span>
+            </button>
+          )}
+        </div>
+        {view === "court" && current && (
+          <div className="stage-tools" role="toolbar" aria-label="Ajuster le visage">
+            <button onClick={() => zoomBy(1 / 1.1)} aria-label="Réduire">−</button>
+            <button onClick={() => zoomBy(1.1)} aria-label="Agrandir">+</button>
+            <button onClick={() => setCrop(currentFace?.cut ? CENTER : OVAL)}>Recentrer</button>
+            <button onClick={() => setCourts((all) => { const n = { ...all }; delete n[selected]; return n; })}>Retirer</button>
+          </div>
+        )}
+        <p className="stage-caption">{view === "back"
+          ? "Le dos, identique sur les 55 cartes"
+          : current ? "Glissez le visage pour le placer · molette ou −/+ pour la taille" : `${label(selected)} · tête du haut et du bas`}</p>
       </div>
 
-      <div style={{ display: "grid", gap: 10 }}>
-        <b>Le dos, commun à toutes les cartes</b>
-        <div className="chips">{COLORS.map(([label, color, ink]) => (
-          <button key={color} className="chip" aria-pressed={back.color === color} disabled={disabled} onClick={() => setBack({ ...back, color, ink })}>
-            <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 3, background: color, border: "1px solid #0002", marginRight: 6, verticalAlign: -1 }} />{label}
-          </button>))}</div>
-        <div className="grid2">
-          <label className="field">Texte principal<input id="back-title" maxLength={12} value={back.title} disabled={disabled} placeholder="J & M" onChange={(e) => setBack({ ...back, title: e.target.value })} /></label>
-          <label className="field">Texte secondaire<input id="back-subtitle" maxLength={24} value={back.subtitle} disabled={disabled} placeholder="12 · 06 · 2027" onChange={(e) => setBack({ ...back, subtitle: e.target.value })} /></label>
-        </div>
-        <PhotoField id="back-photo" photo={backPhoto} product={product} disabled={disabled} onChange={setBackPhoto} />
-        <p className="hint">Conseil : un dos symétrique, sans cadre trop près du bord, garde vos cartes indiscernables une fois retournées.</p>
-      </div>
+      <div className="panel">
+        {header}
+        {status ?? (
+          <>
+            <ol className="steps">
+              {STEPS.map((s, i) => (
+                <li key={s}><button aria-current={i === step ? "step" : undefined} onClick={() => setStep(i)} disabled={busy}>
+                  <span>{i + 1}</span>{s}{i === 1 && done > 0 ? ` · ${done}/12` : ""}</button></li>
+              ))}
+            </ol>
 
-      <div style={{ display: "grid", gap: 10 }}>
-        <b>Les figures<span className="hint" style={{ fontWeight: 400 }}> · {done} personnalisée{done > 1 ? "s" : ""} sur 12</span></b>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
-          {SUITS.map(([s, glyph]) => RANKS.map(([r, letter]) => {
-            const code = `${s}-${r}`, filled = !!(courts[code]?.name || courts[code]?.photo);
-            return (
-              <button key={code} className="chip" aria-pressed={selected === code} disabled={disabled} onClick={() => setSelected(code)}
-                style={{ padding: "9px 6px", color: selected === code ? undefined : s === "H" || s === "D" ? "#C4172C" : undefined }}>
-                {letter}{glyph}{filled ? " ✓" : ""}
-              </button>);
-          }))}
-        </div>
-        <label className="field">Prénom sur la figure<input id="court-name" maxLength={14} value={court.name} disabled={disabled} placeholder="Papa, Mamie, Léo…" onChange={(e) => setCourt({ name: e.target.value })} /></label>
-        <PhotoField id={`photo-${selected}`} photo={court.photo} product={product} disabled={disabled} onChange={(photo) => setCourt({ photo })}
-          initial={{ zoom: 2.2, x: 0.5, y: 0.38 }} head />
-        <div className="row-actions" role="radiogroup" aria-label="Rendu des visages">
-          <span className="hint">Rendu des visages</span>
-          {(["couleur", "gravure"] as const).map((v) => (
-            <button key={v} className="chip" role="radio" aria-checked={style === v} aria-pressed={style === v} disabled={disabled} onClick={() => setStyle(v)}>
-              {v === "gravure" ? "Gravure (bleu du dessin)" : "Photo couleur"}</button>))}
-        </div>
-        <p className="hint">La tête est détourée automatiquement et remplace celle du personnage, sous sa couronne, en haut et en bas de la carte. Photo de face, bien éclairée, une seule personne. Les figures sans photo gardent leur visage d'origine.</p>
-      </div>
+            {step === 0 && (
+              <div className="step">
+                <div className="field-group">
+                  <b>Couleur</b>
+                  <div className="swatches">
+                    {COLORS.map(([name, color, ink]) => (
+                      <button key={name} title={name} aria-label={name} aria-pressed={back.color === color}
+                        style={{ background: color, color: ink }} onClick={() => setBack({ ...back, color, ink })}>Aa</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid2">
+                  <label className="field">Texte principal<input maxLength={12} value={back.title} placeholder="J & M" onChange={(e) => setBack({ ...back, title: e.target.value })} /></label>
+                  <label className="field">Texte secondaire<input maxLength={24} value={back.subtitle} placeholder="12 · 06 · 2027" onChange={(e) => setBack({ ...back, subtitle: e.target.value })} /></label>
+                </div>
+                <div className="field-group">
+                  <b>Photo de fond <span className="hint">(facultatif)</span></b>
+                  <div className="row-actions">
+                    <button className="btn ghost small" onClick={() => backPicker.current?.click()}>{backPhoto ? "Changer la photo" : "＋ Ajouter une photo"}</button>
+                    {backPhoto && <button className="link" onClick={() => setBackPhoto(null)}>Retirer</button>}
+                    {backPhoto?.busy && <span className="hint"><span className="spinner" />Envoi…</span>}
+                    {backPhoto?.error && <span className="error-text">{backPhoto.error}</span>}
+                  </div>
+                  {backPhoto && (
+                    <label className="field">Zoom<input type="range" min={1} max={3} step={0.02} value={backCrop.zoom} onChange={(e) => setBackCrop({ ...backCrop, zoom: +e.target.value })} /></label>
+                  )}
+                  <input ref={backPicker} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) pickBack(f); }} />
+                </div>
+                <button className="btn red wide" onClick={() => setStep(1)}>Continuer : les visages →</button>
+              </div>
+            )}
 
-      <button className="btn red" disabled={disabled || uploading} onClick={submit}>
-        {uploading ? "Envoi des photos…" : "Valider mon jeu et voir l'aperçu d'impression"}
-      </button>
+            {step === 1 && (
+              <div className="step">
+                <div className="tray" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFaces([...e.dataTransfer.files], null); }}>
+                  <div className="tray-head">
+                    <b>Vos photos</b>
+                    <button className="btn ghost small" onClick={() => { pendingTarget.current = null; picker.current?.click(); }}>＋ Ajouter des photos</button>
+                  </div>
+                  {faces.length === 0 ? (
+                    <p className="hint">Une ou plusieurs photos de face, une personne par photo : la tête est détourée automatiquement. Glissez ensuite chaque visage sur une figure.</p>
+                  ) : (
+                    <div className="faces">
+                      {faces.map((f) => (
+                        <div key={f.id} className={`face${f.busy ? " busy" : ""}${f.error ? " err" : ""}`} draggable={!f.error}
+                          onDragStart={(e) => e.dataTransfer.setData("text/x-face", f.id)} title={f.error ?? "Glissez sur une figure, ou cliquez pour la figure affichée"}>
+                          <button onClick={() => assign(selected, f.id)} aria-label="Mettre ce visage sur la figure affichée"><img src={f.url} alt="" /></button>
+                          {f.busy && <span className="spinner" />}
+                          <button className="x" onClick={() => removeFace(f.id)} aria-label="Supprimer cette photo">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {faces.some((f) => f.error) && <p className="error-text">{faces.find((f) => f.error)!.error}</p>}
+                </div>
+
+                <div className="field-group">
+                  <div className="tray-head">
+                    <b>Les 12 figures <span className="hint">· {done} personnalisée{done > 1 ? "s" : ""}</span></b>
+                    {faces.length > 0 && done < 12 && <button className="link" onClick={autofill}>Remplir les figures vides</button>}
+                  </div>
+                  <div className="court-grid">
+                    {COURTS.map((code) => (
+                      <MiniCourt key={code} code={code} face={faceOf(courts[code]?.face)} crop={courts[code]?.crop ?? CENTER} style={style}
+                        selected={code === selected} onSelect={() => setSelected(code)}
+                        onDropFace={(id) => assign(code, id)} onDropFiles={(files) => addFaces(files, code)} />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="field-group">
+                  <b>Rendu des visages</b>
+                  <div className="seg" role="radiogroup" aria-label="Rendu des visages">
+                    {(["couleur", "gravure"] as const).map((v) => (
+                      <button key={v} role="radio" aria-checked={style === v} onClick={() => setStyle(v)}>{v === "couleur" ? "Photo couleur" : "Gravure bleue"}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="row-actions">
+                  <button className="btn red" onClick={() => setStep(2)}>Continuer : finitions →</button>
+                  <button className="link" onClick={() => setStep(0)}>← Le dos</button>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="step">
+                {finish}
+                <button className="btn red wide" disabled={busy || uploading} onClick={submit}>
+                  {uploading ? "Envoi des photos…" : "Valider mon jeu"}
+                </button>
+                <p className="hint">Nous fabriquons les 55 cartes en qualité d&apos;impression et vous montrons le rendu final avant l&apos;ajout au panier.</p>
+                <button className="link" onClick={() => setStep(1)}>← Les visages</button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      <input ref={picker} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden
+        onChange={(e) => { const files = [...(e.target.files ?? [])]; e.target.value = ""; addFaces(files, pendingTarget.current); pendingTarget.current = null; }} />
     </div>
   );
 }

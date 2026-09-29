@@ -4,7 +4,7 @@ export type PhotoRef = Crop & { path: string };
 export type Design = {
   back: { color: string; ink: string; title: string; subtitle: string; photo: PhotoRef | null };
   style: "gravure" | "couleur"; // traitement des visages sur les figures
-  courts: Record<string, { name: string; photo: PhotoRef | null }>;
+  courts: Record<string, { photo: PhotoRef }>;
 };
 
 export const SUITS = [["S", "♠", "pique"], ["H", "♥", "cœur"], ["D", "♦", "carreau"], ["C", "♣", "trèfle"]] as const;
@@ -20,7 +20,7 @@ function photo(p: unknown, session: string): PhotoRef | null {
     if (!Number.isFinite(n) || n < lo || n > hi) throw new Error("Recadrage invalide.");
     return n;
   };
-  return { path: o.path, zoom: num(o.zoom, 1, 4, 1), x: num(o.x, 0, 1, 0.5), y: num(o.y, 0, 1, 0.5) };
+  return { path: o.path, zoom: num(o.zoom, 0.5, 4, 1), x: num(o.x, 0, 1, 0.5), y: num(o.y, 0, 1, 0.5) };
 }
 
 /** Nettoie un design reçu du navigateur ; lève une erreur lisible si quelque chose ne va pas. */
@@ -33,9 +33,8 @@ export function cleanDesign(input: unknown, session: string): Design {
   const courts: Design["courts"] = {};
   for (const [code, c] of Object.entries(d.courts ?? {})) {
     if (!valid.has(code)) throw new Error("Figure inconnue.");
-    const name = String(c?.name ?? "").trim().slice(0, 14);
     const ph = photo(c?.photo, session);
-    if (name || ph) courts[code] = { name, photo: ph };
+    if (ph) courts[code] = { photo: ph };
   }
   const style = d.style ?? "couleur";
   if (style !== "gravure" && style !== "couleur") throw new Error("Style inconnu.");

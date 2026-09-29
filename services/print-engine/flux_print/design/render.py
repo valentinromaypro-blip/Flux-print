@@ -6,11 +6,12 @@ Design d'un jeu de cartes (JSON stocké sur la ligne de commande) :
       "back":   {"color": "#134536", "ink": "#F0E8D6", "title": "J & M", "subtitle": "12 · 06 · 2027",
                  "photo": {"path": "sessions/…/photos/….jpg", "zoom": 1.2, "x": 0.5, "y": 0.4}},
       "style":  "couleur",            # traitement des visages : couleur ou gravure (bleu du dessin)
-      "courts": {"H-K": {"name": "Papa", "photo": {"path": "…", "zoom": 2.5, "x": 0.52, "y": 0.35}}, …}
+      "courts": {"H-K": {"photo": {"path": "…", "zoom": 1.1, "x": 0.5, "y": 0.52}}, …}
     }
 
 Les faces sont les cartes classiques (classic.py) ; sur chaque figure choisie, la
-photo du client remplace les deux têtes.
+photo du client remplace les deux têtes. Photo détourée (PNG transparent) : zoom 0,5 à 4
+et décalage x, y autour de la tête d'origine ; photo ordinaire : recadrage (zoom ≥ 1).
 
 Le PDF sort au format du gabarit (dos commun, puis les faces dans l'ordre),
 avec 3 mm de fond perdu : il passe ensuite par le même contrôle que les
@@ -57,7 +58,7 @@ def _photo_spec(spec) -> dict | None:
         return None
     if not isinstance(spec, dict) or not isinstance(spec.get("path"), str):
         raise DesignError("Photo invalide.")
-    for key, lo, hi in (("zoom", 1, 4), ("x", 0, 1), ("y", 0, 1)):
+    for key, lo, hi in (("zoom", 0.5, 4), ("x", 0, 1), ("y", 0, 1)):
         if key in spec and not (isinstance(spec[key], (int, float)) and lo <= spec[key] <= hi):
             raise DesignError(f"Recadrage invalide ({key}).")
     return spec
@@ -84,7 +85,7 @@ def validate_design(design: dict, deck_code: str) -> dict:
             raise DesignError(f"Figure inconnue : {code}")
         if not isinstance(court, dict):
             raise DesignError("Figure invalide.")
-        courts[code] = {"name": str(court.get("name") or "")[:14], "photo": _photo_spec(court.get("photo"))}
+        courts[code] = {"photo": _photo_spec(court.get("photo"))}
     style = design.get("style") or "couleur"
     if style not in classic.STYLES:
         raise DesignError(f"Style inconnu : {style}")
@@ -106,8 +107,7 @@ def _card_images(design: dict, deck_code: str, load: PhotoLoader):
         court = design["courts"].get(card.code, {})
         photo = load(court["photo"]["path"]) if court.get("photo") else None
         crop = court["photo"] if photo is not None else None
-        yield classic.court(classic.art_code(card.code), FRONT_PX, photo, crop,
-                            design["style"], court.get("name", "")), (255, 255, 255)
+        yield classic.court(classic.art_code(card.code), FRONT_PX, photo, crop, design["style"]), (255, 255, 255)
 
 
 def render_playing_cards(design: dict, deck_code: str, out_pdf: str | Path, load: PhotoLoader,
@@ -134,6 +134,6 @@ def preview_pages(design: dict, deck_code: str) -> list[int]:
     """Pages à montrer au client (1-based) : le dos, puis la première figure personnalisée."""
     codes = [c.code for c in DECKS[deck_code].cards]
     for code, court in design["courts"].items():
-        if court.get("photo") or court.get("name"):
+        if court.get("photo"):
             return [1, codes.index(code) + 2]
     return [1, 2]

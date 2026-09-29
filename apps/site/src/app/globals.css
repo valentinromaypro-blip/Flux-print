@@ -195,3 +195,57 @@ footer.site-footer { padding-block: 56px 40px; border-top: 1px solid var(--line)
 .foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; color: var(--muted); }
 @media (max-width: 760px) { .foot { grid-template-columns: 1fr 1fr; } }
 .legal { margin-top: 40px; font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* Studio de création en ligne */
+.studio { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(24px, 4vw, 56px); padding-block: 28px 80px; align-items: start; }
+.stage-col { position: sticky; top: 92px; display: grid; gap: 12px; justify-items: center; }
+.stage { position: relative; width: min(100%, 440px); border-radius: 22px; background: radial-gradient(120% 90% at 50% 20%, #F7F5F0, var(--stone)); padding: clamp(16px, 3vw, 32px); transition: box-shadow .15s; }
+.stage.over { box-shadow: 0 0 0 3px var(--red) inset; }
+.stage canvas { display: block; width: 100%; height: auto; border-radius: 4.6%/3.3%; box-shadow: 0 18px 40px -18px #0006, 0 2px 6px #0002; background: #fff; touch-action: none; }
+.stage canvas.grab { cursor: grab; }
+.stage canvas.grab:active { cursor: grabbing; }
+.stage-empty { position: absolute; left: 50%; top: 27%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 6px; border: 0; cursor: pointer; background: color-mix(in srgb, var(--paper) 88%, transparent); border-radius: 18px; padding: 16px 18px; box-shadow: 0 6px 20px -8px #0005; font: 600 14px/1.3 var(--body); max-width: 70%; }
+.stage-empty b { width: 44px; height: 44px; border-radius: 50%; background: var(--red); color: #fff; display: grid; place-items: center; font-size: 24px; }
+.stage-tools { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.stage-tools button { border: 1.5px solid var(--line); background: var(--paper); border-radius: 999px; min-width: 44px; height: 40px; padding: 0 14px; font: 600 14px var(--body); cursor: pointer; }
+.stage-caption { font-size: 14px; color: var(--muted); text-align: center; margin: 0; }
+.panel { display: grid; gap: 20px; min-width: 0; }
+.panel .panel-title { display: grid; gap: 12px; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.steps button { width: 100%; display: flex; align-items: center; gap: 8px; border: 0; background: var(--stone); color: var(--muted); border-radius: 12px; padding: 12px; font: 600 14px var(--body); cursor: pointer; text-align: left; }
+.steps button span { width: 22px; height: 22px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--paper); font-size: 12px; }
+.steps button[aria-current] { background: var(--ink); color: var(--paper); }
+.steps button[aria-current] span { background: var(--red); color: #fff; }
+.step { display: grid; gap: 22px; }
+.field-group { display: grid; gap: 10px; }
+.swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+.swatches button { width: 48px; height: 48px; border-radius: 50%; border: 2px solid #0001; cursor: pointer; font: 700 14px var(--display); }
+.swatches button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--ink); }
+.btn.small { padding: 10px 14px; font-size: 14px; }
+.btn.wide { width: 100%; }
+.tray { border: 2px dashed var(--line); border-radius: 18px; padding: 14px; display: grid; gap: 12px; }
+.tray-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.faces { display: flex; gap: 10px; flex-wrap: wrap; }
+.face { position: relative; width: 68px; height: 68px; }
+.face > button:first-child { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2px solid var(--line); background: repeating-conic-gradient(#eee 0 25%, #fff 0 50%) 0 0/12px 12px; padding: 0; cursor: grab; }
+.face img { width: 100%; height: 100%; object-fit: contain; }
+.face.busy img { opacity: .45; }
+.face.err > button:first-child { border-color: var(--red); }
+.face .spinner { position: absolute; inset: 0; margin: auto; }
+.face .x { position: absolute; top: -4px; right: -4px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: var(--ink); color: #fff; font-size: 14px; line-height: 1; cursor: pointer; }
+.court-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.mini { position: relative; padding: 0; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; transition: transform .12s; }
+.mini canvas { display: block; width: 100%; height: auto; border-radius: 6px; box-shadow: 0 1px 4px #0003; background: #fff; }
+.mini.on { border-color: var(--red); }
+.mini.over { transform: scale(1.06); border-color: var(--felt); }
+.mini .tag { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; font: 600 11px var(--body); padding: 2px 7px; white-space: nowrap; }
+.mini .tag i { color: var(--ok); font-style: normal; margin-left: 3px; }
+.seg { display: inline-flex; background: var(--stone); border-radius: 999px; padding: 4px; gap: 4px; width: fit-content; }
+.seg button { border: 0; background: none; border-radius: 999px; padding: 10px 16px; font: 600 14px var(--body); cursor: pointer; color: var(--muted); }
+.seg button[aria-checked="true"], .seg button[aria-selected="true"] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px #0002; }
+@media (max-width: 900px) {
+  .studio { grid-template-columns: 1fr; padding-top: 12px; }
+  .stage-col { position: static; }
+  .stage { width: min(100%, 300px); padding: 14px; }
+  .court-grid { grid-template-columns: repeat(4, 1fr); row-gap: 14px; }
+}
