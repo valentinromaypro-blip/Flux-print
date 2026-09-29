@@ -1,0 +1,215 @@
+// Studio Carte Blanche dans la fiche produit WooCommerce.
+// Deux façons de faire son jeu : le créer en ligne (dos, visages) ou déposer son PDF.
+// Dans les deux cas, le serveur contrôle la création ; le bouton « Ajouter au panier » n'apparaît
+// qu'une fois la création validée, et la création part avec la ligne de panier (champ cb_job).
+import { StrictMode, useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
+import Editor, { type StudioPayload } from "@/components/Editor";
+import { renderBack, renderCourt } from "@/lib/print.ts";
+import { CB } from "@/lib/env.ts";
+import "./studio.css";
+import "./wp.css";
+
+type Message = { level: "ok" | "warn" | "error"; title: string; help: string };
+type Job = { uid: string; status: string; messages: Message[]; previews: string[]; error: string | null };
+const FINAL = ["approved", "rejected", "failed"];
+const CHUNK = 4 * 1024 * 1024;
+
+// Pas de jeton WordPress : l'API reconnaît le visiteur par son cookie de session Carte Blanche,
+// ce qui reste valable même si la page est servie depuis un cache.
+// Adresse de l'API : `CB.rest` vaut « …/wp-json/cb/v1/ » ou, sans permaliens, « …/?rest_route=/cb/v1/ ».
+function endpoint(path: string) {
+  const [route, query] = path.split("?");
+  return CB.rest + route + (query ? (CB.rest.includes("?") ? "&" : "?") + query : "");
+}
+async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(endpoint(path), { credentials: "same-origin", ...init });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((body as { message?: string }).message || `Erreur ${res.status}`);
+  return body as T;
+}
+const post = <T,>(path: string, body: BodyInit, type = "application/json") =>
+  api<T>(path, { method: "POST", body, headers: { "Content-Type": type } });
+
+async function createJob(kind: "design" | "pdf") {
+  return (await post<{ uid: string }>("jobs", JSON.stringify({ product_id: CB.productId, kind }))).uid;
+}
+async function waitJob(uid: string, onUpdate: (j: Job) => void): Promise<Job> {
+  for (let i = 0; ; i++) {
+    const job = await api<Job>(`jobs/${uid}`);
+    onUpdate(job);
+    if (FINAL.includes(job.status)) return job;
+    await new Promise((r) => setTimeout(r, i < 10 ? 1500 : 4000));
+  }
+}
+
+/** Le bouton natif de WooCommerce : caché tant que la création n'est pas validée. */
+function cartButton() {
+  return document.querySelector<HTMLButtonElement>("form.cart .single_add_to_cart_button, form.cart button[name='add-to-cart']");
+}
+function showCart(on: boolean) {
+  const b = cartButton();
+  if (b) b.style.display = on ? "" : "none"; // `hidden` ne suffit pas : les thèmes imposent leur display
+}
+function setJob(uid: string | null) {
+  const input = document.getElementById("cb-job") as HTMLInputElement | null;
+  if (input) input.value = uid ?? "";
+}
+
+function Report({ job, onAddToCart, onEdit }: { job: Job; onAddToCart: () => void; onEdit: () => void }) {
+  const ok = job.status === "approved";
+  return (
+    <div className="step cb-report" aria-live="polite">
+      <b className="cb-report-title">{ok ? "Votre jeu est validé" : job.status === "failed" ? "Le contrôle n'a pas abouti" : "À corriger"}</b>
+      {job.previews.length > 0 && (
+        <div className="previews">{job.previews.map((u) => <img key={u} src={u} alt="Aperçu de la carte imprimée" width={150} />)}</div>
+      )}
+      <ul className="cb-messages">
+        {job.messages.map((m, i) => <li key={i} className={`cb-msg ${m.level}`}><b>{m.title}</b>{m.help && <span>{m.help}</span>}</li>)}
+        {job.error && <li className="cb-msg error"><b>{job.error}</b></li>}
+      </ul>
+      {ok && <button type="button" className="btn red wide" onClick={onAddToCart}>Ajouter au panier</button>}
+      <button type="button" className="link" onClick={onEdit}>{ok ? "← Modifier ma création" : "← Corriger"}</button>
+    </div>
+  );
+}
+
+function Progress({ label, value }: { label: string; value?: number }) {
+  return (
+    <div className="step cb-progress" aria-live="polite">
+      <span className="spinner" />
+      <b>{label}</b>
+      {value !== undefined && <div className="cb-bar"><i style={{ width: `${Math.round(value * 100)}%` }} /></div>}
+    </div>
+  );
+}
+
+function PdfPanel({ onDone }: { onDone: (job: Job) => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [step, setStep] = useState<{ label: string; value?: number } | null>(null);
+  const [error, setError] = useState("");
+  const pages = Number(CB.deck) + 1;
+  const [w, h] = CB.cardPx;
+  const mm = (px: number) => ((px / 350) * 25.4).toFixed(1).replace(".", ",");
+
+  async function send() {
+    if (!file) return;
+    setError("");
+    try {
+      setStep({ label: "Préparation…" });
+      const uid = await createJob("pdf");
+      for (let offset = 0; offset < file.size; offset += CHUNK) {
+        setStep({ label: "Envoi du fichier…", value: offset / file.size });
+        await post(`jobs/${uid}/file?role=pdf&offset=${offset}`, file.slice(offset, offset + CHUNK), "application/pdf");
+      }
+      setStep({ label: "Contrôle du fichier (pages, format, fond perdu)…" });
+      await post(`jobs/${uid}/submit`, "{}");
+      onDone(await waitJob(uid, () => {}));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+    setStep(null);
+  }
+
+  if (step) return <Progress {...step} />;
+  return (
+    <div className="step">
+      <p className="hint">
+        Un PDF de <b>{pages} pages</b> : le dos en page 1, puis les faces dans l&apos;ordre du gabarit.
+        Chaque page mesure <b>{mm(w)} × {mm(h)} mm</b>, soit 3 mm de fond perdu autour de la carte.
+      </p>
+      <label className={`cb-drop${file ? " on" : ""}`}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setFile(f); }}>
+        <input type="file" accept="application/pdf,.pdf" hidden onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        {file ? <><b>{file.name}</b><span>{(file.size / 1048576).toFixed(1).replace(".", ",")} Mo · cliquez pour changer</span></>
+          : <><b>Choisir mon PDF</b><span>ou le glisser ici</span></>}
+      </label>
+      {error && <p className="error-text">{error}</p>}
+      <button type="button" className="btn red wide" disabled={!file} onClick={send}>Envoyer et contrôler</button>
+    </div>
+  );
+}
+
+function App() {
+  const [mode, setMode] = useState<"design" | "pdf">("design");
+  const [step, setStep] = useState<{ label: string; value?: number } | null>(null);
+  const [job, setJobState] = useState<Job | null>(null);
+  const [error, setError] = useState("");
+  const top = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ok = job?.status === "approved";
+    setJob(ok ? job!.uid : null);
+    showCart(ok);
+  }, [job]);
+
+  function finish(j: Job) {
+    setJobState(j);
+    top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function submitDesign(p: StudioPayload) {
+    setError("");
+    try {
+      setStep({ label: "Préparation…" });
+      const uid = await createJob("design");
+      const cards: [string, () => Promise<Blob>][] = [
+        ["back", () => renderBack(p)],
+        ...p.courts.map((c) => [`court-${c.code}`, () => renderCourt(c, p.style)] as [string, () => Promise<Blob>]),
+      ];
+      for (const [i, [role, render]] of cards.entries()) {
+        setStep({ label: `Fabrication des cartes en qualité d'impression (${i + 1}/${cards.length})…`, value: i / cards.length });
+        await post(`jobs/${uid}/file?role=${role}`, await render(), "image/jpeg");
+      }
+      setStep({ label: "Contrôle…" });
+      const design = {
+        template: p.back.template, bg: p.back.bg, ink: p.back.ink, title: p.back.title, subtitle: p.back.subtitle,
+        logo: !!p.back.logo, photo: !!p.back.photo, style: p.style, courts: p.courts.map((c) => c.code),
+      };
+      await post(`jobs/${uid}/submit`, JSON.stringify({ design }));
+      finish(await waitJob(uid, () => {}));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+    setStep(null);
+  }
+
+  const status = step ? <Progress {...step} />
+    : job ? <Report job={job} onAddToCart={() => cartButton()?.click()} onEdit={() => setJobState(null)} /> : null;
+
+  const header = (
+    <div className="cb-head">
+      <div className="seg" role="radiogroup" aria-label="Façon de créer le jeu">
+        <button type="button" role="radio" aria-checked={mode === "design"} disabled={!!step} onClick={() => { setMode("design"); setJobState(null); }}>Créer en ligne</button>
+        <button type="button" role="radio" aria-checked={mode === "pdf"} disabled={!!step} onClick={() => { setMode("pdf"); setJobState(null); }}>J&apos;ai mon fichier PDF</button>
+      </div>
+      {error && <p className="error-text">{error}</p>}
+    </div>
+  );
+
+  return (
+    <div ref={top}>
+      {/* L'éditeur reste monté en mode PDF : la création en cours n'est pas perdue en changeant d'avis. */}
+      <div hidden={mode !== "design"}>
+        <Editor busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitDesign}
+          finish={<p className="hint">Vérifiez vos figures : le jeu sera imprimé exactement comme l&apos;aperçu.</p>} />
+      </div>
+      {mode === "pdf" && (
+        <div className="cb-container cb-pdf">
+          <div className="panel">{header}{job ? status : <PdfPanel onDone={finish} />}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const mount = document.getElementById("cb-studio");
+if (mount) {
+  // Le studio sort du formulaire d'ajout au panier (ses boutons ne doivent pas l'envoyer) et prend
+  // toute la largeur, au-dessus de la fiche produit.
+  const product = mount.closest(".product");
+  if (product?.parentElement) product.parentElement.insertBefore(mount, product);
+  showCart(false);
+  createRoot(mount).render(<StrictMode><App /></StrictMode>);
+}

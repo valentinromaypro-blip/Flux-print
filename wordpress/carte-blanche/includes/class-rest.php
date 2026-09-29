@@ -143,6 +143,8 @@ final class CB_Rest
         if (!$job) {
             return self::fail('Création introuvable.', 404);
         }
+        CB_Check::nudge($job);
+        $job = CB_Store::job($job['uid']);
         $report = $job['report'] ?: [];
         return [
             'uid' => $job['uid'],

@@ -50,7 +50,16 @@ Ensuite dans WordPress : **Réglages → Général** → les deux adresses en `h
 - Bandeau cookies : **Complianz** (gratuit) si tu ajoutes des statistiques ou du marketing.
 - Sauvegardes : OVH en fait ; ajouter **UpdraftPlus** vers un stockage externe.
 
-## 9. Installer le plugin Carte Blanche (quand il est livré)
-**Extensions → Ajouter → Téléverser une extension** → choisir `carte-blanche.zip` → **Activer**.
-Si le fichier est trop lourd pour l'envoi par l'admin, le déposer par FTP dans `www/wp-content/plugins/`.
-Le plugin affiche une page **Carte Blanche → Diagnostic** qui vérifie Imagick, Ghostscript et les limites PHP de l'hébergement.
+## 9. Installer le plugin Carte Blanche
+Le fichier : `dist/carte-blanche.zip` (fabriqué par `wordpress/build.sh`, environ 20 Mo).
+
+**Réseau multisite (cas de goodies-sport.fr)** : les extensions s'installent pour tout le réseau, puis s'activent site par site.
+1. **Mes sites → Admin du réseau → Extensions → Ajouter → Téléverser une extension** → `carte-blanche.zip` → **Installer**. Ne pas cliquer « Activer sur le réseau ».
+2. Aller sur le tableau de bord du site **carteblanche.goodies-sport.fr** → **Extensions** → activer **WooCommerce** (s'il ne l'est pas déjà) puis **Carte Blanche**.
+3. Si l'envoi échoue (fichier trop lourd), décompresser le zip et déposer le dossier `carte-blanche` par FTP dans `www/wp-content/plugins/`, puis reprendre à l'étape 2.
+
+**Vérifier** : menu **Carte Blanche → Diagnostic** (PHP, Imagick, Ghostscript, mémoire, durée d'exécution).
+
+**Créer le produit** : **Produits → Ajouter** → titre, prix, photo → dans **Données produit**, régler **Studio Carte Blanche** sur « Jeu de 54 cartes » (ou 32) et choisir le **carton** → **Publier**. Sur la fiche produit, le studio apparaît au-dessus ; le bouton « Ajouter au panier » n'apparaît qu'une fois la création contrôlée.
+
+Conseillé : **WooCommerce → Réglages → Produits** → cocher « Rediriger vers le panier après un ajout ».

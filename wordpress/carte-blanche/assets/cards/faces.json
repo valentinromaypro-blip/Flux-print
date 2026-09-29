@@ -1,0 +1,15 @@
+{
+  "_doc": "Emplacement du visage de chaque figure, en unités de la carte (240 × 336) : centre x, centre y, demi-largeur, demi-hauteur, bord haut (sous la couronne ou le chapeau). La tête du bas est la symétrique à 180°.",
+  "HK": [115, 93, 36, 39, 62],
+  "HQ": [121, 75, 34, 39, 44],
+  "HJ": [133, 84, 31, 35, 56],
+  "DK": [106, 98, 32, 38, 68],
+  "DQ": [118, 78, 32, 38, 48],
+  "DJ": [128, 90, 31, 35, 62],
+  "CK": [108, 94, 32, 38, 64],
+  "CQ": [111, 73, 31, 36, 44],
+  "CJ": [118, 86, 31, 35, 58],
+  "SK": [139, 97, 34, 38, 67],
+  "SQ": [98, 66, 31, 35, 38],
+  "SJ": [137, 88, 29, 35, 60]
+}

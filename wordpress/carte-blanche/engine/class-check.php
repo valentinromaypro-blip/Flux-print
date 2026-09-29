@@ -133,12 +133,38 @@ final class CB_Check
         return glob(str_replace('%03d', '*', $pattern)) ?: [];
     }
 
+    /**
+     * Filet de sécurité : si la tâche de fond n'a pas démarré (WP-Cron ou appel en boucle locale
+     * bloqués sur certains hébergements), l'interrogation du navigateur lance le contrôle elle-même.
+     */
+    public static function nudge(array $job): void
+    {
+        if ($job['kind'] === 'pdf' && $job['status'] === 'checking' && time() - strtotime($job['updated_at'] . ' UTC') > 15) {
+            @set_time_limit(160);
+            self::check_pdf($job['uid']);
+        }
+    }
+
     public static function check_pdf(string $uid): void
     {
         $job = CB_Store::job($uid);
-        if (!$job) {
+        // Un seul contrôle à la fois pour un même fichier (tâche de fond et filet de sécurité)
+        if (!$job || $job['status'] !== 'checking' || !add_option("cb_lock_$uid", time(), '', false)) {
+            if ($job && ($since = (int) get_option("cb_lock_$uid")) && time() - $since > 300) {
+                delete_option("cb_lock_$uid"); // verrou abandonné (délai dépassé)
+            }
             return;
         }
+        try {
+            self::check_pdf_locked($job);
+        } finally {
+            delete_option("cb_lock_$uid");
+        }
+    }
+
+    private static function check_pdf_locked(array $job): void
+    {
+        $uid = $job['uid'];
         $dir = CB_Store::job_dir($uid);
         $pdf = "$dir/source.pdf";
         try {

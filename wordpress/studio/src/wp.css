@@ -1,0 +1,23 @@
+/* Ajouts propres à la fiche produit WordPress. */
+.cb-studio-root { font-family: var(--body); color: var(--ink); line-height: 1.45; margin-bottom: 32px; }
+.cb-studio-root *, .cb-studio-root *::before, .cb-studio-root *::after { box-sizing: border-box; }
+.cb-studio-root button { font-family: inherit; font-size: 15px; line-height: 1.2; letter-spacing: normal; text-transform: none; box-shadow: none; }
+.cb-studio-root [hidden] { display: none !important; }
+.cb-studio-root .cb-head { display: grid; gap: 8px; margin-bottom: 16px; }
+.cb-studio-root .cb-pdf { max-width: 640px; padding-block: 28px 40px; }
+.cb-studio-root .cb-progress { display: grid; justify-items: center; gap: 12px; padding: 32px 0; text-align: center; }
+.cb-studio-root .cb-progress .spinner { position: static; }
+.cb-studio-root .cb-bar { width: 100%; height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.cb-studio-root .cb-bar i { display: block; height: 100%; background: var(--red, #B3152A); transition: width .3s; }
+.cb-studio-root .cb-report { display: grid; gap: 14px; }
+.cb-studio-root .cb-report-title { font: 700 22px/1.2 var(--display); }
+.cb-studio-root .cb-report .previews img { border-radius: 8px; box-shadow: 0 6px 18px rgb(0 0 0 / .15); }
+.cb-studio-root .cb-messages { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cb-studio-root .cb-msg { display: grid; gap: 2px; padding: 10px 14px; border-radius: 10px; font-size: 14px; border: 1px solid var(--line); }
+.cb-studio-root .cb-msg.ok { background: #EAF6EF; border-color: #C3E0CF; }
+.cb-studio-root .cb-msg.warn { background: #FFF6E5; border-color: #EBD3A6; }
+.cb-studio-root .cb-msg.error { background: #FDECEC; border-color: #F0C2C2; }
+.cb-studio-root .cb-msg span { color: var(--muted); }
+.cb-studio-root .cb-drop { display: grid; justify-items: center; gap: 4px; padding: 32px 16px; margin: 16px 0; border: 2px dashed var(--line); border-radius: 14px; cursor: pointer; text-align: center; }
+.cb-studio-root .cb-drop.on { border-style: solid; border-color: var(--ink); }
+.cb-studio-root .cb-drop span { font-size: 13px; color: var(--muted); }
