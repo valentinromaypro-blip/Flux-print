@@ -1,5 +1,6 @@
 // Dos de cartes : mêmes modèles SVG et même remplissage que le moteur (flux_print/design/backs.py).
 import { asset } from "@/lib/env.ts";
+import { backDir } from "@/lib/format.ts";
 // L'aperçu du studio et le fichier d'impression partent donc du même dessin.
 
 export type BackModel = {
@@ -13,8 +14,9 @@ let modelsPromise: Promise<BackModel[]> | null = null;
 export const backModels = () => (modelsPromise ??= fetch(asset("backs/models.json")).then((r) => r.json()).then((j) => j.models as BackModel[]));
 const templates = new Map<string, Promise<string>>();
 export function backTemplate(id: string): Promise<string> {
-  if (!templates.has(id)) templates.set(id, fetch(asset(`backs/${id}.svg`)).then((r) => r.text()));
-  return templates.get(id)!;
+  const path = `backs/${backDir()}${id}.svg`;
+  if (!templates.has(path)) templates.set(path, fetch(asset(path)).then((r) => r.text()));
+  return templates.get(path)!;
 }
 
 const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

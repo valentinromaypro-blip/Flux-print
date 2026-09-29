@@ -67,7 +67,7 @@ return [
                     [B::image($img('scene-oracle'), 'Cartes oracle au format tarot : la Lune, le Soleil, l’Étoile')],
                     [B::group([
                         B::h('Votre oracle, de 22 à 100 cartes'),
-                        B::p('Format tarot ou poker, chaque carte unique, coins arrondis. Envoyez votre fichier : le nombre de cartes est détecté et le prix s’ajuste.', false, false, 'cb-muted'),
+                        B::p('Format tarot ou poker, chaque carte unique, coins arrondis. Créez-le en ligne, une image par carte, ou envoyez votre fichier : le prix s’ajuste au nombre de cartes.', false, false, 'cb-muted'),
                         B::buttons([['Créer mon oracle', $pr('oracle')]]),
                     ], 'cb-text', null, null, '', 'flow', '')],
                 ], true, false, '', ['58%', '42%']),
@@ -322,7 +322,6 @@ return [
             ]),
             B::p('Ordre des faces : pique, cœur, carreau, trèfle ; dans chaque couleur, de l’as au roi (as, 2 à 10, valet, dame, roi) ; puis les jokers. ' . B::todo('lien de téléchargement du gabarit')),
             B::ul([
-                '<strong>Jeu photo (un dos par carte)</strong> : 108 pages, en alternant face 1, dos 1, face 2, dos 2…',
                 '<strong>Jeu de bridge</strong> : 55 pages au format bridge (63,2 × 94,9 mm avec le fond perdu).',
                 '<strong>Oracle</strong> : le dos en page 1, puis une page par carte, de 22 à 100 cartes, au format tarot (76 × 126 mm avec le fond perdu) ou poker.',
             ]),

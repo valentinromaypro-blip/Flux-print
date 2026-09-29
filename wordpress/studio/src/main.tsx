@@ -5,7 +5,9 @@
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import Editor, { type StudioPayload } from "@/components/Editor";
-import { renderBack, renderCourt } from "@/lib/print.ts";
+import CardsEditor, { type CardsPayload } from "@/components/CardsEditor";
+import { renderBack, renderCourt, renderFreeCard } from "@/lib/print.ts";
+import { format, formats, setFormat } from "@/lib/format.ts";
 import { CB } from "@/lib/env.ts";
 import "./studio.css";
 import "./wp.css";
@@ -32,7 +34,7 @@ const post = <T,>(path: string, body: BodyInit, type = "application/json") =>
   api<T>(path, { method: "POST", body, headers: { "Content-Type": type } });
 
 async function createJob(kind: "design" | "pdf", media: string) {
-  return (await post<{ uid: string }>("jobs", JSON.stringify({ product_id: CB.productId, kind, media }))).uid;
+  return (await post<{ uid: string }>("jobs", JSON.stringify({ product_id: CB.productId, kind, media, format: format().key }))).uid;
 }
 const euros = (v: number) => v.toFixed(2).replace(".", ",") + " €";
 const mm = (v: number) => v.toFixed(1).replace(".", ",").replace(",0", "");
@@ -179,6 +181,8 @@ function PdfPanel({ media, onDone }: { media: string; onDone: (job: Job) => void
 function App() {
   const [mode, setMode] = useState<"design" | "pdf">(CB.spec.editor ? "design" : "pdf");
   const [media, setMedia] = useState(CB.spec.media[0]?.id ?? "cmdm-350g");
+  const [fmt, setFmt] = useState(format().key);
+  const free = !!CB.spec.cardsMin; // oracle : cartes libres
   const [step, setStep] = useState<{ label: string; value?: number } | null>(null);
   const [job, setJobState] = useState<Job | null>(null);
   const [error, setError] = useState("");
@@ -221,6 +225,31 @@ function App() {
     setStep(null);
   }
 
+  async function submitCards(p: CardsPayload) {
+    setError("");
+    try {
+      setStep({ label: "Préparation…" });
+      const uid = await createJob("design", media);
+      const bleed: [number, number] = [CB.bleedMm / format().page[0], CB.bleedMm / format().page[1]];
+      const files: [string, () => Promise<Blob>][] = [
+        ["back", () => renderBack(p)],
+        ...p.cards.map((c, i) => [`card-${String(i + 1).padStart(3, "0")}`, () => renderFreeCard(c, p.look, bleed)] as [string, () => Promise<Blob>]),
+      ];
+      for (const [i, [role, render]] of files.entries()) {
+        setStep({ label: `Fabrication des cartes en qualité d'impression (${i + 1}/${files.length})…`, value: i / files.length });
+        await post(`jobs/${uid}/file?role=${role}`, await render(), "image/jpeg");
+      }
+      setStep({ label: "Contrôle…" });
+      const design = { template: p.back.template, bg: p.back.bg, ink: p.back.ink, title: p.back.title, subtitle: p.back.subtitle,
+        logo: !!p.back.logo, photo: !!p.back.photo, format: format().key, cards: p.cards.length, titles: p.cards.map((c) => c.title), look: p.look };
+      await post(`jobs/${uid}/submit`, JSON.stringify({ design }));
+      finish(await waitJob(uid, () => {}));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+    setStep(null);
+  }
+
   const status = step ? <Progress {...step} />
     : job ? <Report job={job} onAddToCart={() => cartButton()?.click()} onEdit={() => setJobState(null)} /> : null;
 
@@ -231,6 +260,14 @@ function App() {
         <div className="seg" role="radiogroup" aria-label="Façon de créer le jeu">
           <button type="button" role="radio" aria-checked={mode === "design"} disabled={!!step} onClick={() => { setMode("design"); setJobState(null); }}>Créer en ligne</button>
           <button type="button" role="radio" aria-checked={mode === "pdf"} disabled={!!step} onClick={() => { setMode("pdf"); setJobState(null); }}>J&apos;ai mon fichier PDF</button>
+        </div>
+      )}
+      {formats().length > 1 && (
+        <div className="seg" role="radiogroup" aria-label="Format des cartes">
+          {formats().map((f) => (
+            <button type="button" key={f.key} role="radio" aria-checked={fmt === f.key} disabled={!!step || !!job}
+              onClick={() => { setFormat(f.key); setFmt(f.key); }}>{f.label}</button>
+          ))}
         </div>
       )}
       {CB.spec.media.length > 1 && (
@@ -250,8 +287,11 @@ function App() {
     <div ref={top}>
       {/* L'éditeur reste monté en mode PDF : la création en cours n'est pas perdue en changeant d'avis. */}
       <div hidden={mode !== "design"}>
-        <Editor busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitDesign}
-          finish={<p className="hint">Vérifiez vos figures : le jeu sera imprimé exactement comme l&apos;aperçu.</p>} />
+        {free
+          ? <CardsEditor key={fmt} busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitCards}
+              finish={<p className="hint">Vérifiez vos cartes : le jeu sera imprimé exactement comme l&apos;aperçu.</p>} />
+          : <Editor busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitDesign}
+              finish={<p className="hint">Vérifiez vos figures : le jeu sera imprimé exactement comme l&apos;aperçu.</p>} />}
       </div>
       {mode === "pdf" && (
         <div className="cb-container studio cb-pdf">
@@ -270,6 +310,7 @@ if (mount) {
   const product = mount.closest(".product");
   if (product?.parentElement) product.parentElement.insertBefore(mount, product);
   showCart(false);
+  setFormat(CB.spec.formats[0].key);
   collectProductHead();
   document.body.classList.add("cb-has-studio");
   createRoot(mount).render(<StrictMode><App /></StrictMode>);

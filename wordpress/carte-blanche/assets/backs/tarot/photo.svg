@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 76 126" width="76mm" height="126mm">
+<defs>
+<filter id="tint" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB"><feFlood flood-color="{{ink}}"/><feComposite in2="SourceAlpha" operator="in"/></filter>
+<clipPath id="inner"><rect x="9.6" y="9.6" width="56.8" height="106.8" rx="0.8"/></clipPath>
+</defs>
+<rect width="76" height="126" fill="{{bg}}"/>
+<image href="{{photo}}" x="0" y="0" width="76" height="126" preserveAspectRatio="none"/>
+<rect x="8.0" y="8.0" width="60" height="110" rx="1.5" fill="none" stroke="{{ink}}" stroke-width="0.35" opacity="1"/>
+<g display="{{plate_on}}"><circle cx="38" cy="63" r="14" fill="{{bg}}" fill-opacity="0.9" stroke="{{ink}}" stroke-width="0.45"/>
+<circle cx="38" cy="63" r="12.5" fill="none" stroke="{{ink}}" stroke-width="0.2"/>
+</g>
+<image display="{{logo_on}}" href="{{logo}}" x="28" y="56" width="20" height="14" preserveAspectRatio="xMidYMid meet" filter="{{logo_filter}}"/>
+<g display="{{title_on}}" transform="translate(0 {{t_dy}})"><text x="38" y="63" text-anchor="middle" font-family="CB Serif" font-size="{{title_size}}" fill="{{ink}}">{{title}}</text></g>
+<text display="{{sub_on}}" x="38" y="69.2" text-anchor="middle" font-family="CB Sans" font-size="{{sub_size}}" letter-spacing="0.25" fill="{{ink}}">{{subtitle}}</text>
+</svg>

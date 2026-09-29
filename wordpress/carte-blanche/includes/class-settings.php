@@ -42,7 +42,7 @@ final class CB_Settings
      * Jeux proposés.
      * cards : nombre fixe, ou cards_min / cards_max (oracle : le nombre vient du PDF déposé) ;
      * backs : common (page 1 = dos, puis les faces) ou individual (face, dos, face, dos…) ;
-     * editor : création en ligne possible (dos + figures), sinon PDF uniquement.
+     * editor : création en ligne (dos + figures, ou dos + une image par carte pour l'oracle).
      */
     public static function decks(): array
     {
@@ -52,11 +52,9 @@ final class CB_Settings
                 'pricing' => ['unit' => 24.90, 'per_card' => 0.0, 'tiers' => self::TIERS, 'media' => $media]],
             '32' => ['label' => 'Jeu de 32 cartes poker (belote), dos commun', 'cards' => 32, 'formats' => ['poker'], 'backs' => 'common', 'editor' => true,
                 'pricing' => ['unit' => 19.90, 'per_card' => 0.0, 'tiers' => self::TIERS, 'media' => $media]],
-            '54-photo' => ['label' => 'Jeu de 54 cartes poker, un dos par carte', 'cards' => 54, 'formats' => ['poker'], 'backs' => 'individual', 'editor' => false,
-                'pricing' => ['unit' => 32.90, 'per_card' => 0.0, 'tiers' => self::TIERS, 'media' => $media]],
-            '54-bridge' => ['label' => 'Jeu de 54 cartes bridge, dos commun', 'cards' => 54, 'formats' => ['bridge'], 'backs' => 'common', 'editor' => false,
+            '54-bridge' => ['label' => 'Jeu de 54 cartes bridge, dos commun', 'cards' => 54, 'formats' => ['bridge'], 'backs' => 'common', 'editor' => true,
                 'pricing' => ['unit' => 24.90, 'per_card' => 0.0, 'tiers' => self::TIERS, 'media' => $media]],
-            'oracle' => ['label' => 'Jeu oracle (22 à 100 cartes)', 'cards' => 44, 'cards_min' => 22, 'cards_max' => 100, 'formats' => ['tarot', 'poker'], 'backs' => 'common', 'editor' => false,
+            'oracle' => ['label' => 'Jeu oracle (22 à 100 cartes)', 'cards' => 44, 'cards_min' => 22, 'cards_max' => 100, 'formats' => ['tarot', 'poker'], 'backs' => 'common', 'editor' => true,
                 'pricing' => ['unit' => 12.00, 'per_card' => 0.28, 'tiers' => [[1, 1.0], [5, 0.88], [10, 0.78], [25, 0.68], [50, 0.6]], 'media' => ['carte-graphique-300g' => -0.80]]],
         ];
     }

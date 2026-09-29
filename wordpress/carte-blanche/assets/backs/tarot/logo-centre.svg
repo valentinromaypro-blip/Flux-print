@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 76 126" width="76mm" height="126mm">
+<defs>
+<filter id="tint" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB"><feFlood flood-color="{{ink}}"/><feComposite in2="SourceAlpha" operator="in"/></filter>
+<clipPath id="inner"><rect x="9.6" y="9.6" width="56.8" height="106.8" rx="0.8"/></clipPath>
+</defs>
+<rect width="76" height="126" fill="{{bg}}"/>
+<rect x="8.0" y="8.0" width="60" height="110" rx="1.5" fill="none" stroke="{{ink}}" stroke-width="0.3" opacity="1"/>
+<image display="{{logo_on}}" href="{{logo}}" x="11.75" y="39" width="52.5" height="34" preserveAspectRatio="xMidYMid meet" filter="{{logo_filter}}"/>
+<g display="{{title_on}}" transform="translate(0 {{t_dy}})"><text x="38" y="83" text-anchor="middle" font-family="CB Display" font-size="{{title_size}}" fill="{{ink}}">{{title}}</text></g>
+<text display="{{sub_on}}" x="38" y="89.5" text-anchor="middle" font-family="CB Sans" font-size="{{sub_size}}" letter-spacing="0.25" fill="{{ink}}">{{subtitle}}</text>
+<text display="{{mark_on}}" x="38" y="66.9" text-anchor="middle" font-family="CB Display" font-size="11" fill="{{ink}}">LOGO</text>
+</svg>

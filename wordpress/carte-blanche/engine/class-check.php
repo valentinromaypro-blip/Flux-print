@@ -48,7 +48,8 @@ final class CB_Check
     private static function check_design(array $job): void
     {
         $dir = CB_Store::job_dir($job['uid']);
-        [$w, $h] = CB_Settings::card_px($job['deck']);
+        $deck = CB_Settings::deck($job['deck']);
+        [$w, $h] = CB_Settings::card_px($job['deck'], $job['format']);
         $files = glob("$dir/cards/*.jpg") ?: [];
         $errors = [];
         if (!is_file("$dir/cards/back.jpg")) {
@@ -60,6 +61,22 @@ final class CB_Check
                 $errors[] = self::msg('error', 'Une carte n’a pas été préparée correctement', basename($file, '.jpg'));
             }
         }
+        // Oracle : une image par carte, numérotées sans trou, dans les limites du jeu
+        $free = array_values(array_filter($files, fn($f) => str_contains($f, '/card-')));
+        sort($free);
+        $cards = $deck['cards'];
+        if (isset($deck['cards_min'])) {
+            $cards = count($free);
+            foreach ($free as $i => $f) {
+                if (basename($f) !== sprintf('card-%03d.jpg', $i + 1)) {
+                    $errors[] = self::msg('error', 'Une carte manque', 'Validez à nouveau votre jeu.');
+                    break;
+                }
+            }
+            if ($cards < $deck['cards_min'] || $cards > $deck['cards_max']) {
+                $errors[] = self::msg('error', 'Nombre de cartes incorrect', "$cards carte(s) : de {$deck['cards_min']} à {$deck['cards_max']} cartes.");
+            }
+        }
         if ($errors) {
             CB_Store::update_job($job['uid'], ['status' => 'rejected', 'report' => ['messages' => $errors, 'previews' => []]]);
             return;
@@ -68,14 +85,18 @@ final class CB_Check
         self::thumb("$dir/cards/back.jpg", "$dir/preview-back.jpg");
         $previews[] = 'back';
         $courts = array_values(array_filter($files, fn($f) => str_contains($f, '/court-')));
-        if ($courts) {
-            self::thumb($courts[0], "$dir/preview-court.jpg");
+        $first = $courts[0] ?? $free[0] ?? null;
+        if ($first) {
+            self::thumb($first, "$dir/preview-court.jpg");
             $previews[] = 'court';
         }
         $n = count($courts);
-        $messages = [self::msg('ok', 'Votre jeu est prêt à imprimer',
-            CB_Settings::decks()[$job['deck']]['cards'] . ' cartes et le dos en qualité d’impression' . ($n ? " · $n figure" . ($n > 1 ? 's' : '') . ' personnalisée' . ($n > 1 ? 's' : '') : ''))];
-        CB_Store::update_job($job['uid'], ['status' => 'approved', 'report' => ['messages' => $messages, 'previews' => $previews]]);
+        $fmt = CB_Settings::FORMATS[$job['format']]['label'] ?? '';
+        $detail = isset($deck['cards_min'])
+            ? "$cards cartes et le dos en qualité d’impression · $fmt"
+            : $cards . ' cartes et le dos en qualité d’impression' . ($n ? " · $n figure" . ($n > 1 ? 's' : '') . ' personnalisée' . ($n > 1 ? 's' : '') : '');
+        $messages = [self::msg('ok', 'Votre jeu est prêt à imprimer', $detail)];
+        CB_Store::update_job($job['uid'], ['status' => 'approved', 'cards' => $cards, 'report' => ['messages' => $messages, 'previews' => $previews]]);
     }
 
     /** Vignette JPEG (600 px de large) d'une image. */

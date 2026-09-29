@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 63.2 94.9" width="63.2mm" height="94.9mm">
+<defs>
+<filter id="tint" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB"><feFlood flood-color="{{ink}}"/><feComposite in2="SourceAlpha" operator="in"/></filter>
+<clipPath id="inner"><rect x="9.6" y="9.6" width="44" height="75.7" rx="0.8"/></clipPath>
+</defs>
+<rect width="63.2" height="94.9" fill="{{bg}}"/>
+<rect x="8.0" y="8.0" width="47.2" height="78.90" rx="1.5" fill="none" stroke="{{ink}}" stroke-width="0.3" opacity="1"/>
+<image display="{{logo_on}}" href="{{logo}}" x="11.75" y="23.450000000000003" width="39.7" height="34" preserveAspectRatio="xMidYMid meet" filter="{{logo_filter}}"/>
+<g display="{{title_on}}" transform="translate(0 {{t_dy}})"><text x="31.6" y="67.45" text-anchor="middle" font-family="CB Display" font-size="{{title_size}}" fill="{{ink}}">{{title}}</text></g>
+<text display="{{sub_on}}" x="31.6" y="73.95" text-anchor="middle" font-family="CB Sans" font-size="{{sub_size}}" letter-spacing="0.25" fill="{{ink}}">{{subtitle}}</text>
+<text display="{{mark_on}}" x="31.6" y="51.35" text-anchor="middle" font-family="CB Display" font-size="11" fill="{{ink}}">LOGO</text>
+</svg>

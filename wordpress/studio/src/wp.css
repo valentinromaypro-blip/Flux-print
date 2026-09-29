@@ -44,3 +44,16 @@
 .cb-studio-root .stepper button { width: 44px; height: 44px; border: 0; background: none; font-size: 20px; cursor: pointer; color: var(--ink); }
 .cb-studio-root .stepper input { width: 64px; text-align: center; border: 0; background: none; font-weight: 600; -moz-appearance: textfield; }
 .cb-studio-root .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* Dos : proportions du format en cours (variables posées par le studio) */
+.cb-studio-root { --tw: 63.5; --th: 88.9; --bl: 3; }
+.cb-studio-root .back-stage { aspect-ratio: var(--tw) / var(--th) !important; }
+.cb-studio-root .back-stage svg { width: calc(100% * (var(--tw) + 2 * var(--bl)) / var(--tw)) !important; height: calc(100% * (var(--th) + 2 * var(--bl)) / var(--th)) !important;
+  left: calc(-100% * var(--bl) / var(--tw)) !important; top: calc(-100% * var(--bl) / var(--th)) !important; }
+/* Studio oracle : vignettes des cartes */
+.cb-studio-root .cb-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; max-height: 340px; overflow: auto; padding: 4px; }
+.cb-studio-root .cb-card { position: relative; padding: 0; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; line-height: 0; }
+.cb-studio-root .cb-card canvas { width: 100%; height: auto; border-radius: 6px; box-shadow: 0 1px 4px #0003; }
+.cb-studio-root .cb-card.on { border-color: var(--red); }
+.cb-studio-root .cb-card span { position: absolute; left: 4px; top: 4px; font: 600 11px/1 var(--body); background: var(--paper); color: var(--ink); border-radius: 999px; padding: 3px 6px; }
+.cb-studio-root .cb-head .seg { flex-wrap: wrap; }

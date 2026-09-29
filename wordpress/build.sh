@@ -3,7 +3,7 @@
 # Prérequis : Node 20+. Le modèle de détourage vient du site (apps/site : node tools/fetch-segmenter.mjs).
 set -euo pipefail
 cd "$(dirname "$0")"
-(cd studio && npm ci --no-audit --no-fund && npm run assets && npm run build)
+(cd studio && npm ci --no-audit --no-fund && npm run assets && python3 scripts/backs_formats.py && npm run build)
 mkdir -p ../dist
 rm -f ../dist/carte-blanche.zip ../dist/carte-blanche-theme.zip
 zip -rq ../dist/carte-blanche.zip carte-blanche -x 'carte-blanche/.gitignore' '*.DS_Store'

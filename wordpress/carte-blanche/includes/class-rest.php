@@ -86,7 +86,8 @@ final class CB_Rest
         }
         $job = CB_Store::create_job([
             'session' => self::session(), 'product_id' => $product_id, 'kind' => $kind, 'deck' => $deck,
-            'media' => $media, 'format' => $spec['formats'][0], 'cards' => $spec['cards_min'] ?? $spec['cards'],
+            'media' => $media, 'format' => in_array($r->get_param('format'), $spec['formats'], true) ? $r->get_param('format') : $spec['formats'][0],
+            'cards' => $spec['cards_min'] ?? $spec['cards'],
         ]);
         return ['uid' => $job['uid'], 'card_px' => CB_Settings::card_px($deck)];
     }
@@ -117,7 +118,7 @@ final class CB_Rest
             return ['received' => $size + strlen($body)];
         }
         // Création en ligne : une image JPEG par carte personnalisée, à la taille d'impression
-        if (!preg_match('/^(back|court-[SHDC]-[JQK])$/', $role)) {
+        if (!preg_match('/^(back|court-[SHDC]-[JQK]|card-\d{3})$/', $role)) {
             return self::fail('Fichier inattendu.');
         }
         if (strncmp($body, "\xFF\xD8", 2) !== 0 || strlen($body) > 15 * 1048576) {

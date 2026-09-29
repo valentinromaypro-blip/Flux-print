@@ -42,35 +42,31 @@ final class CB_Setup
             'seo_title' => 'Jeu de 54 cartes personnalisé avec photos | %site%',
             'seo_desc' => 'Créez votre jeu de 54 cartes personnalisé : vos visages sur les 12 figures, un dos à vos couleurs avec prénom, date ou logo. Imprimé sur carton 350 g dans notre atelier.',
         ],
-        'photo' => [
-            'name' => 'Jeu de cartes photo, un dos par carte', 'slug' => 'jeu-de-cartes-photo-personnalise', 'deck' => '54-photo', 'image' => 'scene-famille', 'order' => 2,
-            'tagline' => '54 cartes, un dos différent pour chaque carte.',
-            'short' => 'Une photo ou un souvenir au dos de chaque carte : le cadeau qui se regarde autant qu’il se joue. Envoyez votre fichier PDF, nous le contrôlons en direct.',
-            'seo_title' => 'Jeu de cartes photo personnalisé : une photo par carte | %site%',
-            'seo_desc' => 'Jeu de 54 cartes photo avec un dos différent pour chaque carte : 54 photos, 54 souvenirs. Fichier contrôlé en direct, imprimé dans notre atelier.',
-        ],
         'oracle' => [
-            'name' => 'Jeu oracle personnalisé', 'slug' => 'jeu-oracle-personnalise', 'deck' => 'oracle', 'image' => 'scene-oracle', 'order' => 3,
+            'name' => 'Jeu oracle personnalisé', 'slug' => 'jeu-oracle-personnalise', 'deck' => 'oracle', 'image' => 'scene-oracle', 'order' => 2,
             'tagline' => 'De 22 à 100 cartes, chacune unique.',
-            'short' => 'Pour les créatrices et créateurs d’oracles, de jeux de tirage ou de cartes d’affirmation : de 22 à 100 cartes, format tarot ou poker, coins arrondis. Le prix s’ajuste au nombre de cartes de votre fichier.',
+            'short' => 'Pour les créatrices et créateurs d’oracles, de jeux de tirage ou de cartes d’affirmation : de 22 à 100 cartes, format tarot ou poker, coins arrondis. Créez-le en ligne, une image par carte, ou envoyez votre PDF : le prix s’ajuste au nombre de cartes.',
             'seo_title' => 'Imprimer son jeu oracle personnalisé, de 22 à 100 cartes | %site%',
             'seo_desc' => 'Faites imprimer votre oracle ou vos cartes de tirage : de 22 à 100 cartes, format tarot 70 × 120 mm ou poker. Contrôle du fichier en direct, fabrication en France.',
         ],
         'bridge' => [
-            'name' => 'Jeu de bridge personnalisé', 'slug' => 'jeu-de-bridge-personnalise', 'deck' => '54-bridge', 'image' => 'scene-detail', 'order' => 4,
+            'name' => 'Jeu de bridge personnalisé', 'slug' => 'jeu-de-bridge-personnalise', 'deck' => '54-bridge', 'image' => 'scene-detail', 'order' => 3,
             'tagline' => '54 cartes au format bridge, plus étroit.',
-            'short' => 'Plus étroit, plus facile à tenir en main : le format préféré des joueurs de bridge et de tarot. Envoyez votre fichier PDF.',
+            'short' => 'Plus étroit, plus facile à tenir en main : le format préféré des joueurs de bridge et de tarot. Votre dos, vos visages sur les figures, ou votre propre PDF.',
             'seo_title' => 'Jeu de bridge personnalisé, 54 cartes format bridge | %site%',
             'seo_desc' => 'Jeu de cartes personnalisé au format bridge 57,2 × 88,9 mm : 54 cartes, votre dos et vos faces. Fichier contrôlé en direct, imprimé dans notre atelier.',
         ],
         'belote' => [
-            'name' => 'Jeu de belote personnalisé (32 cartes)', 'slug' => 'jeu-de-belote-personnalise', 'deck' => '32', 'image' => 'belote', 'order' => 5,
+            'name' => 'Jeu de belote personnalisé (32 cartes)', 'slug' => 'jeu-de-belote-personnalise', 'deck' => '32', 'image' => 'belote', 'order' => 4,
             'tagline' => '32 cartes, du 7 à l’as.',
             'short' => 'Pour la belote, la manille ou le piquet, avec votre dos personnalisé et, si vous le souhaitez, vos visages sur les figures.',
             'seo_title' => 'Jeu de belote personnalisé avec photos, 32 cartes | %site%',
             'seo_desc' => 'Jeu de belote personnalisé de 32 cartes : vos visages sur les rois, dames et valets, un dos à votre nom. Idéal pour un club, un bar ou un cadeau.',
         ],
     ];
+
+    /** Produits retirés du catalogue : mis à la corbeille s'ils n'ont pas été modifiés depuis leur création. */
+    private const RETIRED = ['photo' => 'jeu-de-cartes-photo-personnalise'];
 
     private const MAIN_MENU = [['product', 'jeu-54', 'Créer mon jeu'], ['product', 'oracle', 'Oracles'], ['product', 'belote', 'Belote'], ['page', 'entreprise', 'Entreprises'],
         ['page', 'comment-ca-marche', 'Comment ça marche'], ['page', 'faq', 'FAQ']];
@@ -110,6 +106,7 @@ final class CB_Setup
         self::permalinks();
         self::images();
         self::products();
+        self::retire();
         self::pages();
         self::cleanup_defaults();
         self::menus();
@@ -200,6 +197,18 @@ final class CB_Setup
         }
     }
 
+    private static function retire(): void
+    {
+        foreach (self::RETIRED as $key => $slug) {
+            $id = self::$state['products'][$key] ?? self::find($slug, 'product');
+            if ($id && get_post($id) && get_post_status($id) !== 'trash' && self::untouched($id)) {
+                wp_trash_post($id);
+                self::log('réglé', 'Produit retiré du catalogue (mis à la corbeille) : ' . get_the_title($id), $id);
+            }
+            unset(self::$state['products'][$key]);
+        }
+    }
+
     /** Empreinte du contenu tel que créé par la mise en place : sert à savoir s'il a été modifié depuis. */
     private static function mark(int $id): void
     {
@@ -242,23 +251,25 @@ final class CB_Setup
             ['Fabrication', 'Dans notre atelier, en France'],
         ]);
         $pdf = $B::p('Votre fichier est contrôlé dès l’envoi : nombre de pages, format, fond perdu. Vous voyez l’aperçu et, s’il y a un problème, ce qu’il faut corriger. <a href="/creer-son-jeu-de-cartes-en-pdf/">Préparer son fichier PDF</a>.');
-        if ($deck['editor']) {
+        if (isset($deck['cards_min'])) {
             return $B::join([
-                $B::h('Votre jeu, vos visages'),
-                $B::p('Les douze figures (rois, dames, valets) peuvent recevoir chacune un visage : la tête est détourée automatiquement à partir de votre photo et placée en haut et en bas de la carte.'),
-                $B::h('Un dos à votre image'),
-                $B::p('Huit modèles de dos : classique, art déco, rayures, monogramme, élégant, photo pleine carte, logo centré ou logo en motif. Choisissez vos couleurs, votre titre et votre texte.'),
-                $B::h('Caractéristiques'), $specs,
+                $B::h('Votre oracle, carte par carte'),
+                $B::p('De 22 à 100 cartes, chacune unique, au format tarot (70 × 120 mm) ou poker. Créez-le en ligne : choisissez un dos commun parmi nos modèles (ou votre logo), déposez une image par carte, recadrez-la, ajoutez un titre si vous le souhaitez. Le prix s’ajuste au nombre de cartes.'),
                 $B::h('Votre propre fichier'),
-                $B::p('Vous avez créé votre jeu vous-même ? Choisissez « J’ai mon fichier PDF ».'), $pdf,
+                $B::p('Votre jeu est déjà prêt ? Choisissez « J’ai mon fichier PDF » : le dos en page 1, puis une page par carte. Le nombre de cartes et le format sont détectés automatiquement.'), $pdf,
+                $B::h('Caractéristiques'), $specs,
             ]);
         }
-        $intro = [
-            '54-photo' => 'Chaque carte a son propre dos : 54 photos, 54 souvenirs. Votre PDF alterne les pages : face 1, dos 1, face 2, dos 2… soit 108 pages.',
-            '54-bridge' => 'Le format bridge (57,2 × 88,9 mm) est plus étroit que le format poker : il tient mieux en main, surtout pour les jeux à beaucoup de cartes. Votre PDF compte 55 pages : le dos, puis les 54 faces.',
-            'oracle' => 'De 22 à 100 cartes, chacune unique, au format tarot (70 × 120 mm) ou poker. Votre PDF commence par le dos commun, puis une page par carte : le nombre de cartes et le format sont détectés automatiquement, et le prix s’ajuste.',
-        ][$key] ?? '';
-        return $B::join([$B::h('Votre fichier, notre atelier'), $B::p($intro), $pdf, $B::h('Caractéristiques'), $specs]);
+        return $B::join([
+            $B::h('Votre jeu, vos visages'),
+            $B::p('Les douze figures (rois, dames, valets) peuvent recevoir chacune un visage : la tête est détourée automatiquement à partir de votre photo et placée en haut et en bas de la carte.'
+                . ($key === '54-bridge' ? ' Au format bridge, plus étroit, les figures gardent leurs proportions.' : '')),
+            $B::h('Un dos à votre image'),
+            $B::p('Huit modèles de dos : classique, art déco, rayures, monogramme, élégant, photo pleine carte, logo centré ou logo en motif. Choisissez vos couleurs, votre titre et votre texte, ajoutez le logo de votre entreprise.'),
+            $B::h('Caractéristiques'), $specs,
+            $B::h('Votre propre fichier'),
+            $B::p('Vous avez créé votre jeu vous-même ? Choisissez « J’ai mon fichier PDF ».'), $pdf,
+        ]);
     }
 
     private static function pages(): void

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Crop } from "@/lib/design.ts";
+import { backRatio } from "@/lib/format.ts";
 import { backFields, backModels, backTemplate, fillBack, SUBTITLE_MAX, TITLE_MAX, type BackModel } from "@/lib/backs.ts";
 
 // Étape « Le dos » du studio : galerie de modèles (aperçus vivants avec le texte et le logo du client),
@@ -12,7 +13,7 @@ export type BackState = {
   logo: (Upload & { alpha: boolean }) | null; tint: boolean;
   photo: Upload | null; crop: Crop;
 };
-export const BACK_RATIO = 69.5 / 94.9; // dos pleine page, fond perdu compris (comme le moteur)
+
 export const initialBack: BackState = {
   template: "classique", bg: "#134536", ink: "#F0E8D6", title: "", subtitle: "", customColors: false,
   logo: null, tint: false, photo: null, crop: { zoom: 1, x: 0.5, y: 0.5 },
@@ -32,7 +33,7 @@ function loadImage(url: string) {
 /** Photo recadrée comme le moteur (cardart.crop_photo), en data URI pour le SVG. */
 async function croppedPhoto(url: string, crop: Crop): Promise<string> {
   const img = await loadImage(url);
-  const w = img.naturalWidth, h = img.naturalHeight, r = BACK_RATIO;
+  const w = img.naturalWidth, h = img.naturalHeight, r = backRatio();
   const cw = Math.min(w, h * r) / Math.max(1, crop.zoom), ch = cw / r;
   const cx = Math.min(Math.max(crop.x * w, cw / 2), w - cw / 2), cy = Math.min(Math.max(crop.y * h, ch / 2), h - ch / 2);
   const c = document.createElement("canvas"); c.width = 700; c.height = Math.round(700 / r);

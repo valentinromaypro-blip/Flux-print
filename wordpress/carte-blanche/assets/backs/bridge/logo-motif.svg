@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 63.2 94.9" width="63.2mm" height="94.9mm">
+<defs>
+<filter id="tint" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB"><feFlood flood-color="{{ink}}"/><feComposite in2="SourceAlpha" operator="in"/></filter>
+<clipPath id="inner"><rect x="9.6" y="9.6" width="44" height="75.7" rx="0.8"/></clipPath>
+<pattern id="logos" width="14" height="14" patternUnits="userSpaceOnUse" x="9.1" y="9.1"><image href="{{logo}}" x="1.5" y="1.5" width="4.5" height="4.5" preserveAspectRatio="xMidYMid meet" filter="{{logo_filter}}"/><image href="{{logo}}" x="8.5" y="8.5" width="4.5" height="4.5" preserveAspectRatio="xMidYMid meet" filter="{{logo_filter}}"/></pattern></defs>
+<rect width="63.2" height="94.9" fill="{{bg}}"/>
+<rect width="63.2" height="94.9" fill="url(#logos)" clip-path="url(#inner)" opacity="0.28"/>
+<rect x="8.0" y="8.0" width="47.2" height="78.90" rx="1.5" fill="none" stroke="{{ink}}" stroke-width="0.3" opacity="1"/>
+<circle cx="31.6" cy="47.45" r="15" fill="{{bg}}" fill-opacity="1" stroke="{{ink}}" stroke-width="0.45"/>
+<circle cx="31.6" cy="47.45" r="13.5" fill="none" stroke="{{ink}}" stroke-width="0.2"/>
+<image display="{{logo_on}}" href="{{logo}}" x="22.1" y="37.95" width="19" height="19" preserveAspectRatio="xMidYMid meet" filter="{{logo_filter}}"/>
+<g display="{{title_on}}" transform="translate(0 {{t_dy}})"><text x="31.6" y="47.45" text-anchor="middle" font-family="CB Display" font-size="{{title_size}}" fill="{{ink}}">{{title}}</text></g>
+<text display="{{sub_on}}" x="31.6" y="53.650000000000006" text-anchor="middle" font-family="CB Sans" font-size="{{sub_size}}" letter-spacing="0.25" fill="{{ink}}">{{subtitle}}</text>
+<text display="{{mark_on}}" x="31.6" y="51.35" text-anchor="middle" font-family="CB Display" font-size="11" fill="{{ink}}">CB</text>
+</svg>
