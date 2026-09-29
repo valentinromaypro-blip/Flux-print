@@ -1,0 +1,331 @@
+<title>Carte Blanche Boutique</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<style>
+/* Boutique : la photo produit mène, le texte reste court. Grille 12 colonnes, marges larges. */
+:root {
+  --paper: #FCFCFA;
+  --ink: #16161A;
+  --red: #C4172C;
+  --felt: #134536;
+  --stone: #EFEDE8;
+  --muted: #5F5E63;
+  --line: #E3E1DC;
+  --on-dark: #FCFCFA;
+  --display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --paper: #111513; --ink: #F0F2EF; --stone: #1B2320; --muted: #A9B3AE; --line: #29332F; --red: #FF5A68; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --paper: #111513; --ink: #F0F2EF; --stone: #1B2320; --muted: #A9B3AE; --line: #29332F; --red: #FF5A68; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 16px/1.55 var(--body); }
+img { display: block; max-width: 100%; height: auto; }
+a { color: inherit; text-decoration: none; }
+h1, h2, h3 { font-family: var(--display); margin: 0; line-height: 1.02; letter-spacing: -.03em; text-wrap: balance; }
+p { margin: 0; }
+.container { max-width: 1280px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+.btn { display: inline-flex; align-items: center; gap: 10px; font: 600 15px/1 var(--body); padding: 16px 24px; border-radius: 999px; background: var(--ink); color: var(--paper); border: 0; cursor: pointer; }
+.btn.red { background: var(--red); color: #fff; }
+.btn.light { background: var(--paper); color: var(--ink); }
+.btn:focus-visible, a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+.link { font-weight: 600; border-bottom: 1.5px solid currentColor; padding-bottom: 2px; }
+
+/* Bandeau + en-tête */
+.announce { background: var(--felt); color: var(--on-dark); font-size: 13.5px; text-align: center; padding: 9px 16px; }
+header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 24px; height: 68px; }
+.logo { font: 800 22px/1 var(--display); letter-spacing: -.03em; white-space: nowrap; }
+.logo span { color: var(--red); }
+.menu { display: flex; gap: 28px; font-size: 15px; font-weight: 500; }
+.menu a:hover { color: var(--red); }
+.tools { display: flex; gap: 18px; align-items: center; font-size: 15px; font-weight: 500; }
+.cart { display: inline-flex; align-items: center; gap: 8px; }
+.cart b { font: 600 12px/1 var(--body); background: var(--ink); color: var(--paper); border-radius: 999px; padding: 4px 7px; }
+@media (max-width: 860px) { .menu { display: none; } }
+
+/* Héros */
+.hero { display: grid; grid-template-columns: 5fr 7fr; gap: clamp(24px, 4vw, 56px); align-items: center; padding-block: clamp(28px, 5vw, 64px); }
+.hero h1 { font-size: clamp(46px, 6.4vw, 92px); font-weight: 800; letter-spacing: -.045em; }
+.hero h1 em { font-style: normal; color: var(--red); }
+.hero .sub { font-size: 19px; color: var(--muted); margin-top: 20px; max-width: 34ch; }
+.hero .actions { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-top: 30px; }
+.hero figure { margin: 0; border-radius: 20px; overflow: hidden; aspect-ratio: 8 / 5.4; }
+.hero figure img { width: 100%; height: 100%; object-fit: cover; }
+.promise { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 34px; font-size: 14px; color: var(--muted); }
+.promise span { display: inline-flex; gap: 8px; align-items: center; }
+.promise i { width: 8px; height: 8px; border-radius: 50%; background: var(--felt); display: inline-block; }
+@media (max-width: 900px) { .hero { grid-template-columns: 1fr; } .hero figure { order: -1; } }
+
+/* Sections */
+.section { padding-block: clamp(56px, 8vw, 110px); }
+.head { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; margin-bottom: 32px; }
+.head h2 { font-size: clamp(32px, 4.2vw, 54px); font-weight: 800; max-width: 18ch; }
+.head p { color: var(--muted); max-width: 44ch; }
+
+/* Produits */
+.products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 900px) { .products { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 580px) { .products { grid-template-columns: 1fr; } }
+.product { display: grid; gap: 14px; min-width: 0; }
+.product .ph { border-radius: 16px; overflow: hidden; aspect-ratio: 4 / 3.4; background: var(--stone); }
+.product .ph img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s cubic-bezier(.2,.8,.2,1); }
+.product:hover .ph img { transform: scale(1.035); }
+.product h3 { font-size: 23px; font-weight: 700; letter-spacing: -.02em; }
+.product .meta { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.product .price { font-weight: 600; white-space: nowrap; }
+.product p { color: var(--muted); font-size: 15px; }
+.product { position: relative; }
+.badge { position: absolute; top: 12px; left: 12px; z-index: 1; font: 600 12px/1 var(--body); padding: 8px 11px; border-radius: 999px; background: var(--red); color: #fff; }
+
+/* Bloc famille (plein cadre) */
+.feature { display: grid; grid-template-columns: 7fr 5fr; background: var(--stone); border-radius: 24px; overflow: hidden; }
+.feature img { width: 100%; height: 100%; object-fit: cover; min-height: 320px; }
+.feature .txt { padding: clamp(28px, 4vw, 56px); display: grid; gap: 20px; align-content: center; }
+.feature h2 { font-size: clamp(32px, 3.8vw, 50px); font-weight: 800; }
+.feature p { color: var(--muted); font-size: 17px; }
+.feature ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.feature li { display: flex; gap: 12px; align-items: baseline; }
+.feature li::before { content: "♥"; color: var(--red); font-size: 14px; }
+@media (max-width: 900px) { .feature { grid-template-columns: 1fr; } }
+
+/* Occasions */
+.occasions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+@media (max-width: 900px) { .occasions { grid-template-columns: 1fr 1fr; } }
+.occ { position: relative; border-radius: 16px; overflow: hidden; aspect-ratio: 10 / 11; }
+.occ img { width: 100%; height: 100%; object-fit: cover; }
+.occ span { position: absolute; left: 14px; bottom: 14px; background: var(--paper); color: var(--ink); font-weight: 600; font-size: 15px; padding: 9px 14px; border-radius: 999px; }
+
+/* Étapes */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 900px) { .steps { grid-template-columns: 1fr; } }
+.step { border: 1px solid var(--line); border-radius: 20px; padding: 24px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.step h3 { font-size: 22px; font-weight: 700; }
+.step p { color: var(--muted); font-size: 15px; }
+.step .visual { background: var(--stone); border-radius: 14px; padding: 18px; min-height: 190px; display: grid; place-items: center; }
+.formats { display: flex; gap: 16px; align-items: end; }
+.fmt { display: grid; gap: 8px; justify-items: center; font-size: 13px; color: var(--muted); }
+.fmt div { border: 2px solid var(--ink); border-radius: 7px; background: var(--paper); }
+.fmt.on div { border-color: var(--red); box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 18%, transparent); }
+.report { width: 100%; display: grid; gap: 10px; font-size: 14px; }
+.report div { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; background: var(--paper); border-radius: 10px; padding: 10px 12px; }
+.report b { font-weight: 600; }
+.ok { color: var(--felt); } :root[data-theme="dark"] .ok { color: #7FD8AE; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ok { color: #7FD8AE; } }
+.warn { color: #B06A00; }
+.minifan { position: relative; width: 190px; height: 150px; }
+.minifan img { position: absolute; left: 50%; bottom: 0; width: 86px; border-radius: 6px; box-shadow: 0 8px 18px -8px rgba(0,0,0,.45); transform-origin: 50% 110%; }
+
+/* Qualité */
+.quality { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(24px, 5vw, 64px); align-items: center; }
+.quality figure { margin: 0; border-radius: 20px; overflow: hidden; }
+.quality h2 { font-size: clamp(32px, 3.8vw, 50px); font-weight: 800; }
+.specs { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-top: 28px; }
+.specs div { background: var(--paper); padding: 16px 18px; display: grid; gap: 4px; }
+.specs b { font-family: var(--display); font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+.specs span { font-size: 14px; color: var(--muted); }
+@media (max-width: 900px) { .quality { grid-template-columns: 1fr; } }
+
+/* FAQ */
+.faq { display: grid; grid-template-columns: 4fr 8fr; gap: 40px; }
+@media (max-width: 900px) { .faq { grid-template-columns: 1fr; } }
+details { border-bottom: 1px solid var(--line); padding-block: 18px; }
+summary { cursor: pointer; font-weight: 600; font-size: 17px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+summary::after { content: "+"; font-weight: 400; font-size: 22px; line-height: 1; }
+details[open] summary::after { content: "–"; }
+details p { color: var(--muted); margin-top: 10px; max-width: 62ch; }
+
+/* Bandeau final + pied de page */
+.cta { background: var(--felt); color: var(--on-dark); border-radius: 24px; padding: clamp(32px, 5vw, 64px); display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; position: relative; overflow: hidden; }
+.cta h2 { font-size: clamp(32px, 4.2vw, 56px); font-weight: 800; max-width: 16ch; }
+.cta img { width: 170px; transform: rotate(8deg); border-radius: 10px; box-shadow: 0 20px 40px -18px rgba(0,0,0,.6); }
+@media (max-width: 700px) { .cta { grid-template-columns: 1fr; } .cta img { display: none; } }
+footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top: clamp(56px, 8vw, 110px); }
+.foot { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 28px; font-size: 14.5px; }
+.foot h4 { margin: 0 0 12px; font: 600 14px/1 var(--body); }
+.foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; color: var(--muted); }
+.foot p { color: var(--muted); max-width: 34ch; margin-top: 12px; }
+@media (max-width: 760px) { .foot { grid-template-columns: 1fr 1fr; } }
+.legal { margin-top: 40px; font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.note { background: var(--stone); border-radius: 12px; padding: 12px 16px; font-size: 13.5px; color: var(--muted); margin-top: 16px; }
+@media (prefers-reduced-motion: reduce) { .product .ph img { transition: none; } }
+</style>
+
+<div class="announce">Imprimé et façonné dans notre atelier en France · Vous voyez les 54 cartes avant de payer</div>
+
+<header>
+  <div class="container nav">
+    <a class="logo" href="#top">Carte <span>Blanche</span></a>
+    <nav class="menu" aria-label="Navigation principale">
+      <a href="#jeux">Nos jeux</a>
+      <a href="#famille">Jeu de famille</a>
+      <a href="#occasions">Occasions</a>
+      <a href="#comment">Comment ça marche</a>
+      <a href="#faq">Aide</a>
+    </nav>
+    <div class="tools"><a href="#top">Compte</a><a class="cart" href="#top">Panier <b>0</b></a></div>
+  </div>
+</header>
+
+<main id="top">
+  <div class="container hero">
+    <div>
+      <h1>Votre jeu.<br><em>Vos règles.</em></h1>
+      <p class="sub">Un jeu de 54 cartes à votre image : votre dos, vos figures, vos proches sur le Roi et la Dame.</p>
+      <div class="actions">
+        <a class="btn red" href="#jeux">Créer mon jeu →</a>
+        <a class="link" href="#comment">Voir comment ça marche</a>
+      </div>
+      <div class="promise"><span><i></i>Contrôle de votre fichier en direct</span><span><i></i>Carton 350 g</span><span><i></i>Fabriqué en France</span></div>
+    </div>
+    <figure><img src="{{scene-hero}}" alt="Éventail de cartes Carte Blanche sur un tapis vert, avec leur étui : 7 de pique, 10 de cœur, As de pique, Dame, Roi et Valet personnalisés."></figure>
+  </div>
+
+  <section class="section container" id="jeux">
+    <div class="head">
+      <h2>Choisissez votre jeu</h2>
+      <p>Trois points de départ. Tout se personnalise ensuite : dos, figures, étui.</p>
+    </div>
+    <div class="products">
+      <a class="product" href="#comment">
+        <div class="ph"><img src="{{scene-etui}}" alt="Jeu Carte Blanche en pile, son étui vert et l'As de pique."></div>
+        <div class="meta"><h3>Le jeu classique</h3><span class="price">Prix à définir</span></div>
+        <p>54 cartes au format poker, votre dos personnalisé, étui assorti.</p>
+      </a>
+      <a class="product" href="#famille">
+        <span class="badge">Le plus offert</span>
+        <div class="ph"><img src="{{scene-famille}}" alt="Quatre figures personnalisées : Mamie, Maman, Papa et Léo."></div>
+        <div class="meta"><h3>Le jeu de famille</h3><span class="price">Prix à définir</span></div>
+        <p>Vos proches deviennent Rois, Dames et Valets, avec leur prénom.</p>
+      </a>
+      <a class="product" href="#occasions">
+        <div class="ph"><img src="{{occasion-entreprise}}" alt="Dos de cartes noirs au logo d'une entreprise fictive, Studio Nord."></div>
+        <div class="meta"><h3>Le jeu d'entreprise</h3><span class="price">Sur devis</span></div>
+        <p>Votre logo au dos, vos couleurs, des quantités pour vos clients et vos équipes.</p>
+      </a>
+    </div>
+  </section>
+
+  <section class="container" id="famille">
+    <div class="feature">
+      <img src="{{scene-famille}}" alt="Figures personnalisées d'un jeu de famille, à deux têtes comme les vraies cartes.">
+      <div class="txt">
+        <h2>Toute la famille dans le jeu</h2>
+        <p>Chaque figure garde ses deux têtes, comme les vraies cartes. On y place le portrait et le prénom de vos proches.</p>
+        <ul>
+          <li>Roi, Dame, Valet pour chaque couleur</li>
+          <li>Prénom sur chaque figure</li>
+          <li>Aperçu de chaque carte avant paiement</li>
+        </ul>
+        <div><a class="btn" href="#comment">Composer mon jeu de famille</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section container" id="occasions">
+    <div class="head">
+      <h2>Pour chaque occasion</h2>
+      <a class="link" href="#jeux">Voir tous les modèles</a>
+    </div>
+    <div class="occasions">
+      <a class="occ" href="#jeux"><img src="{{occasion-mariage}}" alt="Dos crème et or, initiales J &amp; M et date de mariage."><span>Mariage</span></a>
+      <a class="occ" href="#jeux"><img src="{{occasion-anniversaire}}" alt="Dos rouge pour les 40 ans de Claire."><span>Anniversaire</span></a>
+      <a class="occ" href="#jeux"><img src="{{occasion-evjf}}" alt="Dos rose pour un EVJF à Marseille."><span>EVJF</span></a>
+      <a class="occ" href="#jeux"><img src="{{occasion-entreprise}}" alt="Dos noir au logo Studio Nord."><span>Entreprise</span></a>
+    </div>
+  </section>
+
+  <section class="section container" id="comment" style="padding-top:0">
+    <div class="head">
+      <h2>Trois étapes, et vous voyez tout avant de payer</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="visual">
+          <div class="formats" aria-hidden="true">
+            <div class="fmt on"><div style="width:64px;height:89px"></div>Poker</div>
+            <div class="fmt"><div style="width:57px;height:89px"></div>Bridge</div>
+          </div>
+        </div>
+        <h3>Choisissez format et carton</h3>
+        <p>Poker ou bridge, 54 ou 32 cartes, 350 g couché mi-mat ou carte graphique 300 g.</p>
+      </div>
+      <div class="step">
+        <div class="visual">
+          <div class="report" aria-label="Exemple de contrôle de fichier">
+            <div><span class="ok">✓</span><b>55 pages</b> dans le bon ordre</div>
+            <div><span class="ok">✓</span><b>Fond perdu</b> de 3 mm partout</div>
+            <div><span class="warn">!</span><b>Roi de cœur :</b> photo un peu légère</div>
+          </div>
+        </div>
+        <h3>Déposez votre fichier</h3>
+        <p>Téléchargez notre gabarit, déposez votre PDF : on le contrôle en quelques secondes et on vous dit quoi corriger, carte par carte.</p>
+      </div>
+      <div class="step">
+        <div class="visual">
+          <div class="minifan" aria-hidden="true">
+            <img src="{{carte-back}}" alt="" style="transform:translateX(-50%) rotate(-16deg)">
+            <img src="{{carte-ace}}" alt="" style="transform:translateX(-50%) rotate(0deg)">
+            <img src="{{carte-king}}" alt="" style="transform:translateX(-50%) rotate(16deg)">
+          </div>
+        </div>
+        <h3>Vérifiez, puis commandez</h3>
+        <p>Feuilletez vos 54 cartes et votre étui. Vous ne payez qu'une fois satisfait.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section container" style="padding-top:0">
+    <div class="quality">
+      <figure><img src="{{scene-detail}}" alt="Gros plan sur le coin d'un Roi de cœur imprimé."></figure>
+      <div>
+        <h2>Imprimé chez nous, pas chez un sous-traitant</h2>
+        <p style="color:var(--muted);font-size:17px;margin-top:18px;max-width:46ch">Nos jeux sortent de notre atelier : impression numérique, coupe au massicot et coins arrondis. On contrôle chaque feuille.</p>
+        <div class="specs">
+          <div><b>350 g</b><span>Couché mi-mat, rigide et souple</span></div>
+          <div><b>300 g</b><span>Carte graphique, toucher naturel</span></div>
+          <div><b>63,5 × 88,9 mm</b><span>Format poker</span></div>
+          <div><b>3,5 mm</b><span>Rayon des coins arrondis</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section container" id="faq" style="padding-top:0">
+    <div class="faq">
+      <h2 style="font-size:clamp(32px,4vw,50px);font-weight:800">Vos questions</h2>
+      <div>
+        <details open><summary>Je n'ai pas de logiciel de graphisme. Je peux quand même créer mon jeu ?</summary><p>Oui. L'éditeur en ligne vous permet de partir d'un modèle et d'ajouter vos photos et vos textes. Le dépôt d'un PDF est réservé à ceux qui ont déjà leur fichier.</p></details>
+        <details><summary>Que se passe-t-il si mon fichier a un problème ?</summary><p>Le contrôle vous l'indique tout de suite, carte par carte, avec la correction à faire. Vous ne pouvez pas payer un fichier qui ne s'imprimerait pas correctement.</p></details>
+        <details><summary>Puis-je retourner un jeu personnalisé ?</summary><p>Un produit personnalisé ne bénéficie pas du droit de rétractation. En revanche, si le jeu présente un défaut d'impression, nous le refaisons.</p></details>
+        <details><summary>Faites-vous des quantités pour les entreprises ?</summary><p>Oui, de quelques jeux à plusieurs centaines. Écrivez-nous pour un devis.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="cta">
+      <div style="display:grid;gap:22px">
+        <h2>Donnez-vous carte blanche.</h2>
+        <div><a class="btn light" href="#jeux">Créer mon jeu →</a></div>
+      </div>
+      <img src="{{carte-king}}" alt="">
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="foot">
+      <div><span class="logo">Carte <span>Blanche</span></span><p>Jeux de cartes personnalisés, imprimés et façonnés dans notre atelier en France.</p></div>
+      <div><h4>Nos jeux</h4><ul><li>Jeu classique</li><li>Jeu de famille</li><li>Jeu d'entreprise</li><li>Gabarits</li></ul></div>
+      <div><h4>Aide</h4><ul><li>Comment ça marche</li><li>Suivi de commande</li><li>Livraison</li><li>Contact</li></ul></div>
+      <div><h4>Maison</h4><ul><li>L'atelier</li><li>CGV</li><li>Mentions légales</li><li>Confidentialité</li></ul></div>
+    </div>
+    <div class="note">Maquette : les visuels sont des rendus de nos propres cartes, en attendant les photos des jeux imprimés à l'atelier. Prix et délais à définir.</div>
+    <div class="legal"><span>© 2026 Carte Blanche</span><span>Paiement sécurisé · Stripe ou Revolut</span></div>
+  </div>
+</footer>
