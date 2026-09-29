@@ -2,10 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import { type Crop, type Design, RANKS, SUITS } from "@/lib/design.ts";
 
-// Éditeur « création en ligne » : dos + figures. L'aperçu est une approximation dessinée
-// dans le navigateur ; le rendu d'impression est fabriqué par le moteur puis contrôlé.
+// Éditeur « création en ligne » : dos + figures. L'aperçu est dessiné dans le navigateur avec les
+// mêmes cartes que le moteur ; le rendu d'impression est fabriqué par le moteur puis contrôlé.
 
 type LocalPhoto = { url: string; path: string | null; crop: Crop; error?: string };
+type Style = "gravure" | "couleur";
 type Props = { product: string; disabled: boolean; onSubmit: (design: Design) => void };
 
 const COLORS: [string, string, string][] = [
@@ -72,52 +73,68 @@ async function drawBack(canvas: HTMLCanvasElement, back: Design["back"], photo: 
   }
 }
 
-async function drawCourt(canvas: HTMLCanvasElement, code: string, name: string, photo: LocalPhoto | null) {
-  const c = canvas.getContext("2d")!;
-  const [suit, rank] = code.split("-");
-  const s = SUITS.find(([k]) => k === suit)!, r = RANKS.find(([k]) => k === rank)!;
-  const color = suit === "H" || suit === "D" ? "#C4172C" : "#16161A";
-  c.clearRect(0, 0, W, H);
-  roundRect(c, 0, 0, W, H, 14); c.fillStyle = "#FCFCFA"; c.fill(); c.strokeStyle = "#E3E1DC"; c.lineWidth = 1; c.stroke();
-  const half = async (flip: boolean) => {
-    c.save();
-    if (flip) { c.translate(W, H); c.rotate(Math.PI); }
-    c.fillStyle = color; c.textAlign = "center"; c.font = "800 24px system-ui, sans-serif"; c.fillText(r[1], 17.6, 32);
-    c.font = "18px system-ui, sans-serif"; c.fillText(s[1], 17.6, 50);
-    c.beginPath(); c.rect(38.4, 38.4, W - 76.8, H / 2 - 38.4); c.clip();
-    const cx = W / 2, cy = (H / 2) - 76;
-    c.beginPath(); c.ellipse(cx, cy + 76 + 20, 54, 54, 0, Math.PI, 0); c.fillStyle = color; c.fill();
-    if (photo) {
-      const img = await loadImage(photo.url);
-      c.save(); c.beginPath(); c.arc(cx, cy, 30.2, 0, Math.PI * 2); c.closePath();
-      c.fillStyle = "#BE9646"; c.beginPath(); c.arc(cx, cy, 32.4, 0, Math.PI * 2); c.fill();
-      c.beginPath(); c.arc(cx, cy, 30.2, 0, Math.PI * 2); c.clip();
-      c.drawImage(img, ...cropRect(img, photo.crop, 1), cx - 30.2, cy - 30.2, 60.4, 60.4); c.restore();
-    } else {
-      c.beginPath(); c.arc(cx, cy, 22, 0, Math.PI * 2); c.fillStyle = "#F1CFB4"; c.fill();
-      c.beginPath(); c.arc(cx, cy - 4, 23, Math.PI, 0); c.fillStyle = "#34241C"; c.fill();
-    }
-    c.fillStyle = "#BE9646";
-    c.beginPath(); c.moveTo(cx - 20, cy - 30); c.lineTo(cx - 20, cy - 50); c.lineTo(cx - 10, cy - 38); c.lineTo(cx, cy - 54);
-    c.lineTo(cx + 10, cy - 38); c.lineTo(cx + 20, cy - 50); c.lineTo(cx + 20, cy - 30); c.fill();
-    c.restore();
-    if (name) {
-      c.save(); if (flip) { c.translate(W, H); c.rotate(Math.PI); }
-      roundRect(c, W / 2 - 46, H / 2 - 17.6, 92, 15.2, 7.6); c.fillStyle = "#FCFCFA"; c.fill(); c.strokeStyle = color; c.lineWidth = 1.2; c.stroke();
-      c.fillStyle = color; c.font = "600 8.8px system-ui, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
-      c.fillText(name.toUpperCase(), W / 2, H / 2 - 10); c.restore();
-    }
-  };
-  await half(false); await half(true);
-  c.strokeStyle = color; c.lineWidth = 1.6; roundRect(c, 38.4, 38.4, W - 76.8, H - 76.8, 7); c.stroke();
-  c.beginPath(); c.moveTo(38.4, H / 2); c.lineTo(W - 38.4, H / 2); c.lineWidth = 1.2; c.stroke();
+// Figures classiques (A. Kennard, CC0) : mêmes fichiers et mêmes emplacements de visage que le moteur
+// (flux_print/design/classic). Unités de la carte : 240 × 336.
+type Slot = [number, number, number, number, number];
+let slotsPromise: Promise<Record<string, Slot>> | null = null;
+const faceSlots = () => (slotsPromise ??= fetch("/cartes/faces.json").then((r) => r.json()));
+
+/** Gravure : niveaux de gris étirés puis dégradé bleu nuit → bleu du trait → blanc (cf. classic.stylise). */
+function engrave(c: CanvasRenderingContext2D, w: number, h: number) {
+  const im = c.getImageData(0, 0, w, h), d = im.data;
+  let lo = 255, hi = 0;
+  for (let i = 0; i < d.length; i += 4) { const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; d[i] = g; lo = Math.min(lo, g); hi = Math.max(hi, g); }
+  const stops: [number, number[]][] = [[10, [18, 18, 96]], [110, [88, 88, 240]], [235, [255, 255, 255]]];
+  for (let i = 0; i < d.length; i += 4) {
+    const g = ((d[i] - lo) * 255) / Math.max(1, hi - lo);
+    const [[a, ca], [b, cb]] = g < stops[1][0] ? [stops[0], stops[1]] : [stops[1], stops[2]];
+    const t = Math.min(1, Math.max(0, (g - a) / (b - a)));
+    for (let k = 0; k < 3; k++) d[i + k] = ca[k] + (cb[k] - ca[k]) * t;
+  }
+  c.putImageData(im, 0, 0);
 }
 
-function PhotoField({ id, photo, product, disabled, onChange }: {
-  id: string; photo: LocalPhoto | null; product: string; disabled: boolean; onChange: (p: LocalPhoto | null) => void;
+async function drawCourt(canvas: HTMLCanvasElement, code: string, name: string, photo: LocalPhoto | null, style: Style) {
+  const c = canvas.getContext("2d")!;
+  const art = code.replace("-", "");
+  const [card, slots] = await Promise.all([loadImage(`/cartes/${art}.svg`), faceSlots()]);
+  const k = W / 240;
+  c.clearRect(0, 0, W, H);
+  c.drawImage(card, 0, 0, W, H);
+  if (photo) {
+    const [cx, cy, rx, ry, top] = slots[art];
+    const img = await loadImage(photo.url);
+    const fw = Math.round(2 * rx * k), fh = Math.round(2 * ry * k);
+    const face = document.createElement("canvas"); face.width = fw; face.height = fh;
+    const f = face.getContext("2d")!;
+    f.drawImage(img, ...cropRect(img, photo.crop, rx / ry), 0, 0, fw, fh);
+    if (style === "gravure") engrave(f, fw, fh);
+    const e = 1.6 * k;
+    const head = (flip: boolean) => {
+      c.save();
+      if (flip) { c.translate(W, H); c.rotate(Math.PI); }
+      c.beginPath(); c.rect(0, top * k, W, H); c.clip();
+      c.beginPath(); c.ellipse(cx * k, cy * k, rx * k - e, ry * k - e, 0, 0, Math.PI * 2);
+      c.save(); c.clip(); c.drawImage(face, (cx - rx) * k, (cy - ry) * k); c.restore();
+      c.strokeStyle = "#44F"; c.lineWidth = 1.1 * k; c.stroke();
+      c.restore();
+    };
+    head(false); head(true);
+  }
+  if (name) {
+    c.font = `600 ${11 * k}px Georgia, serif`;
+    const w = c.measureText(name.toUpperCase()).width + 22 * k, h = 17 * k;
+    roundRect(c, W / 2 - w / 2, H / 2 - h / 2, w, h, 3 * k); c.fillStyle = "#FFFAEB"; c.fill();
+    c.strokeStyle = "#44F"; c.lineWidth = 1.1 * k; c.stroke();
+    c.fillStyle = "#BE141E"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(name.toUpperCase(), W / 2, H / 2 + 0.5 * k);
+  }
+}
+
+function PhotoField({ id, photo, product, disabled, onChange, initial = { zoom: 1, x: 0.5, y: 0.4 } }: {
+  id: string; initial?: Crop; photo: LocalPhoto | null; product: string; disabled: boolean; onChange: (p: LocalPhoto | null) => void;
 }) {
   async function pick(file: File) {
-    const local: LocalPhoto = { url: URL.createObjectURL(file), path: null, crop: { zoom: 1, x: 0.5, y: 0.4 } };
+    const local: LocalPhoto = { url: URL.createObjectURL(file), path: null, crop: initial };
     onChange(local);
     try { onChange({ ...local, path: await uploadPhoto(product, file) }); }
     catch (e) { onChange({ ...local, error: (e as Error).message }); }
@@ -135,7 +152,7 @@ function PhotoField({ id, photo, product, disabled, onChange }: {
       </div>
       {photo && (
         <div className="grid2" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-          <label className="field">Zoom<input type="range" min={1} max={3} step={0.05} value={photo.crop.zoom} disabled={disabled} onChange={(e) => set("zoom", Number(e.target.value))} /></label>
+          <label className="field">Zoom<input type="range" min={1} max={4} step={0.05} value={photo.crop.zoom} disabled={disabled} onChange={(e) => set("zoom", Number(e.target.value))} /></label>
           <label className="field">Horizontal<input type="range" min={0} max={1} step={0.01} value={photo.crop.x} disabled={disabled} onChange={(e) => set("x", Number(e.target.value))} /></label>
           <label className="field">Vertical<input type="range" min={0} max={1} step={0.01} value={photo.crop.y} disabled={disabled} onChange={(e) => set("y", Number(e.target.value))} /></label>
         </div>
@@ -149,13 +166,14 @@ export default function Editor({ product, disabled, onSubmit }: Props) {
   const [backPhoto, setBackPhoto] = useState<LocalPhoto | null>(null);
   const [courts, setCourts] = useState<Record<string, { name: string; photo: LocalPhoto | null }>>({});
   const [selected, setSelected] = useState("H-K");
+  const [style, setStyle] = useState<Style>("gravure");
   const backCanvas = useRef<HTMLCanvasElement>(null);
   const courtCanvas = useRef<HTMLCanvasElement>(null);
   const court = courts[selected] ?? { name: "", photo: null };
   const uploading = [backPhoto, ...Object.values(courts).map((c) => c.photo)].some((p) => p && !p.path && !p.error);
 
   useEffect(() => { if (backCanvas.current) drawBack(backCanvas.current, { ...back, photo: null }, backPhoto); }, [back, backPhoto]);
-  useEffect(() => { if (courtCanvas.current) drawCourt(courtCanvas.current, selected, court.name, court.photo); }, [selected, court.name, court.photo]);
+  useEffect(() => { if (courtCanvas.current) drawCourt(courtCanvas.current, selected, court.name, court.photo, style); }, [selected, court.name, court.photo, style]);
 
   const setCourt = (patch: Partial<{ name: string; photo: LocalPhoto | null }>) =>
     setCourts((all) => ({ ...all, [selected]: { ...court, ...patch } }));
@@ -165,6 +183,7 @@ export default function Editor({ product, disabled, onSubmit }: Props) {
     const ref = (p: LocalPhoto | null) => (p?.path ? { path: p.path, ...p.crop } : null);
     onSubmit({
       back: { ...back, photo: ref(backPhoto) },
+      style,
       courts: Object.fromEntries(Object.entries(courts).filter(([, c]) => c.name || c.photo).map(([k, c]) => [k, { name: c.name, photo: ref(c.photo) }])),
     });
   }
@@ -173,7 +192,7 @@ export default function Editor({ product, disabled, onSubmit }: Props) {
     <div style={{ display: "grid", gap: 18 }}>
       <div className="previews" style={{ gap: 16 }}>
         <figure style={{ margin: 0, display: "grid", gap: 6, justifyItems: "center" }}><canvas ref={backCanvas} width={W} height={H} style={{ width: 150, height: "auto" }} aria-label="Aperçu du dos" /><span className="hint">Dos</span></figure>
-        <figure style={{ margin: 0, display: "grid", gap: 6, justifyItems: "center" }}><canvas ref={courtCanvas} width={W} height={H} style={{ width: 150, height: "auto" }} aria-label="Aperçu de la figure" /><span className="hint">{RANKS.find(([r]) => r === selected.split("-")[1])![2]} de {SUITS.find(([s]) => s === selected.split("-")[0])![2]}</span></figure>
+        <figure style={{ margin: 0, display: "grid", gap: 6, justifyItems: "center" }}><canvas ref={courtCanvas} width={W} height={H} style={{ width: 190, height: "auto" }} aria-label="Aperçu de la figure" /><span className="hint">{RANKS.find(([r]) => r === selected.split("-")[1])![2]} de {SUITS.find(([s]) => s === selected.split("-")[0])![2]}</span></figure>
       </div>
 
       <div style={{ display: "grid", gap: 10 }}>
@@ -203,8 +222,15 @@ export default function Editor({ product, disabled, onSubmit }: Props) {
           }))}
         </div>
         <label className="field">Prénom sur la figure<input id="court-name" maxLength={14} value={court.name} disabled={disabled} placeholder="Papa, Mamie, Léo…" onChange={(e) => setCourt({ name: e.target.value })} /></label>
-        <PhotoField id={`photo-${selected}`} photo={court.photo} product={product} disabled={disabled} onChange={(photo) => setCourt({ photo })} />
-        <p className="hint">Une photo de face, bien éclairée, avec le visage au centre. Les figures sans photo gardent leur portrait illustré.</p>
+        <PhotoField id={`photo-${selected}`} photo={court.photo} product={product} disabled={disabled} onChange={(photo) => setCourt({ photo })}
+          initial={{ zoom: 2.2, x: 0.5, y: 0.38 }} />
+        <div className="row-actions" role="radiogroup" aria-label="Rendu des visages">
+          <span className="hint">Rendu des visages</span>
+          {(["gravure", "couleur"] as const).map((v) => (
+            <button key={v} className="chip" role="radio" aria-checked={style === v} aria-pressed={style === v} disabled={disabled} onClick={() => setStyle(v)}>
+              {v === "gravure" ? "Gravure (comme le dessin)" : "Photo couleur"}</button>))}
+        </div>
+        <p className="hint">Le visage remplace la tête du personnage, sous sa couronne, en haut et en bas de la carte. Photo de face, bien éclairée : cadrez le visage du front au menton. Les figures sans photo gardent leur visage d'origine.</p>
       </div>
 
       <button className="btn red" disabled={disabled || uploading} onClick={submit}>

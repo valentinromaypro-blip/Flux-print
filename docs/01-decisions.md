@@ -22,6 +22,7 @@
 | D18 | 2026-09-29 | Paiement : **Stripe ou Revolut Business**. Univers du site n°1 proposé : **Carte Blanche** (à valider). | Prestataire de paiement abstrait, les deux implémentés et choisis par configuration. Proposition visuelle : `docs/design/carte-blanche-proposition.html`. |
 | D19 | 2026-09-29 | Ajout du produit **oracle** (22 à 100 cartes, tarot ou poker). | Type de produit « jeu sur mesure » dans le moteur ; options client validées ; 10 cartes tarot par feuille SRA3. |
 | D20 | 2026-09-29 | **Site et back-office sur mesure** (Next.js + Supabase), **pas de WordPress/WooCommerce**. | Voir `docs/05-site-et-back-office.md`. |
+| D21 | 2026-09-29 | **Figures personnalisées sur le dessin classique** : la photo du client remplace les deux têtes du personnage (sous la couronne), traitée en gravure aux couleurs du dessin ou en couleur. | Portrait plat + médaillon jugé trop basique. Dessins d'Adrian Kennard, domaine public (CC0) : aucun droit à payer, modifiables. Emplacements des visages : `flux_print/design/classic/faces.json`, partagés avec l'aperçu du site. |
 
 ## Politique de licences (conséquence de D5)
 
@@ -36,6 +37,8 @@
 | LittleCMS | MIT | Conversions ICC | ✅ liée au code |
 | psycopg 3 | LGPL-3.0 | Accès Postgres du worker | ✅ utilisée sans modification (la LGPL n'impose rien à notre code) |
 | httpx | BSD | API Storage Supabase | ✅ liée au code |
+| resvg-py / resvg | MIT / Apache-2.0-MIT | Rendu des cartes classiques (SVG) | ✅ liée au code |
+| Cartes d'A. Kennard | CC0 (domaine public) | Dessins des 54 faces | ✅ modifiables, sans attribution obligatoire |
 | **Ghostscript** | **AGPL-3.0** | Rendu CMJN (mesure d'encre uniquement) | ⚠️ **uniquement en processus externe, non modifié** |
 | MuPDF / PyMuPDF | AGPL-3.0 | — | ❌ exclu (liaison directe = obligation de publier le code du service) |
 | Poppler | GPL | — | ❌ exclu du code lié |

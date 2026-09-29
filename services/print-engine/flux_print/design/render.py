@@ -5,8 +5,12 @@ Design d'un jeu de cartes (JSON stocké sur la ligne de commande) :
     {
       "back":   {"color": "#134536", "ink": "#F0E8D6", "title": "J & M", "subtitle": "12 · 06 · 2027",
                  "photo": {"path": "sessions/…/photos/….jpg", "zoom": 1.2, "x": 0.5, "y": 0.4}},
-      "courts": {"H-K": {"name": "Papa", "photo": {"path": "…", "zoom": 1.5, "x": 0.52, "y": 0.35}}, …}
+      "style":  "gravure",            # traitement des visages : gravure (bleu du dessin) ou couleur
+      "courts": {"H-K": {"name": "Papa", "photo": {"path": "…", "zoom": 2.5, "x": 0.52, "y": 0.35}}, …}
     }
+
+Les faces sont les cartes classiques (classic.py) ; sur chaque figure choisie, la
+photo du client remplace les deux têtes.
 
 Le PDF sort au format du gabarit (dos commun, puis les faces dans l'ordre),
 avec 3 mm de fond perdu : il passe ensuite par le même contrôle que les
@@ -27,10 +31,12 @@ from reportlab.pdfgen import canvas
 from ..products.playing_cards import DECKS
 from ..units import mm_to_pt
 from . import cardart as art
+from . import classic
 
 COURTS = {"J": ("V", "jack"), "Q": ("D", "queen"), "K": ("R", "king")}
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 PhotoLoader = Callable[[str], Image.Image]
+FRONT_PX = round(art.OUT_PX_PER_MM * 63.5)
 BACK_RATIO = (63.5 - 8.8) / (88.9 - 8.8)  # zone intérieure du dos (largeur / hauteur)
 
 
@@ -79,7 +85,10 @@ def validate_design(design: dict, deck_code: str) -> dict:
         if not isinstance(court, dict):
             raise DesignError("Figure invalide.")
         courts[code] = {"name": str(court.get("name") or "")[:14], "photo": _photo_spec(court.get("photo"))}
-    return {"back": clean_back, "courts": courts}
+    style = design.get("style") or "gravure"
+    if style not in classic.STYLES:
+        raise DesignError(f"Style inconnu : {style}")
+    return {"back": clean_back, "style": style, "courts": courts}
 
 
 def photo_paths(design: dict) -> list[str]:
@@ -93,23 +102,12 @@ def _card_images(design: dict, deck_code: str, load: PhotoLoader):
     fill, ink = _rgb(back["color"], art.FELT), _rgb(back["ink"], art.CREAM)
     photo = art.crop_photo(load(back["photo"]["path"]), back["photo"], BACK_RATIO) if back.get("photo") else None
     yield art.back_card(fill, ink, back["title"] or ("" if photo else "CB"), back["subtitle"] or None, photo=photo), fill
-    for i, card in enumerate(DECKS[deck_code].cards):
-        if card.code.startswith("JK"):
-            yield art.joker_card(), art.PAPER
-            continue
-        suit, rank = card.code.split("-")
-        if rank == "A":
-            yield art.ace_card(suit), art.PAPER
-        elif rank in COURTS:
-            letter, role = COURTS[rank]
-            court = design["courts"].get(card.code, {})
-            ph = art.crop_photo(load(court["photo"]["path"]), court["photo"]) if court.get("photo") else None
-            s = "SHDC".index(suit)
-            yield art.court_card(letter, suit, role, court.get("name", ""), art.SKIN[(s + len(rank)) % 4],
-                                 art.HAIR[(s + i) % 5], beard=role == "king", long_hair=role == "queen",
-                                 photo=ph), art.PAPER
-        else:
-            yield art.number_card(int(rank), suit), art.PAPER
+    for card in DECKS[deck_code].cards:
+        court = design["courts"].get(card.code, {})
+        photo = load(court["photo"]["path"]) if court.get("photo") else None
+        crop = court["photo"] if photo is not None else None
+        yield classic.court(classic.art_code(card.code), FRONT_PX, photo, crop,
+                            design["style"], court.get("name", "")), (255, 255, 255)
 
 
 def render_playing_cards(design: dict, deck_code: str, out_pdf: str | Path, load: PhotoLoader,

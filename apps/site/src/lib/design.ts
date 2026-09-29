@@ -3,6 +3,7 @@ export type Crop = { zoom: number; x: number; y: number };
 export type PhotoRef = Crop & { path: string };
 export type Design = {
   back: { color: string; ink: string; title: string; subtitle: string; photo: PhotoRef | null };
+  style: "gravure" | "couleur"; // traitement des visages sur les figures
   courts: Record<string, { name: string; photo: PhotoRef | null }>;
 };
 
@@ -24,7 +25,7 @@ function photo(p: unknown, session: string): PhotoRef | null {
 
 /** Nettoie un design reçu du navigateur ; lève une erreur lisible si quelque chose ne va pas. */
 export function cleanDesign(input: unknown, session: string): Design {
-  const d = (input ?? {}) as { back?: Record<string, unknown>; courts?: Record<string, Record<string, unknown>> };
+  const d = (input ?? {}) as { back?: Record<string, unknown>; style?: unknown; courts?: Record<string, Record<string, unknown>> };
   const b = d.back ?? {};
   const color = String(b.color ?? "#134536"), ink = String(b.ink ?? "#F0E8D6");
   if (!HEX.test(color) || !HEX.test(ink)) throw new Error("Couleur invalide.");
@@ -36,7 +37,10 @@ export function cleanDesign(input: unknown, session: string): Design {
     const ph = photo(c?.photo, session);
     if (name || ph) courts[code] = { name, photo: ph };
   }
+  const style = d.style ?? "gravure";
+  if (style !== "gravure" && style !== "couleur") throw new Error("Style inconnu.");
   return {
+    style,
     back: { color, ink, title: String(b.title ?? "").slice(0, 12), subtitle: String(b.subtitle ?? "").slice(0, 24), photo: photo(b.photo, session) },
     courts,
   };

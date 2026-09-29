@@ -16,6 +16,7 @@ dependencies = [
     "numpy>=1.24",       # BSD
     "psycopg[binary]>=3.1",  # LGPL-3.0, utilisée sans modification — accès Postgres (Supabase)
     "httpx>=0.27",       # BSD — API Storage de Supabase
+    "resvg-py>=0.5",     # MIT (resvg : Apache-2.0/MIT) — rendu des cartes classiques SVG
 ]
 
 [project.optional-dependencies]
@@ -25,7 +26,7 @@ dev = ["pytest>=7"]
 flux-print = "flux_print.cli:main"
 
 [tool.setuptools.package-data]
-flux_print = ["design/fonts/*"]
+flux_print = ["design/fonts/*", "design/classic/*"]
 
 [tool.setuptools.packages.find]
 include = ["flux_print*"]
