@@ -351,11 +351,32 @@ footer.site-footer { padding-block: 56px 40px; border-top: 1px solid var(--line)
 .packing-slip { display: none; }
 @media (max-width: 900px) { .order-grid, .item { grid-template-columns: 1fr; } }
 @media print {
-  .bo-nav, .bo-main > :not(.packing-slip), .no-print { display: none !important; }
+  .bo-nav, .order-page > :not(.packing-slip), .no-print { display: none !important; }
   .bo { display: block; background: #fff; }
   .packing-slip { display: grid; gap: 24px; font-size: 14px; color: #000; }
   .slip-head { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; font-size: 18px; }
   .slip-addr { display: grid; gap: 2px; font-size: 20px; border: 2px solid #000; padding: 18px; width: 60%; margin-left: auto; }
   .packing-slip table { width: 100%; border-collapse: collapse; }
   .packing-slip th, .packing-slip td { border-bottom: 1px solid #999; padding: 8px; text-align: left; }
+}
+
+/* Fiche de lot */
+.batch-page .tiles { grid-template-columns: repeat(4, 1fr); }
+.steps-list { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: 15px; }
+.map-wrap { display: grid; grid-template-columns: minmax(0, 420px) 1fr; gap: 24px; align-items: start; }
+.sheet-map { width: 100%; height: auto; }
+.sheet-map .paper { fill: #fff; stroke: #9C9A94; stroke-width: .6; }
+.sheet-map .pose rect { fill: var(--ok-bg); stroke: var(--felt); stroke-width: .5; }
+.sheet-map .pose.empty rect { fill: #F2F1ED; stroke: #CFCCC5; stroke-dasharray: 2 1.5; }
+.sheet-map .n { font: 600 5px var(--body); fill: var(--muted); }
+.sheet-map .a { font: 700 7px var(--body); fill: var(--ink); }
+.sheet-map .b { font: 500 5.2px var(--body); fill: var(--muted); }
+.sheet-map .pose.empty .a { fill: #B5B2AB; font-weight: 500; }
+.map-legend { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; }
+.map-legend a { font-weight: 600; }
+@media (max-width: 900px) { .map-wrap { grid-template-columns: 1fr; } .batch-page .tiles { grid-template-columns: 1fr 1fr; } }
+@media print {
+  .batch-page > * { display: grid !important; }
+  .batch-page .no-print, .batch-page .row-actions { display: none !important; }
+  .batch-page .map-card { break-inside: avoid; }
 }

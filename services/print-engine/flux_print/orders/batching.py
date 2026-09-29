@@ -1,7 +1,8 @@
 """Décision de lancement des lots (amalgame automatique).
 
 Les lignes prêtes sont regroupées par clé d'amalgame (support, format, fond
-perdu, recto/verso), tous produits confondus. Un groupe part en lot si :
+perdu, recto/verso), tous produits confondus ; en mode « pile = jeu », aussi par
+longueur de jeu (un jeu de 32 ne partage pas les feuilles d'un jeu de 54). Un groupe part en lot si :
 - le remplissage de ses feuilles atteint le seuil ;
 - ou la ligne la plus ancienne a trop attendu ;
 - ou une commande est urgente (date d'expédition proche) ;
@@ -25,6 +26,10 @@ class BatchingRules:
     urgent_days: int = 2
     min_sheets: int = 1
     separators: bool = True
+    order: str = "deck_stack"
+    # Pile = jeu demande autant de feuilles que de cartes, quel que soit le nombre de jeux :
+    # en dessous de ce nombre de jeux, le lot passe en coupe et empile compact (moins de feuilles).
+    deck_stack_min_decks: int = 9
 
 
 @dataclass
@@ -36,14 +41,38 @@ class Candidate:
     specs: dict[str, DocumentSpec] = field(default_factory=dict)  # item id → spec
     pieces: int = 0
     reason: str | None = None
+    decks: int = 0        # exemplaires (jeux) du lot
+    deck_length: int = 0  # pièces par exemplaire (identique dans le lot en mode pile = jeu)
+    preferred_order: str = "cut_stack"
+    min_decks: int = 0
+
+    @property
+    def order(self) -> str:
+        """Mode d'imposition retenu pour ce lot."""
+        if self.preferred_order == "deck_stack" and self.decks < self.min_decks:
+            return "cut_stack"
+        return self.preferred_order
 
     @property
     def sheets(self) -> int:
-        return math.ceil(self.pieces / self.layout.per_sheet) if self.pieces else 0
+        if not self.pieces:
+            return 0
+        if self.order == "deck_stack":
+            return math.ceil(self.decks / self.layout.per_sheet) * self.deck_length
+        return math.ceil(self.pieces / self.layout.per_sheet)
 
     @property
     def fill_ratio(self) -> float:
         return self.pieces / (self.sheets * self.layout.per_sheet) if self.pieces else 0.0
+
+    @property
+    def launch_fill(self) -> float:
+        """Remplissage qui déclenche le lot. En pile = jeu : poses occupées par des jeux
+        (17 jeux sur 18 = 94 %), pour attendre un livre plein plutôt que partir en compact."""
+        if self.preferred_order == "deck_stack" and self.decks:
+            per = self.layout.per_sheet
+            return self.decks / (math.ceil(self.decks / per) * per)
+        return self.fill_ratio
 
 
 def gang_key_label(spec: DocumentSpec) -> str:
@@ -70,12 +99,17 @@ def plan_batches(
     for item in items:
         spec = spec_for(item)
         key = gang_key_label(spec)
+        length = len(spec.imposition_units()) + (1 if rules.separators else 0)
+        if rules.order == "deck_stack":
+            key += f"|{length}p"  # pile = jeu : seuls des jeux de même longueur partagent un livre
         if key not in groups:
-            groups[key] = Candidate(key, spec.media, layout_for(spec))
+            groups[key] = Candidate(key, spec.media, layout_for(spec), deck_length=length,
+                                    preferred_order=rules.order, min_decks=rules.deck_stack_min_decks)
         group = groups[key]
         group.items.append(item)
         group.specs[str(item["id"])] = spec
         group.pieces += pieces_for(item, spec, rules.separators)
+        group.decks += int(item["copies"])
 
     ready = []
     for group in groups.values():
@@ -89,8 +123,8 @@ def plan_batches(
             group.reason = "commande urgente"
         elif waited_h >= rules.max_wait_hours:
             group.reason = f"attente {waited_h:.0f} h"
-        elif group.sheets >= rules.min_sheets and group.fill_ratio >= rules.min_fill_ratio:
-            group.reason = f"remplissage {group.fill_ratio:.0%}"
+        elif group.sheets >= rules.min_sheets and group.launch_fill >= rules.min_fill_ratio:
+            group.reason = f"remplissage {group.launch_fill:.0%}"
         if group.reason:
             ready.append(group)
     return ready

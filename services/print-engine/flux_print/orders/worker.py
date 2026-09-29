@@ -40,7 +40,7 @@ class ProductionSettings:
     press: str = "xerox-iridesse"
     sheet: str = "SRA3"
     rules: BatchingRules = field(default_factory=BatchingRules)
-    order: str = "cut_stack"
+    order: str = "deck_stack"
     marks: str = "edge"
     preview_pages: int = 2
     preview_width_px: int = 600
@@ -61,8 +61,10 @@ class ProductionSettings:
                 urgent_days=int(b.get("urgent_days", 2)),
                 min_sheets=int(b.get("min_sheets", 1)),
                 separators=bool(b.get("separators", True)),
+                order=b.get("order", "deck_stack"),
+                deck_stack_min_decks=int(b.get("deck_stack_min_decks", 9)),
             ),
-            order=b.get("order", "cut_stack"),
+            order=b.get("order", "deck_stack"),
             marks=b.get("marks", "edge"),
             preview_pages=int(p.get("pages", 2)),
             preview_width_px=int(p.get("width_px", 600)),
@@ -262,7 +264,7 @@ class Worker:
                 pdf = Path(tmp) / f"{batch_id}.pdf"
                 manifest_file = Path(tmp) / f"{batch_id}.json"
                 result = impose(
-                    jobs, pdf, sheet=self.sheet, order=self.settings.order,
+                    jobs, pdf, sheet=self.sheet, order=candidate.order,
                     separators=self.settings.rules.separators, batch_id=batch_id,
                     manifest_path=manifest_file, marks=self.settings.marks,
                     output_profile=self.press.output, press_name=self.press.name,

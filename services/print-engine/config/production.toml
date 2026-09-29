@@ -11,8 +11,17 @@ urgent_days = 2         # une commande doit être expédiée dans 2 jours ou moi
 # Lot minimum hors urgence : évite de lancer une feuille à moitié vide trop tôt.
 min_sheets = 1
 
-separators = true       # pièce séparatrice avant chaque exemplaire
-order = "cut_stack"     # coupe et empile
+# Imposition :
+#   "deck_stack" : pile = jeu. Autant de feuilles que de cartes (54), chaque pose porte un jeu entier :
+#                  après coupe, chaque pile est un jeu complet et trié (18 jeux par « livre » de 54 feuilles).
+#   "cut_stack"  : coupe et empile compact. Le moins de feuilles possible, piles à reposer dans l'ordre.
+order = "deck_stack"
+# En dessous de ce nombre de jeux, le lot passe en « cut_stack » : un livre de 54 feuilles
+# pour 2 jeux gâcherait ~50 feuilles. Mettre 0 pour toujours imprimer en pile = jeu.
+deck_stack_min_decks = 9
+# Carte séparatrice (n° de commande + QR) en tête de chaque jeu. En pile = jeu, la fiche de lot
+# indique déjà la commande de chaque pile : inutile par défaut (54 feuilles au lieu de 55).
+separators = false
 marks = "edge"          # traits de coupe prolongés (massicot)
 
 [previews]

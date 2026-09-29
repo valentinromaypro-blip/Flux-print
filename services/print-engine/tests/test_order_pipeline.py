@@ -127,7 +127,7 @@ def test_unpaid_order_is_checked_but_not_prepared(db, files, tmp_path):
 
 
 def test_batch_waits_for_fill_then_ganges_orders(db, files, tmp_path):
-    worker = Worker(db, files, _settings(min_fill_ratio=0.99, max_wait_hours=48, separators=False))
+    worker = Worker(db, files, _settings(min_fill_ratio=0.99, max_wait_hours=48, separators=False, order="cut_stack"))
     deck = _deck(tmp_path)
     _, first = _order(db, files, tmp_path, deck)
     worker.run_once()
@@ -294,3 +294,50 @@ def test_invalid_design_fails_cleanly(db, files, tmp_path):
     Worker(db, files, _settings()).check_uploads()
     item = db.item(item["id"])
     assert item["status"] == "failed" and "Couleur invalide" in item["error"]
+
+
+# --- Imposition « pile = jeu » ------------------------------------------------------------
+
+def test_deck_stack_plan_puts_one_deck_per_position():
+    from flux_print.production.imposition import Piece, plan_deck_stack
+
+    decks = [[Piece(f"J{d}", f"c{n}", "s", n, None) for n in range(4)] for d in range(20)]
+    sheets, length = plan_deck_stack(decks, per_sheet=18)
+    assert length == 4 and len(sheets) == 8  # 2 livres de 4 feuilles
+    assert [sheets[n][5].label for n in range(4)] == ["c0", "c1", "c2", "c3"]  # pose 6 = jeu 6, cartes dans l'ordre
+    assert {sheets[n][5].job_id for n in range(4)} == {"J5"}
+    assert sheets[4][1].job_id == "J19" and sheets[4][2] is None  # 2e livre : 2 jeux seulement
+
+
+def test_deck_stack_batch_every_stack_is_a_whole_deck(db, files, tmp_path):
+    worker = Worker(db, files, _settings(separators=False, order="deck_stack", deck_stack_min_decks=9))
+    _, item = _order(db, files, tmp_path, _deck(tmp_path), copies=10)
+    worker.run_once(force_batches=True)
+    batch = db.batch(db.item(item["id"])["batch_id"])
+    m = batch["manifest"]
+    assert (m["order"], m["sheets_count"], m["book_sheets"]) == ("deck_stack", 54, 54)
+    assert len(m["stacks"]) == 10 and all(s["count"] == 54 and s["cards"] == 54 for s in m["stacks"])
+    assert m["stacks"][0]["first"].endswith("As de pique") and m["stacks"][0]["last"].endswith("Joker 2")
+
+
+def test_deck_stack_small_lot_falls_back_to_compact(db, files, tmp_path):
+    worker = Worker(db, files, _settings(separators=False, order="deck_stack", deck_stack_min_decks=9))
+    _, item = _order(db, files, tmp_path, _deck(tmp_path), copies=2)
+    worker.run_once(force_batches=True)
+    m = db.batch(db.item(item["id"])["batch_id"])["manifest"]
+    assert m["order"] == "cut_stack" and m["sheets_count"] == 6
+
+
+def test_deck_stack_waits_for_a_full_book():
+    from flux_print.orders.batching import BatchingRules, plan_batches
+    from flux_print.production import compute_layout
+    from flux_print.production.sheet import SRA3
+
+    spec = load_product("jeu-poker-54")
+    layout = compute_layout(SRA3, 63.5, 88.9, 3.0)
+    rules = BatchingRules(separators=False, order="deck_stack", max_wait_hours=48)
+    now = datetime.now(timezone.utc)
+    items = lambda n: [{"id": "a", "copies": n, "created_at": now, "paid_at": now}]
+    assert plan_batches(items(10), lambda i: spec, lambda s: layout, rules, now=now) == []
+    ready = plan_batches(items(17), lambda i: spec, lambda s: layout, rules, now=now)
+    assert ready and ready[0].order == "deck_stack" and ready[0].sheets == 54

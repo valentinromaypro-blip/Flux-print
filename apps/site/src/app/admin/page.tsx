@@ -112,7 +112,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
             {shown.map((t) => (
               <li key={`${t.kind}-${t.id}`}>
                 <span className={`pill ${TODO_LABEL[t.kind][1]}`}>{TODO_LABEL[t.kind][0]}</span>
-                <div><b>{t.number ? <a href={`/admin/commandes/${t.number}`}>{t.title}</a> : t.title}</b><span className="muted">{t.detail}</span></div>
+                <div><b>{t.number ? <a href={`/admin/commandes/${t.number}`}>{t.title}</a> : t.kind === "print" ? <a href={`/admin/lots/${t.id}`}>{t.title}</a> : t.title}</b><span className="muted">{t.detail}</span></div>
                 <span className="muted when">{ago(t.since)}</span>
                 <div className="acts">
                   {t.href && <a className="btn ghost small" href={t.href}>PDF</a>}
@@ -174,7 +174,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
           <div className="scroll"><table>
             <thead><tr><th>Lot</th><th>Support</th><th>Commandes</th><th>Feuilles</th><th>Remplissage</th><th>État</th><th>Fichiers</th></tr></thead>
             <tbody>{d.batches.map((b) => (
-              <tr key={b.id}><td><b>{b.id}</b></td><td>{MEDIA[b.media] ?? b.media}</td><td>{b.orders.length ? b.orders.map((n, i) => <span key={n}>{i ? ", " : ""}<a href={`/admin/commandes/${n}`}>{n}</a></span>) : "—"}</td>
+              <tr key={b.id}><td><a className="link" href={`/admin/lots/${b.id}`}><b>{b.id}</b></a></td><td>{MEDIA[b.media] ?? b.media}</td><td>{b.orders.length ? b.orders.map((n, i) => <span key={n}>{i ? ", " : ""}<a href={`/admin/commandes/${n}`}>{n}</a></span>) : "—"}</td>
                 <td className="num">{b.sheets ?? "—"} <span className="muted">({b.impressions ?? "—"} faces)</span></td>
                 <td>{b.fill_ratio ? <div className="fill"><i style={{ width: `${Math.round(Number(b.fill_ratio) * 100)}%` }} /><span>{Math.round(Number(b.fill_ratio) * 100)} %</span></div> : "—"}</td>
                 <td><span className={`status ${b.status}`}>{STATUS[b.status] ?? b.status}</span></td>

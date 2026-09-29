@@ -16,7 +16,10 @@ type Item = {
   source_path: string | null; prepared_path: string | null; preview_paths: string[]; design: unknown; error: string | null;
   batch_id: string | null; batch_status: string | null; batch_pdf: string | null; manifest: Manifest | null;
 };
-type Manifest = { items?: Record<string, string>; sheets?: { sheet: number; slots: { job: string; kind: string }[] }[]; stacking_instructions?: string };
+type Manifest = {
+  order?: string; items?: Record<string, string>; sheets?: { sheet: number; slots: { job: string; kind: string }[] }[];
+  stacks?: { book?: number; stack: number; job?: string }[];
+};
 type Event = { entity: string; type: string; created_at: Date; payload: Record<string, unknown> };
 
 const STATUS: Record<string, string> = {
@@ -34,12 +37,17 @@ const file = (bucket: string, path: string) => `/api/admin/files/${bucket}/${pat
 const when = (d: Date | null) => (d ? new Date(d).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
 
 /** Feuilles du lot où se trouve la ligne (pour la retrouver dans la pile après la coupe). */
-function sheetsOf(item: Item) {
+function whereIs(item: Item): string | null {
   const m = item.manifest;
   const job = Object.entries(m?.items ?? {}).find(([, id]) => id === item.id)?.[0];
   if (!m?.sheets || !job) return null;
+  if (m.order === "deck_stack") { // pile = jeu : la ou les piles de cette commande
+    const stacks = (m.stacks ?? []).filter((s) => s.job === job);
+    const books = new Set(stacks.map((s) => s.book ?? 1));
+    return `pile${stacks.length > 1 ? "s" : ""} ${stacks.map((s) => s.stack).join(", ")}${books.size > 1 || [...books][0] !== 1 ? ` (livre ${[...books].join(", ")})` : ""}`;
+  }
   const nums = m.sheets.filter((s) => s.slots.some((sl) => sl.job === job)).map((s) => s.sheet);
-  return nums.length ? { job, first: Math.min(...nums), last: Math.max(...nums) } : null;
+  return nums.length ? `feuilles ${Math.min(...nums)} à ${Math.max(...nums)} · repère ${job}` : null;
 }
 
 export default async function OrderPage({ params }: { params: Promise<{ number: string }> }) {
@@ -115,7 +123,7 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
       <section className="card">
         <div className="card-head"><h2>Contenu et fichiers d&apos;impression</h2></div>
         {items.map((i) => {
-          const where = sheetsOf(i);
+          const where = whereIs(i);
           return (
             <article key={i.id} className="item">
               <div className="thumbs-row">{i.preview_paths.map((p) => <img key={p} src={file("previews", p)} alt="" />)}{!i.preview_paths.length && <div className="ph" />}</div>
@@ -126,7 +134,7 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
                 <div className="files">
                   {i.source_path && <a className="file" href={file("uploads", i.source_path)}><b>Fichier client</b><span>{i.design ? "rendu de la création en ligne" : "tel que déposé"}</span></a>}
                   {i.prepared_path && <a className="file" href={file("production", i.prepared_path)}><b>PDF d&apos;impression</b><span>converti CMJN FOGRA51 · fonds perdus 3 mm</span></a>}
-                  {i.batch_pdf && <a className="file main" href={file("production", i.batch_pdf)}><b>Lot SRA3 {i.batch_id}</b><span>PDF/X-4 imposé · {where ? `feuilles ${where.first} à ${where.last} · repère ${where.job}` : "prêt pour le Fiery"}</span></a>}
+                  {i.batch_id && <a className="file main" href={`/admin/lots/${i.batch_id}`}><b>Lot SRA3 {i.batch_id}</b><span>{where ?? "fiche de lot et PDF pour le Fiery"}</span></a>}
                   {!i.prepared_path && !i.batch_pdf && <span className="muted small">Le PDF d&apos;impression est créé après le paiement, puis placé dans un lot SRA3.</span>}
                 </div>
               </div>

@@ -48,7 +48,8 @@ pdfmetrics.registerFont(TTFont(_FONT, "Vera.ttf"))  # police libre livrée avec 
 
 
 class SheetOrder(str, Enum):
-    CUT_STACK = "cut_stack"
+    DECK_STACK = "deck_stack"  # pile = jeu : autant de feuilles que de cartes, chaque pose = un jeu complet
+    CUT_STACK = "cut_stack"    # coupe et empile compact : le moins de feuilles, piles à reposer dans l'ordre
     SEQUENTIAL = "sequential"
 
 
@@ -81,25 +82,30 @@ class BatchResult:
     pieces: int
     output: Path
     manifest: dict = field(default_factory=dict)
+    book_length: int = 0  # mode pile = jeu : feuilles par livre (= pièces d'un jeu)
 
     @property
     def fill_ratio(self) -> float:
         return self.pieces / (len(self.sheets) * self.layout.per_sheet) if self.sheets else 0.0
 
 
-def build_sequence(jobs: list[Job], separators: bool = True) -> list[Piece]:
-    sequence: list[Piece] = []
+def build_decks(jobs: list[Job], separators: bool = True) -> list[list[Piece]]:
+    """Un élément par exemplaire : [séparateur éventuel] + ses pièces, dans l'ordre."""
+    decks: list[list[Piece]] = []
     for job in jobs:
         units = job.spec.imposition_units()
         for copy in range(job.copies):
+            deck = []
             if separators:
-                sequence.append(
-                    Piece(job.job_id, f"Séparateur {copy + 1}/{job.copies}", f"sep:{job.job_id}", 2 * copy,
-                          2 * copy + 1 if job.spec.duplex else None, kind="separator")
-                )
-            for u in units:
-                sequence.append(Piece(job.job_id, u.label, f"job:{job.job_id}", u.recto, u.verso))
-    return sequence
+                deck.append(Piece(job.job_id, f"Séparateur {copy + 1}/{job.copies}", f"sep:{job.job_id}", 2 * copy,
+                                  2 * copy + 1 if job.spec.duplex else None, kind="separator"))
+            deck += [Piece(job.job_id, u.label, f"job:{job.job_id}", u.recto, u.verso) for u in units]
+            decks.append(deck)
+    return decks
+
+
+def build_sequence(jobs: list[Job], separators: bool = True) -> list[Piece]:
+    return [piece for deck in build_decks(jobs, separators) for piece in deck]
 
 
 def plan_sheets(sequence: list[Piece], per_sheet: int, order: SheetOrder) -> list[list[Piece | None]]:
@@ -114,6 +120,19 @@ def plan_sheets(sequence: list[Piece], per_sheet: int, order: SheetOrder) -> lis
             sheet, slot = divmod(position, per_sheet)
         sheets[sheet][slot] = piece
     return sheets
+
+
+def plan_deck_stack(decks: list[list[Piece]], per_sheet: int) -> tuple[list[list[Piece | None]], int]:
+    """Pile = jeu : la feuille n porte la carte n de chacun des jeux (un jeu par pose).
+    Au-delà de `per_sheet` jeux, un deuxième « livre » de feuilles suit le premier.
+    Renvoie les feuilles et la longueur d'un livre (en feuilles)."""
+    length = max(len(d) for d in decks)
+    sheets: list[list[Piece | None]] = []
+    for start in range(0, len(decks), per_sheet):
+        book = decks[start:start + per_sheet]
+        for n in range(length):
+            sheets.append([book[k][n] if k < len(book) and n < len(book[k]) else None for k in range(per_sheet)])
+    return sheets, length
 
 
 def impose(
@@ -148,8 +167,12 @@ def impose(
     batch_id = batch_id or datetime.now(timezone.utc).strftime("L%Y%m%d-%H%M%S")
     page = spec.pages[0]
     layout = compute_layout(sheet, page.trim_w_mm, page.trim_h_mm, spec.bleed_mm, rotation=rotation, marks=marks)
-    sequence = build_sequence(jobs, separators)
-    sheets = plan_sheets(sequence, layout.per_sheet, order)
+    decks = build_decks(jobs, separators)
+    sequence = [piece for deck in decks for piece in deck]
+    if order is SheetOrder.DECK_STACK:
+        sheets, book_length = plan_deck_stack(decks, layout.per_sheet)
+    else:
+        sheets, book_length = plan_sheets(sequence, layout.per_sheet, order), 0
     duplex = spec.duplex
 
     condition = output_profile.identifier if output_profile is not None else "sans profil"
@@ -213,7 +236,7 @@ def impose(
         for pdf in sources.values():
             pdf.close()
 
-    result = BatchResult(batch_id, layout, order, sheets, len(sequence), output)
+    result = BatchResult(batch_id, layout, order, sheets, len(sequence), output, book_length=book_length)
     result.manifest = _manifest(result, jobs, spec, duplex)
     result.manifest["pdfx4"] = pdfx
     result.manifest["output_condition"] = condition
@@ -388,7 +411,17 @@ def _manifest(result: BatchResult, jobs: list[Job], spec: DocumentSpec, duplex: 
     layout = result.layout
     n = len(result.sheets)
     stacks = []
-    if result.order is SheetOrder.CUT_STACK:
+    if result.order is SheetOrder.DECK_STACK:
+        book_len = result.book_length
+        for b in range(0, n, book_len):
+            for k in range(layout.per_sheet):
+                items = [result.sheets[s][k] for s in range(b, min(n, b + book_len)) if result.sheets[s][k] is not None]
+                if items:
+                    units = [p for p in items if p.kind == "unit"]
+                    stacks.append({"book": b // book_len + 1, "stack": k + 1, "job": items[0].job_id, "count": len(items),
+                                   "first": f"{items[0].job_id} · {items[0].label}", "last": f"{items[-1].job_id} · {items[-1].label}",
+                                   "cards": len(units)})
+    elif result.order is SheetOrder.CUT_STACK:
         for k in range(layout.per_sheet):
             items = [result.sheets[s][k] for s in range(n) if result.sheets[s][k] is not None]
             if items:
@@ -407,6 +440,7 @@ def _manifest(result: BatchResult, jobs: list[Job], spec: DocumentSpec, duplex: 
         "layout": {"cols": layout.cols, "rows": layout.rows, "rotation": layout.rotation,
                    "per_sheet": layout.per_sheet, "description": layout.describe()},
         "order": result.order.value,
+        "book_sheets": result.book_length or None,
         "sheets_count": n,
         "impressions": n * (2 if duplex else 1),
         "pieces": result.pieces,
@@ -421,6 +455,9 @@ def _manifest(result: BatchResult, jobs: list[Job], spec: DocumentSpec, duplex: 
         ],
         "stacks": stacks,
         "stacking_instructions": (
+            "Couper chaque livre de feuilles d'un seul coup : chaque pile est un jeu complet et trié. "
+            "La fiche de lot indique la commande de chaque pile."
+            if result.order is SheetOrder.DECK_STACK else
             "Après coupe, poser la pile 1 sur la pile 2, puis l'ensemble sur la pile 3, etc. : "
             "la séquence des commandes est reconstituée, séparateurs compris."
             if result.order is SheetOrder.CUT_STACK else "Trier les pièces par pose après coupe."
