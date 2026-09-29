@@ -15,5 +15,5 @@ wp option update woocommerce_currency EUR
 wp option update woocommerce_default_country "FR"
 wp option update woocommerce_coming_soon no || true
 wp plugin activate carte-blanche
-wp carte-blanche demo || true
+wp carte-blanche setup || true
 echo "Prêt : http://localhost:8080  (admin : atelier / atelier)"

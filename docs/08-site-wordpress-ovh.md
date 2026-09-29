@@ -60,6 +60,12 @@ Le fichier : `dist/carte-blanche.zip` (fabriqué par `wordpress/build.sh`, envir
 
 **Vérifier** : menu **Carte Blanche → Diagnostic** (PHP, Imagick, Ghostscript, mémoire, durée d'exécution).
 
-**Créer le produit** : **Produits → Ajouter** → titre, prix, photo → dans **Données produit**, régler **Studio Carte Blanche** sur « Jeu de 54 cartes » (ou 32) et choisir le **carton** → **Publier**. Sur la fiche produit, le studio apparaît au-dessus ; le bouton « Ajouter au panier » n'apparaît qu'une fois la création contrôlée.
+**Mettre en place le site** : menu **Carte Blanche → Mise en place** → **Installer la structure du site**. En un clic :
+- 13 pages rédigées pour le référencement, en blocs natifs : accueil, comment ça marche, atelier, entreprises, famille, mariage, FAQ, guide PDF, livraison, contact, mentions légales, CGV, confidentialité ;
+- les deux jeux (54 cartes, belote) avec le studio branché, les illustrations, le menu principal et le pied de page ;
+- page d'accueil, permaliens, euro, TVA 20 %, prix TTC, CGV liées au paiement.
 
-Conseillé : **WooCommerce → Réglages → Produits** → cocher « Rediriger vers le panier après un ajout ».
+Rien n'est écrasé : relançable sans doublon. La page liste ensuite les champs **[à compléter]** (surlignés en jaune dans les pages) : SIRET, délais, contact…
+
+Thème conseillé : **Kadence** (menus classiques, rapide). Avec un thème en blocs (Twenty Twenty-Five), le pied de page du thème est à modifier dans Apparence → Éditeur.
+

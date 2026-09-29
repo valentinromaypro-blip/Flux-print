@@ -22,6 +22,8 @@ final class CB_Woo
         // Fiche produit (boutique)
         add_action('woocommerce_before_add_to_cart_button', [self::class, 'studio_mount']);
         add_action('wp_enqueue_scripts', [self::class, 'assets']);
+        // Listes de produits : un jeu se crée sur sa fiche, pas d'ajout direct au panier
+        add_filter('woocommerce_loop_add_to_cart_link', [self::class, 'loop_button'], 10, 2);
         // Panier
         add_filter('woocommerce_add_to_cart_validation', [self::class, 'validate_add'], 10, 3);
         add_filter('woocommerce_add_cart_item_data', [self::class, 'cart_item_data'], 10, 2);
@@ -92,6 +94,14 @@ final class CB_Woo
             'cardPx' => CB_Settings::card_px($deck),
             'bleedMm' => (float) CB_Settings::get('bleed_mm'),
         ]);
+    }
+
+    public static function loop_button(string $html, $product): string
+    {
+        if (!self::is_studio_product($product)) {
+            return $html;
+        }
+        return '<a href="' . esc_url($product->get_permalink()) . '" class="button wp-element-button">Créer mon jeu</a>';
     }
 
     public static function studio_mount(): void

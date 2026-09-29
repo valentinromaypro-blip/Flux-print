@@ -21,6 +21,8 @@ require_once CB_DIR . '/includes/class-store.php';
 require_once CB_DIR . '/includes/class-settings.php';
 require_once CB_DIR . '/engine/class-check.php';
 require_once CB_DIR . '/includes/class-rest.php';
+require_once CB_DIR . '/includes/class-blocks.php';
+require_once CB_DIR . '/includes/class-setup.php';
 // En cours de développement : les modules pas encore livrés sont ignorés.
 foreach (['/includes/class-woo.php', '/admin/class-admin.php'] as $cb_module) {
     if (is_file(CB_DIR . $cb_module)) {
@@ -39,6 +41,7 @@ add_action('plugins_loaded', function () {
     }
     CB_Rest::init();
     CB_Check::init();
+    CB_Setup::init();
     foreach (['CB_Woo', 'CB_Admin'] as $cb_class) {
         if (class_exists($cb_class)) {
             $cb_class::init();
