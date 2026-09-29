@@ -10,6 +10,7 @@ type Manifest = {
   book_sheets: number | null; fill_ratio: number; layout: { description: string; per_sheet: number };
   slots: { slot: number; trim_mm: [number, number, number, number] }[]; stacks: Stack[]; stacking_instructions: string;
   items?: Record<string, string>; reason?: string;
+  decks?: { job: string; copy: number; book: number; stacks: number[]; cards: number }[];
 };
 const MEDIA: Record<string, string> = { "cmdm-350g": "Couché mat 350 g", "carte-graphique-300g": "Carte graphique 300 g" };
 const MM = 72 / 25.4;
@@ -53,12 +54,20 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
     const item = rows.find((r) => r.id === (m.items ?? {})[job ?? ""]);
     return item ? { number: item.number, copies: item.copies } : null;
   };
-  const deck = m.order === "deck_stack";
+  const lanes = m.order === "lanes";
+  const deck = m.order === "deck_stack" || lanes;
   const books = deck ? [...new Set(m.stacks.map((s) => s.book ?? 1))] : [1];
   // Numéro d'exemplaire pour les commandes de plusieurs jeux (jeu 2/3)
   const copyIndex = new Map<string, number>();
   const labelDeck = (s: Stack): [string, string] => {
     const o = orderOf(s.job);
+    if (lanes) {
+      const d = m.decks?.find((x) => x.book === (s.book ?? 1) && x.stacks.includes(s.stack));
+      if (d) {
+        const copy = o && o.copies > 1 ? `jeu ${d.copy}/${o.copies}` : `${d.cards} cartes`;
+        return [o?.number ?? d.job, d.stacks.length > 1 ? `${copy} · ${d.stacks.indexOf(s.stack) + 1}/${d.stacks.length}` : copy];
+      }
+    }
     const n = (copyIndex.get(`${s.book}-${s.stack}`) ?? 0);
     return [o?.number ?? s.job ?? "?", o && o.copies > 1 ? `jeu ${n}/${o.copies}` : `${s.cards ?? s.count} cartes`];
   };
@@ -83,10 +92,10 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
       </header>
 
       <section className="tiles">
-        <div className="tile"><span>Mode</span><b>{deck ? "Pile = jeu" : "Coupe et empile"}</b><small>{deck ? "chaque pile est un jeu complet" : "piles à reposer dans l'ordre"}</small></div>
+        <div className="tile"><span>Mode</span><b>{lanes ? "Piles alignées" : deck ? "Pile = jeu" : "Coupe et empile"}</b><small>{lanes ? "une pile = un seul jeu" : deck ? "chaque pile est un jeu complet" : "piles à reposer dans l'ordre"}</small></div>
         <div className="tile"><span>Feuilles SRA3</span><b>{m.sheets_count}</b><small>{m.impressions} faces imprimées</small></div>
         <div className="tile"><span>{deck ? "Livres" : "Piles"}</span><b>{deck ? books.length : m.stacks.length}</b><small>{deck ? `${m.book_sheets} feuilles par coupe` : `${m.sheets_count} feuilles par coupe`}</small></div>
-        <div className="tile"><span>Jeux</span><b>{deck ? m.stacks.length : rows.reduce((n, r) => n + r.copies, 0)}</b><small>remplissage {Math.round(m.fill_ratio * 100)} %</small></div>
+        <div className="tile"><span>Jeux</span><b>{lanes ? m.decks?.length ?? 0 : deck ? m.stacks.length : rows.reduce((n, r) => n + r.copies, 0)}</b><small>remplissage {Math.round(m.fill_ratio * 100)} %</small></div>
       </section>
 
       <section className="card">
@@ -96,7 +105,9 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
           {deck
             ? <li>Couper <b>chaque livre de {m.book_sheets} feuilles d&apos;un seul coup</b> au massicot, en suivant les repères.</li>
             : <li>Couper les {m.sheets_count} feuilles d&apos;un seul coup au massicot, en suivant les repères.</li>}
-          {deck
+          {lanes
+            ? <li>Chaque pile n&apos;appartient qu&apos;à un seul jeu. Pour un jeu sur plusieurs piles, <b>poser la première pile sur la suivante</b>, dans l&apos;ordre indiqué ci-dessous (1/3 sur 2/3 sur 3/3) : le jeu est complet et trié.</li>
+            : deck
             ? <li>Chaque pile est <b>un jeu complet et trié</b> : la mettre en étui selon le plan ci-dessous (vue du recto, feuille posée normalement).</li>
             : <li>Poser la pile 1 sur la pile 2, puis l&apos;ensemble sur la pile 3, etc. : les jeux se suivent dans l&apos;ordre des commandes.</li>}
           <li>Coins arrondis, mise en étui, puis « Imprimé ✓ » dans l&apos;atelier.</li>
@@ -114,9 +125,14 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
             <div className="map-wrap">
               <SheetMap m={m} stacks={stacks} label={deck ? labelDeck : labelCompact} />
               <ul className="map-legend">
-                {[...new Set(stacks.map((s) => orderOf(s.job)?.number ?? s.job))].map((n) => (
-                  <li key={n}><a href={`/admin/commandes/${n}`}>{n}</a> · piles {stacks.filter((s) => (orderOf(s.job)?.number ?? s.job) === n).map((s) => s.stack).join(", ")}</li>
-                ))}
+                {lanes
+                  ? (m.decks ?? []).filter((d) => d.book === b).map((d) => {
+                      const o = orderOf(d.job);
+                      return <li key={`${d.job}-${d.copy}`}><a href={`/admin/commandes/${o?.number}`}>{o?.number ?? d.job}</a>{o && o.copies > 1 ? ` jeu ${d.copy}/${o.copies}` : ""} · {d.cards} cartes · piles {d.stacks.join(" → ")}</li>;
+                    })
+                  : [...new Set(stacks.map((s) => orderOf(s.job)?.number ?? s.job))].map((n) => (
+                      <li key={n}><a href={`/admin/commandes/${n}`}>{n}</a> · piles {stacks.filter((s) => (orderOf(s.job)?.number ?? s.job) === n).map((s) => s.stack).join(", ")}</li>
+                    ))}
               </ul>
             </div>
           </section>

@@ -341,3 +341,64 @@ def test_deck_stack_waits_for_a_full_book():
     assert plan_batches(items(10), lambda i: spec, lambda s: layout, rules, now=now) == []
     ready = plan_batches(items(17), lambda i: spec, lambda s: layout, rules, now=now)
     assert ready and ready[0].order == "deck_stack" and ready[0].sheets == 54
+
+
+# --- Piles alignées (modèle par défaut) ------------------------------------------------------
+
+def test_lanes_every_stack_belongs_to_one_deck_and_follows_card_order():
+    from flux_print.production.imposition import Piece, best_lane_plan, plan_lanes
+
+    decks = [[Piece(f"J{d}", f"c{n}", "s", n, None) for n in range(length)]
+             for d, length in enumerate([54, 54, 32, 32, 100, 22, 54])]
+    plan = best_lane_plan([len(d) for d in decks], 18)
+    sheets = plan_lanes(decks, 18, plan)
+    n = plan.sheets_per_book
+    for book in range(plan.books):
+        for k in range(18):
+            pile = [sheets[book * n + r][k] for r in range(n) if sheets[book * n + r][k] is not None]
+            assert len({p.job_id for p in pile}) <= 1  # jamais deux jeux dans une pile
+    for deck, (book, first, lanes) in zip(decks, plan.placement):
+        # ramasser les piles du jeu dans l'ordre redonne le jeu dans l'ordre
+        picked = [sheets[book * n + r][first + ln] for ln in range(lanes) for r in range(n)]
+        assert [p.label for p in picked if p is not None] == [p.label for p in deck]
+    assert plan.sheets < 54  # mélange 32/54/100/22 en un seul petit livre
+
+
+def test_lanes_cost_matches_the_printer_method_for_full_books():
+    from flux_print.production.imposition import best_lane_plan
+
+    assert best_lane_plan([54] * 18, 18).sheets_per_book == 54   # 18 jeux : pile = jeu
+    assert best_lane_plan([54] * 2, 18).sheets == 6              # 2 jeux : 6 feuilles, pas 54
+    assert best_lane_plan([54] * 18, 18, max_sheets=30).sheets_per_book <= 30  # limite du massicot
+
+
+def test_lanes_batch_mixes_32_and_54_card_decks(db, files, tmp_path):
+    worker = Worker(db, files, _settings(separators=False, order="lanes"))
+    _, a = _order(db, files, tmp_path, _deck(tmp_path), copies=3)
+    _, b = _order(db, files, tmp_path, _deck(tmp_path, "d32.pdf", "jeu-poker-32"), product="jeu-poker-32", copies=2)
+    worker.run_once(force_batches=True)
+    assert db.item(a["id"])["batch_id"] == db.item(b["id"])["batch_id"]
+    m = db.batch(db.item(a["id"])["batch_id"])["manifest"]
+    assert m["order"] == "lanes" and len(m["decks"]) == 5
+    assert sorted(d["cards"] for d in m["decks"]) == [32, 32, 54, 54, 54]
+    assert m["sheets_count"] <= 18
+
+
+def test_press_slots_launch_what_was_paid_before():
+    from zoneinfo import ZoneInfo
+
+    from flux_print.orders.batching import BatchingRules, plan_batches
+    from flux_print.production import compute_layout
+    from flux_print.production.sheet import SRA3
+
+    spec = load_product("jeu-poker-54")
+    layout = compute_layout(SRA3, 63.5, 88.9, 3.0)
+    rules = BatchingRules(separators=False, order="lanes", launch_times=("11:00", "16:00"), max_wait_hours=48)
+    paris = ZoneInfo("Europe/Paris")
+    paid = datetime(2026, 9, 29, 10, 30, tzinfo=paris)
+    item = [{"id": "a", "copies": 1, "created_at": paid, "paid_at": paid}]
+    run = lambda h, m=0: plan_batches(item, lambda i: spec, lambda s: layout, rules, now=datetime(2026, 9, 29, h, m, tzinfo=paris))
+    assert run(10, 59) == []
+    assert run(11, 1)[0].reason == "créneau 11:00"
+    late = [{"id": "b", "copies": 1, "created_at": paid.replace(hour=11, minute=30), "paid_at": paid.replace(hour=11, minute=30)}]
+    assert plan_batches(late, lambda i: spec, lambda s: layout, rules, now=datetime(2026, 9, 29, 12, tzinfo=paris)) == []

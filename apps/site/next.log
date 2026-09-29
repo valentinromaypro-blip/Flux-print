@@ -1,0 +1,13 @@
+▲ Next.js 16.3.7 (Turbopack)
+- Local:         http://localhost:3219
+- Network:       http://192.0.2.2:3219
+- Environments: .env.local
+✓ Ready in 615ms
+✓ Running next.config.ts took 157ms
+- Experiments (use with caution):
+  · serverActions
+
+ GET / 200 in 1879ms (next.js: 1446ms, application-code: 433ms)
+ GET /admin/lots/L20260929-140729-225 200 in 1309ms (next.js: 1097ms, proxy.ts: 11ms, application-code: 201ms)
+ GET /api/cart/items 200 in 202ms (next.js: 149ms, application-code: 53ms)
+ GET /api/cart/items 200 in 203ms (next.js: 180ms, application-code: 23ms)

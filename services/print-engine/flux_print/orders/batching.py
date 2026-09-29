@@ -14,6 +14,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 from ..products.base import DocumentSpec
 from ..production.sheet import Layout
@@ -26,10 +27,16 @@ class BatchingRules:
     urgent_days: int = 2
     min_sheets: int = 1
     separators: bool = True
-    order: str = "deck_stack"
-    # Pile = jeu demande autant de feuilles que de cartes, quel que soit le nombre de jeux :
-    # en dessous de ce nombre de jeux, le lot passe en coupe et empile compact (moins de feuilles).
+    order: str = "lanes"
+    # Pile = jeu (deck_stack) : en dessous de ce nombre de jeux, passage en coupe et empile compact.
     deck_stack_min_decks: int = 9
+    # Piles alignées (lanes) : hauteur de coupe maximale et coûts utilisés pour choisir la hauteur.
+    max_cut_sheets: int = 100
+    sheet_cost: float = 0.25
+    merge_cost: float = 0.03
+    cut_cost: float = 1.5
+    # Créneaux presse (heure de Paris) : à chaque créneau, les jeux payés avant partent en lot.
+    launch_times: tuple[str, ...] = ()
 
 
 @dataclass
@@ -45,6 +52,8 @@ class Candidate:
     deck_length: int = 0  # pièces par exemplaire (identique dans le lot en mode pile = jeu)
     preferred_order: str = "cut_stack"
     min_decks: int = 0
+    lengths: list[int] = field(default_factory=list)  # pièces de chaque exemplaire
+    rules: BatchingRules | None = None
 
     @property
     def order(self) -> str:
@@ -53,10 +62,18 @@ class Candidate:
             return "cut_stack"
         return self.preferred_order
 
+    def lane_plan(self):
+        from ..production.imposition import best_lane_plan
+
+        r = self.rules or BatchingRules()
+        return best_lane_plan(self.lengths, self.layout.per_sheet, r.max_cut_sheets, r.sheet_cost, r.merge_cost, r.cut_cost)
+
     @property
     def sheets(self) -> int:
         if not self.pieces:
             return 0
+        if self.order == "lanes":
+            return self.lane_plan().sheets
         if self.order == "deck_stack":
             return math.ceil(self.decks / self.layout.per_sheet) * self.deck_length
         return math.ceil(self.pieces / self.layout.per_sheet)
@@ -104,12 +121,13 @@ def plan_batches(
             key += f"|{length}p"  # pile = jeu : seuls des jeux de même longueur partagent un livre
         if key not in groups:
             groups[key] = Candidate(key, spec.media, layout_for(spec), deck_length=length,
-                                    preferred_order=rules.order, min_decks=rules.deck_stack_min_decks)
+                                    preferred_order=rules.order, min_decks=rules.deck_stack_min_decks, rules=rules)
         group = groups[key]
         group.items.append(item)
         group.specs[str(item["id"])] = spec
         group.pieces += pieces_for(item, spec, rules.separators)
         group.decks += int(item["copies"])
+        group.lengths += [length] * int(item["copies"])
 
     ready = []
     for group in groups.values():
@@ -117,17 +135,33 @@ def plan_batches(
         waited_h = (now - oldest).total_seconds() / 3600
         dues = [i["due_date"] for i in group.items if i.get("due_date")]
         urgent = any((_as_date(d) - now.date()).days <= rules.urgent_days for d in dues)
+        slot = _last_slot(rules.launch_times, now)
         if force:
             group.reason = "forcé"
         elif urgent:
             group.reason = "commande urgente"
+        elif slot and oldest <= slot:
+            group.reason = f"créneau {slot.astimezone(PARIS):%H:%M}"
         elif waited_h >= rules.max_wait_hours:
             group.reason = f"attente {waited_h:.0f} h"
-        elif group.sheets >= rules.min_sheets and group.launch_fill >= rules.min_fill_ratio:
+        elif rules.launch_times and group.sheets >= rules.max_cut_sheets:
+            group.reason = "volume : un livre plein"
+        elif not rules.launch_times and group.sheets >= rules.min_sheets and group.launch_fill >= rules.min_fill_ratio:
             group.reason = f"remplissage {group.launch_fill:.0%}"
         if group.reason:
             ready.append(group)
     return ready
+
+
+PARIS = ZoneInfo("Europe/Paris")
+
+
+def _last_slot(times: tuple[str, ...], now: datetime) -> datetime | None:
+    """Dernier créneau presse passé (aujourd'hui, heure de Paris), ou None."""
+    local = now.astimezone(PARIS)
+    passed = [local.replace(hour=int(t[:2]), minute=int(t[3:5]), second=0, microsecond=0) for t in times]
+    passed = [t for t in passed if t <= local]
+    return max(passed) if passed else None
 
 
 def _as_utc(value) -> datetime:

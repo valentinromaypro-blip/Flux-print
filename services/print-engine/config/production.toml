@@ -4,24 +4,30 @@ press = "xerox-iridesse"
 sheet = "SRA3"
 
 [batching]
-# Un lot part dès que l'une des conditions est remplie :
-min_fill_ratio = 0.90   # remplissage des feuilles atteint (90 %)
-max_wait_hours = 24     # la plus ancienne ligne attend depuis 24 h
-urgent_days = 2         # une commande doit être expédiée dans 2 jours ou moins
-# Lot minimum hors urgence : évite de lancer une feuille à moitié vide trop tôt.
-min_sheets = 1
-
-# Imposition :
-#   "deck_stack" : pile = jeu. Autant de feuilles que de cartes (54), chaque pose porte un jeu entier :
-#                  après coupe, chaque pile est un jeu complet et trié (18 jeux par « livre » de 54 feuilles).
-#   "cut_stack"  : coupe et empile compact. Le moins de feuilles possible, piles à reposer dans l'ordre.
-order = "deck_stack"
-# En dessous de ce nombre de jeux, le lot passe en « cut_stack » : un livre de 54 feuilles
-# pour 2 jeux gâcherait ~50 feuilles. Mettre 0 pour toujours imprimer en pile = jeu.
-deck_stack_min_decks = 9
-# Carte séparatrice (n° de commande + QR) en tête de chaque jeu. En pile = jeu, la fiche de lot
-# indique déjà la commande de chaque pile : inutile par défaut (54 feuilles au lieu de 55).
+# Imposition des jeux :
+#   "lanes"      : piles alignées (recommandé). Le moteur choisit la hauteur de coupe (nombre de feuilles)
+#                  la moins chère ; chaque jeu occupe une ou plusieurs piles consécutives, une pile n'appartient
+#                  jamais qu'à un seul jeu (ni séparateur ni tri). 18 jeux de 54 = 54 feuilles, 1 pile par jeu.
+#   "deck_stack" : pile = jeu, toujours autant de feuilles que de cartes.
+#   "cut_stack"  : coupe et empile compact (séquence continue, séparateurs conseillés).
+order = "lanes"
 separators = false
+
+# Créneaux presse (heure de Paris) : à chaque créneau, tout ce qui a été payé avant part en lot.
+launch_times = ["11:00", "16:00"]
+urgent_days = 2         # une commande à expédier dans 2 jours ou moins part tout de suite
+max_wait_hours = 30     # filet de sécurité (week-end, créneau manqué)
+
+# Massicot et coûts, pour choisir la hauteur de coupe :
+max_cut_sheets = 100    # feuilles maximum par coupe (350 g ≈ 0,4 mm la feuille)
+sheet_cost_eur = 0.25   # feuille SRA3 imprimée recto verso (papier + 2 clics)
+cut_cost_eur = 1.50     # une coupe complète d'un livre au massicot (~3 min)
+merge_cost_eur = 0.03   # poser une pile sur la suivante (~3 s)
+
+# Sans créneaux (launch_times = []), un lot part dès que ses feuilles sont remplies à :
+min_fill_ratio = 0.90
+min_sheets = 1
+deck_stack_min_decks = 9  # mode deck_stack : sous ce nombre de jeux, passage en compact
 marks = "edge"          # traits de coupe prolongés (massicot)
 
 [previews]

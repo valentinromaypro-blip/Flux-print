@@ -48,6 +48,7 @@ pdfmetrics.registerFont(TTFont(_FONT, "Vera.ttf"))  # police libre livrée avec 
 
 
 class SheetOrder(str, Enum):
+    LANES = "lanes"            # piles alignées : hauteur optimisée, chaque pile n'appartient qu'à un seul jeu
     DECK_STACK = "deck_stack"  # pile = jeu : autant de feuilles que de cartes, chaque pose = un jeu complet
     CUT_STACK = "cut_stack"    # coupe et empile compact : le moins de feuilles, piles à reposer dans l'ordre
     SEQUENTIAL = "sequential"
@@ -135,6 +136,68 @@ def plan_deck_stack(decks: list[list[Piece]], per_sheet: int) -> tuple[list[list
     return sheets, length
 
 
+@dataclass(frozen=True)
+class LanePlan:
+    """Plan « piles alignées » : `sheets_per_book` feuilles par coupe, et pour chaque jeu
+    (dans l'ordre) son livre et ses piles consécutives."""
+    sheets_per_book: int
+    books: int
+    placement: list[tuple[int, int, int]]  # (livre, première pile, nombre de piles) par jeu
+
+    @property
+    def sheets(self) -> int:
+        return self.books * self.sheets_per_book
+
+    @property
+    def merges(self) -> int:
+        return sum(n - 1 for _, _, n in self.placement)
+
+
+def lane_plan(lengths: list[int], per_sheet: int, sheets_per_book: int) -> LanePlan:
+    """Range les jeux dans des livres de `per_sheet` piles : un jeu de L pièces prend ⌈L/N⌉ piles
+    consécutives du même livre (premier livre où elles tiennent, dans l'ordre des commandes)."""
+    free: list[int] = []  # prochaine pile libre de chaque livre
+    placement = []
+    for length in lengths:
+        lanes = math.ceil(length / sheets_per_book)
+        if lanes > per_sheet:
+            raise ValueError("Jeu trop long pour la hauteur de coupe choisie.")
+        book = next((b for b, f in enumerate(free) if f + lanes <= per_sheet), None)
+        if book is None:
+            free.append(0)
+            book = len(free) - 1
+        placement.append((book, free[book], lanes))
+        free[book] += lanes
+    return LanePlan(sheets_per_book, len(free), placement)
+
+
+def best_lane_plan(lengths: list[int], per_sheet: int, max_sheets: int = 100,
+                   sheet_cost: float = 0.25, merge_cost: float = 0.03, cut_cost: float = 1.5) -> LanePlan:
+    """Hauteur de livre la moins chère : feuilles imprimées + coupes au massicot (une par livre)
+    + piles à reposer l'une sur l'autre. À coût égal, la plus haute (moins de manipulations)."""
+    longest = max(lengths)
+    lower = max(1, math.ceil(longest / per_sheet))
+    best: LanePlan | None = None
+    best_cost = 0.0
+    for n in range(lower, min(longest, max_sheets) + 1):
+        plan = lane_plan(lengths, per_sheet, n)
+        cost = plan.sheets * sheet_cost + plan.merges * merge_cost + plan.books * cut_cost
+        if best is None or cost <= best_cost + 1e-9:
+            best, best_cost = plan, cost
+    assert best is not None
+    return best
+
+
+def plan_lanes(decks: list[list[Piece]], per_sheet: int, plan: LanePlan) -> list[list[Piece | None]]:
+    n = plan.sheets_per_book
+    sheets: list[list[Piece | None]] = [[None] * per_sheet for _ in range(plan.sheets)]
+    for deck, (book, first, _) in zip(decks, plan.placement):
+        for i, piece in enumerate(deck):
+            lane, row = divmod(i, n)
+            sheets[book * n + row][first + lane] = piece
+    return sheets
+
+
 def impose(
     jobs: list[Job],
     output: str | Path,
@@ -143,6 +206,10 @@ def impose(
     separators: bool = True,
     rotation: int | None = None,
     batch_id: str | None = None,
+    max_cut_sheets: int = 100,
+    sheet_cost: float = 0.25,
+    merge_cost: float = 0.03,
+    cut_cost: float = 1.5,
     manifest_path: str | Path | None = None,
     marks: MarkStyle | str = MarkStyle.EDGE,
     output_profile=None,
@@ -169,7 +236,11 @@ def impose(
     layout = compute_layout(sheet, page.trim_w_mm, page.trim_h_mm, spec.bleed_mm, rotation=rotation, marks=marks)
     decks = build_decks(jobs, separators)
     sequence = [piece for deck in decks for piece in deck]
-    if order is SheetOrder.DECK_STACK:
+    lanes: LanePlan | None = None
+    if order is SheetOrder.LANES:
+        lanes = best_lane_plan([len(d) for d in decks], layout.per_sheet, max_cut_sheets, sheet_cost, merge_cost, cut_cost)
+        sheets, book_length = plan_lanes(decks, layout.per_sheet, lanes), lanes.sheets_per_book
+    elif order is SheetOrder.DECK_STACK:
         sheets, book_length = plan_deck_stack(decks, layout.per_sheet)
     else:
         sheets, book_length = plan_sheets(sequence, layout.per_sheet, order), 0
@@ -238,6 +309,8 @@ def impose(
 
     result = BatchResult(batch_id, layout, order, sheets, len(sequence), output, book_length=book_length)
     result.manifest = _manifest(result, jobs, spec, duplex)
+    if lanes is not None:
+        result.manifest["decks"] = _lane_decks(decks, lanes)
     result.manifest["pdfx4"] = pdfx
     result.manifest["output_condition"] = condition
     result.manifest["press"] = press_name
@@ -407,11 +480,23 @@ def _separator_pdf(job: Job, duplex: bool) -> bytes:
     return out.getvalue()
 
 
+def _lane_decks(decks: list[list[Piece]], plan: LanePlan) -> list[dict]:
+    """Pour la fiche de lot : chaque jeu, son livre et ses piles, dans l'ordre de ramassage."""
+    copies: dict[str, int] = {}
+    out = []
+    for deck, (book, first, lanes) in zip(decks, plan.placement):
+        job = deck[0].job_id
+        copies[job] = copies.get(job, 0) + 1
+        out.append({"job": job, "copy": copies[job], "book": book + 1, "stacks": list(range(first + 1, first + lanes + 1)),
+                    "cards": sum(1 for p in deck if p.kind == "unit")})
+    return out
+
+
 def _manifest(result: BatchResult, jobs: list[Job], spec: DocumentSpec, duplex: bool) -> dict:
     layout = result.layout
     n = len(result.sheets)
     stacks = []
-    if result.order is SheetOrder.DECK_STACK:
+    if result.order in (SheetOrder.DECK_STACK, SheetOrder.LANES):
         book_len = result.book_length
         for b in range(0, n, book_len):
             for k in range(layout.per_sheet):
@@ -458,6 +543,9 @@ def _manifest(result: BatchResult, jobs: list[Job], spec: DocumentSpec, duplex: 
             "Couper chaque livre de feuilles d'un seul coup : chaque pile est un jeu complet et trié. "
             "La fiche de lot indique la commande de chaque pile."
             if result.order is SheetOrder.DECK_STACK else
+            "Couper chaque livre d'un seul coup. Chaque pile n'appartient qu'à un seul jeu : pour un jeu "
+            "sur plusieurs piles, poser la première pile sur la suivante, dans l'ordre de la fiche de lot."
+            if result.order is SheetOrder.LANES else
             "Après coupe, poser la pile 1 sur la pile 2, puis l'ensemble sur la pile 3, etc. : "
             "la séquence des commandes est reconstituée, séparateurs compris."
             if result.order is SheetOrder.CUT_STACK else "Trier les pièces par pose après coupe."

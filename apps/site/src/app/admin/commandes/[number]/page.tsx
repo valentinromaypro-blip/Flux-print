@@ -19,6 +19,7 @@ type Item = {
 type Manifest = {
   order?: string; items?: Record<string, string>; sheets?: { sheet: number; slots: { job: string; kind: string }[] }[];
   stacks?: { book?: number; stack: number; job?: string }[];
+  decks?: { job: string; copy: number; book: number; stacks: number[] }[];
 };
 type Event = { entity: string; type: string; created_at: Date; payload: Record<string, unknown> };
 
@@ -41,6 +42,10 @@ function whereIs(item: Item): string | null {
   const m = item.manifest;
   const job = Object.entries(m?.items ?? {}).find(([, id]) => id === item.id)?.[0];
   if (!m?.sheets || !job) return null;
+  if (m.order === "lanes") { // piles alignées : chaque jeu, ses piles dans l'ordre de ramassage
+    const decks = (m.decks ?? []).filter((d) => d.job === job);
+    return decks.map((d) => `${decks.length > 1 ? `jeu ${d.copy} : ` : ""}piles ${d.stacks.join("→")}${d.book > 1 ? ` (livre ${d.book})` : ""}`).join(" · ");
+  }
   if (m.order === "deck_stack") { // pile = jeu : la ou les piles de cette commande
     const stacks = (m.stacks ?? []).filter((s) => s.job === job);
     const books = new Set(stacks.map((s) => s.book ?? 1));
