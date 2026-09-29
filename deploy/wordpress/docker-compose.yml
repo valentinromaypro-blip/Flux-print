@@ -1,0 +1,53 @@
+# Banc d'essai local du plugin Carte Blanche : WordPress + WooCommerce + le plugin.
+#   docker compose -f deploy/wordpress/docker-compose.yml up -d     puis http://localhost:8080
+# L'installation de WordPress et WooCommerce est automatique (service « setup »).
+name: carte-blanche-wp
+
+services:
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wp
+      MARIADB_PASSWORD: wp
+      MARIADB_ROOT_PASSWORD: root
+    volumes: [db:/var/lib/mysql]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      retries: 40
+
+  wordpress:
+    image: ${WP_IMAGE:-wordpress:php8.2-apache}
+    ports: ["8080:80"]
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wp
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_ENVIRONMENT_TYPE', 'local');
+    volumes:
+      - html:/var/www/html
+      - ../../wordpress/carte-blanche:/var/www/html/wp-content/plugins/carte-blanche
+    depends_on:
+      db: { condition: service_healthy }
+
+  setup:
+    image: wordpress:cli-php8.2
+    user: "33:33"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wp
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - html:/var/www/html
+      - ../../wordpress/carte-blanche:/var/www/html/wp-content/plugins/carte-blanche
+      - ./setup.sh:/setup.sh:ro
+    entrypoint: ["sh", "/setup.sh"]
+    depends_on: [wordpress]
+
+volumes:
+  db:
+  html:
