@@ -52,6 +52,7 @@ final class CB_Admin
                 esc_html($value), $ok ? '' : esc_html($hint));
         }
         echo '</tbody></table>';
+        self::shop_checks();
         $products = get_posts(['post_type' => 'product', 'meta_key' => '_cb_deck', 'meta_compare' => '!=', 'meta_value' => '', 'numberposts' => 20]);
         echo '<h2>Produits avec le studio</h2>';
         if (!$products) {
@@ -123,5 +124,45 @@ final class CB_Admin
             echo '</ol>';
         }
         echo '</div>';
+    }
+
+    /** Boutique : ce qui fait perdre le panier entre deux pages (adresses, cookies, cache). */
+    private static function shop_checks(): void
+    {
+        $home = home_url('/');
+        $parts = fn($u) => [(string) wp_parse_url($u, PHP_URL_SCHEME), (string) wp_parse_url($u, PHP_URL_HOST)];
+        [$hs, $hh] = $parts($home);
+        [$ss, $sh] = $parts(site_url('/'));
+        $cart = function_exists('wc_get_cart_url') ? wc_get_cart_url() : '';
+        $checkout = function_exists('wc_get_checkout_url') ? wc_get_checkout_url() : '';
+        $same = fn($u) => $u && $parts($u) === [$hs, $hh];
+        $checkout_id = function_exists('wc_get_page_id') ? wc_get_page_id('checkout') : 0;
+        $checkout_post = $checkout_id > 0 ? get_post($checkout_id) : null;
+        $has_checkout = $checkout_post && (has_block('woocommerce/checkout', $checkout_post) || has_shortcode($checkout_post->post_content, 'woocommerce_checkout'));
+        $plugins = array_merge(array_keys((array) get_site_option('active_sitewide_plugins', [])), (array) get_option('active_plugins', []));
+        $caches = array_values(array_filter($plugins, fn($p) => preg_match('/cache|rocket|speed|optimi|litespeed|autoptimize|hummingbird|swift/i', $p)));
+        $rows = [
+            ['Adresse du site = adresse WordPress', [$hs, $hh] === [$ss, $sh], home_url() . ' · ' . site_url(),
+                'Admin du réseau → Sites → carteblanche → Modifier : les deux adresses doivent être identiques (même http/https, même nom).'],
+            ['Page vue en ' . (is_ssl() ? 'https' : 'http') . ', site réglé en ' . $hs, (is_ssl() ? 'https' : 'http') === $hs, is_ssl() ? 'https' : 'http',
+                $hs === 'https' ? 'Le site est réglé en https mais le certificat ne répond pas : repasser l’adresse en http:// tant que le cadenas n’apparaît pas.' : 'Ouvrir l’admin avec l’adresse du site.'],
+            ['Panier sur la même adresse', $same($cart), $cart, 'WooCommerce → Réglages → Avancé : page Panier.'],
+            ['Commande sur la même adresse', $same($checkout), $checkout, 'WooCommerce → Réglages → Avancé : page Validation de la commande.'],
+            ['Page de commande valide', (bool) $has_checkout, $checkout_post ? $checkout_post->post_title . ' (#' . $checkout_id . ', ' . $checkout_post->post_status . ')' : 'absente',
+                'WooCommerce → État → Outils → « Créer les pages par défaut ».'],
+            ['Cookies', !defined('COOKIE_DOMAIN') || !COOKIE_DOMAIN || str_ends_with($hh, ltrim((string) COOKIE_DOMAIN, '.')),
+                'COOKIE_DOMAIN=' . (defined('COOKIE_DOMAIN') ? var_export(COOKIE_DOMAIN, true) : 'non défini') . ' · COOKIEPATH=' . COOKIEPATH,
+                'Dans wp-config.php, COOKIE_DOMAIN ne correspond pas à ce site.'],
+            ['Cache de pages', !(defined('WP_CACHE') && WP_CACHE) && !$caches, (defined('WP_CACHE') && WP_CACHE ? 'WP_CACHE actif · ' : '') . ($caches ? implode(', ', $caches) : 'aucune extension de cache'),
+                'Exclure du cache les pages Panier, Commande et Mon compte (ou désactiver le cache sur ce site).'],
+        ];
+        echo '<h2>Boutique : panier et commande</h2><table class="widefat striped" style="max-width:960px"><tbody>';
+        foreach ($rows as [$label, $ok, $value, $hint]) {
+            printf('<tr><td>%s</td><td>%s</td><td><code>%s</code></td><td>%s</td></tr>', esc_html($label),
+                $ok ? '<span style="color:#1e7a4f;font-weight:600">✔ OK</span>' : '<span style="color:#c4172c;font-weight:600">✘ À corriger</span>',
+                esc_html($value), $ok ? '' : esc_html($hint));
+        }
+        echo '</tbody></table>';
+        echo '<p style="max-width:960px">Extensions actives : <code>' . esc_html(implode(', ', array_map(fn($p) => dirname($p) === '.' ? $p : dirname($p), $plugins))) . '</code></p>';
     }
 }
