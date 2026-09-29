@@ -102,8 +102,8 @@ export async function drawBack(target: HTMLCanvasElement, back: Back, photo: Fac
   const c = target.getContext("2d")!;
   c.clearRect(0, 0, W, H);
   c.beginPath(); c.roundRect(0, 0, W, H, 3.5 * u); c.fillStyle = back.color; c.fill();
-  c.strokeStyle = back.ink; c.lineWidth = 0.3 * u; c.beginPath(); c.roundRect(2.75 * u, 2.75 * u, W - 5.5 * u, H - 5.5 * u, 1.5 * u); c.stroke();
-  const ix = 4.4 * u, iy = 4.4 * u, iw = W - 8.8 * u, ih = H - 8.8 * u;
+  c.strokeStyle = back.ink; c.lineWidth = 0.3 * u; c.beginPath(); c.roundRect(5 * u, 5 * u, W - 10 * u, H - 10 * u, 1.5 * u); c.stroke();
+  const ix = 6.6 * u, iy = 6.6 * u, iw = W - 13.2 * u, ih = H - 13.2 * u; // comme cardart.back_card : cadre à 5 mm
   c.save(); c.beginPath(); c.roundRect(ix, iy, iw, ih, 0.75 * u); c.clip();
   const img = photo ? await loadImage(photo.url) : null;
   if (img) {

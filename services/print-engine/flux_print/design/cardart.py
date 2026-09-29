@@ -253,8 +253,9 @@ def back_card(fill=FELT, ink=CREAM, title="CB", subtitle: str | None = None, mot
     """Dos : motif symétrique et médaillon, ou photo plein cadre avec médaillon.
     Rester symétrique compte : un dos décalé ou orienté rendrait les cartes reconnaissables."""
     img, d = blank_card(fill)
-    inset = 28 * SS
-    d.rounded_rectangle((inset, inset, CW * SS - inset, CH * SS - inset), 14 * SS, outline=ink, width=3 * SS)
+    # Cadre à 5 mm du bord : au-delà des tolérances recto/verso (±0,5 mm) et de coupe, et hors des coins arrondis
+    inset = 50 * SS
+    d.rounded_rectangle((inset, inset, CW * SS - inset, CH * SS - inset), 15 * SS, outline=ink, width=3 * SS)
     inner = (inset + 16 * SS, inset + 16 * SS, CW * SS - inset - 16 * SS, CH * SS - inset - 16 * SS)
     pattern = Image.new("RGBA", img.size, (0, 0, 0, 0))
     pd = ImageDraw.Draw(pattern)

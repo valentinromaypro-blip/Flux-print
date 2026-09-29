@@ -110,3 +110,21 @@ flux-print dispatch lot.pdf --manifest lot.json [--check-only]
 - **Routage :** chaque couple support / mode d'impression a son hot folder, configuré côté Fiery (support, recto/verso petit côté, CMJN source FOGRA51). Les chemins se déclarent dans `[[hot_folders]]` de `config/presses/xerox-iridesse.toml`.
 - **Dépôt atomique :** copie dans `.flux-transit/` puis renommage. Le Fiery ne voit jamais de fichier partiel, et un même lot ne peut pas être déposé deux fois.
 - **Manifeste :** il n'entre jamais dans un hot folder (le Fiery imprimerait tout ce qui y arrive). Il est archivé dans `manifestes/`.
+
+## Réglages Fiery / Iridesse à respecter (file d'attente ou dossier actif)
+
+Le PDF du lot est **déjà imposé** et prêt à imprimer : le Fiery ne doit rien recalculer.
+Les intitulés exacts varient selon la version de Command WorkStation.
+
+| Réglage | Valeur | Pourquoi |
+|---|---|---|
+| Format papier | SRA3 320 × 450 mm, portrait | Format du PDF |
+| Mise à l'échelle | **100 %**, aucun ajustement à la page | Traits de coupe et poses au dixième de mm |
+| Rotation automatique | **Désactivée** | Le PDF est déjà orienté |
+| Imposition Fiery (Impose) | **Désactivée** | Le moteur a déjà imposé |
+| Recto verso | **Oui, retournement petit côté (« haut-bas »)** | Chaque dos est calculé pour tomber derrière sa face dans ce sens |
+| Support | Couché mat 350 g ou carte graphique 300 g (catalogue papier) | Un dossier actif par support |
+| Couleur | Source CMJN = **PSO Coated v3 (FOGRA51)**, ou respect de l'intention de sortie PDF/X | Les fichiers sont convertis dans ce profil |
+| Alignement recto/verso | Calibré sur ce support (outil d'alignement du Fiery) | Tolérance de repérage : ±0,5 mm |
+
+**Contrôle au premier tirage :** imprimer la feuille 1, puis vérifier par transparence ou en perçant un trait de coupe que les traits du verso tombent sur ceux du recto.

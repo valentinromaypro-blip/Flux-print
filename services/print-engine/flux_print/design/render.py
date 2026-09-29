@@ -38,7 +38,7 @@ COURTS = {"J": ("V", "jack"), "Q": ("D", "queen"), "K": ("R", "king")}
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 PhotoLoader = Callable[[str], Image.Image]
 FRONT_PX = round(art.OUT_PX_PER_MM * 63.5)
-BACK_RATIO = (63.5 - 8.8) / (88.9 - 8.8)  # zone intérieure du dos (largeur / hauteur)
+BACK_RATIO = (63.5 - 13.2) / (88.9 - 13.2)  # zone intérieure du dos, 6,6 mm du bord (largeur / hauteur)
 
 
 class DesignError(ValueError):
