@@ -1,7 +1,7 @@
 "use client";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { type Crop, RANKS, SUITS, uid, revealPanel } from "@/lib/design.ts";
-import { cutHead } from "@/lib/headcut.ts";
+import { cutError, cutHead } from "@/lib/headcut.ts";
 import { type Style, drawCourt, headBox, RATIO } from "@/lib/cardrender.ts";
 import { backModels, type BackModel } from "@/lib/backs.ts";
 import { CB } from "@/lib/env.ts";
@@ -92,6 +92,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
   }, [view, selected, currentFace, current, style]);
 
   // Photos : détourage, envoi, et pose sur la figure visée (la première photo seulement).
+  const [cutNote, setCutNote] = useState("");
   const addFaces = useCallback(async (files: File[], target: string | null) => {
     let dest = target;
     for (const file of files.filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type)).slice(0, 12)) {
@@ -100,6 +101,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
       setFaces((all) => [...all, { id, url: URL.createObjectURL(file), path: null, cut: false, busy: true }]);
       if (assignTo) { setCourts((all) => ({ ...all, [assignTo]: { face: id, crop: OVAL } })); setSelected(assignTo); }
       const cut = await cutHead(file);
+      setCutNote(cut ? "" : cutError);
       if (cut) {
         const url = URL.createObjectURL(cut);
         setFaces((all) => all.map((f) => (f.id === id ? { ...f, url, cut: true } : f)));
@@ -260,6 +262,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
                     </div>
                   )}
                   {faces.some((f) => f.error) && <p className="error-text">{faces.find((f) => f.error)!.error}</p>}
+                  {cutNote && <p className="hint">Photo non détourée : {cutNote}. Le visage est placé dans un médaillon ; essayez une photo de face, bien éclairée.</p>}
                 </div>
 
                 <div className="field-group">

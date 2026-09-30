@@ -25,6 +25,7 @@ final class CB_Segmenter
     {
         add_action('cb_install_segmenter', [self::class, 'install']);
         add_action('admin_init', [self::class, 'ensure']);
+        add_action('rest_api_init', [self::class, 'route']);
     }
 
     /** Fichiers livrés dans le plugin (développement) : utilisés tels quels. */
@@ -39,9 +40,8 @@ final class CB_Segmenter
         if (!is_dir($dir)) {
             wp_mkdir_p($dir);
             file_put_contents("$dir/index.php", "<?php // Silence.\n");
-            // Type MIME du WebAssembly (sinon le navigateur compile plus lentement)
-            file_put_contents("$dir/.htaccess", "AddType application/wasm .wasm\n");
         }
+        @unlink("$dir/.htaccess"); // version 0.3 : directive refusée par certains hébergements
         return $dir;
     }
 
@@ -59,18 +59,53 @@ final class CB_Segmenter
         return true;
     }
 
-    /** Adresse publique des fichiers pour le studio ('' : pas encore installés). */
+    /**
+     * Adresse des fichiers pour le studio ('' : pas encore installés). Servis par le plugin à l'adresse
+     * du site lui-même : pas de souci de domaine (multisite), de type de fichier ni de réglage Apache.
+     */
     public static function url(): string
     {
         if (self::bundled()) {
             return CB_URL . 'assets/mediapipe/';
         }
-        return self::ready() ? wp_upload_dir()['baseurl'] . '/carte-blanche-public/mediapipe/' : '';
+        return self::ready() ? rest_url('cb/v1/mediapipe/') : '';
+    }
+
+    public static function route(): void
+    {
+        register_rest_route('cb/v1', '/mediapipe/(?P<file>[a-z0-9_]+\.(?:js|wasm|tflite))', [
+            'methods' => 'GET', 'permission_callback' => '__return_true', 'callback' => [self::class, 'serve'],
+        ]);
+    }
+
+    public static function serve(WP_REST_Request $r)
+    {
+        $file = (string) $r['file'];
+        $path = wp_upload_dir()['basedir'] . '/carte-blanche-public/mediapipe/' . $file;
+        if (!isset(self::FILES[$file]) || !is_file($path)) {
+            return new WP_Error('cb_missing', 'Fichier de détourage absent.', ['status' => 404]);
+        }
+        $type = ['js' => 'text/javascript', 'wasm' => 'application/wasm', 'tflite' => 'application/octet-stream'][pathinfo($file, PATHINFO_EXTENSION)];
+        $etag = '"' . self::FILES[$file][0] . '"';
+        header('Cache-Control: public, max-age=31536000, immutable');
+        header("ETag: $etag");
+        if (trim($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) {
+            status_header(304);
+            exit;
+        }
+        header("Content-Type: $type");
+        header('Content-Length: ' . filesize($path));
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        readfile($path);
+        exit;
     }
 
     /** Dans l'admin : lance l'installation en tâche de fond si besoin (une tentative par heure). */
     public static function ensure(): void
     {
+        @unlink(wp_upload_dir()['basedir'] . '/carte-blanche-public/mediapipe/.htaccess'); // laissé par la version 0.3
         if (self::ready() || get_transient('cb_segmenter_try')) {
             return;
         }

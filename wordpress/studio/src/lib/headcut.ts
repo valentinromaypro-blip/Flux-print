@@ -17,7 +17,11 @@ function load(): Promise<ImageSegmenter> {
     })));
 }
 
+/** Raison du dernier échec du détourage (affichée dans le studio). */
+export let cutError = "";
+
 export async function cutHead(file: File): Promise<Blob | null> {
+  cutError = "";
   try {
     const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
     const s = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
@@ -40,7 +44,7 @@ export async function cutHead(file: File): Promise<Blob | null> {
       }
     }
     masks.forEach((m) => m.close());
-    if (opaque < 0.01 * w * h) return null; // pas de visage trouvé
+    if (opaque < 0.01 * w * h) { cutError = "aucun visage détecté sur cette photo"; return null; }
     c.putImageData(img, 0, 0);
     // Cadre serré sur la tête, marge de 4 %.
     const m = Math.round(0.04 * Math.max(x1 - x0, y1 - y0));
@@ -50,6 +54,7 @@ export async function cutHead(file: File): Promise<Blob | null> {
     return await new Promise((resolve) => out.toBlob(resolve, "image/png"));
   } catch (e) {
     console.warn("détourage indisponible", e);
+    cutError = "détourage indisponible (" + (e instanceof Error ? e.message : String(e)).slice(0, 120) + ")";
     return null;
   }
 }
