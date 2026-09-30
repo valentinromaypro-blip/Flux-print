@@ -5,6 +5,6 @@ export type Spec = {
   media: Media[]; formats: { key: string; label: string; trim: [number, number]; page: [number, number] }[];
   pricing: { unit: number; per_card: number; tiers: [number, number][] };
 };
-type Env = { spec: Spec; image: string; rest: string; nonce: string; assets: string; productId: number; deck: string; cardPx: [number, number]; bleedMm: number };
+type Env = { spec: Spec; image: string; mediapipe: string; rest: string; nonce: string; assets: string; productId: number; deck: string; cardPx: [number, number]; bleedMm: number };
 export const CB = (window as unknown as { CarteBlanche: Env }).CarteBlanche;
 export const asset = (path: string) => CB.assets + path;

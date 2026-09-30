@@ -39,6 +39,8 @@ final class CB_Admin
                 ini_get('upload_max_filesize') . ' / ' . ini_get('post_max_size'), 'Les gros PDF sont envoyés par morceaux de 4 Mo'],
             ['Dossier privé des fichiers', is_writable($uploads), str_replace(ABSPATH, '', $uploads), 'Droits d’écriture sur wp-content/uploads'],
             ['WooCommerce', class_exists('WooCommerce'), defined('WC_VERSION') ? WC_VERSION : 'absent', 'Activer WooCommerce sur ce site'],
+            ['Détourage des visages', CB_Segmenter::ready(), CB_Segmenter::ready() ? 'installé' : ((string) get_option('cb_segmenter_error') ?: 'installation en cours (tâche de fond)'),
+                'Le serveur télécharge 27 Mo depuis jsDelivr/Google : bouton « Traiter maintenant » de la page Production, ou recharger cette page plus tard. En attendant, les visages sont en ovale.'],
             ['Tâches de fond (Action Scheduler)', function_exists('as_enqueue_async_action'), function_exists('as_enqueue_async_action') ? 'oui' : 'non', 'Fourni par WooCommerce'],
         ];
     }
@@ -192,6 +194,9 @@ final class CB_Admin
         switch ($do) {
             case 'run':
                 @set_time_limit(160);
+                if (!CB_Segmenter::ready()) {
+                    CB_Segmenter::install();
+                }
                 $r = CB_Production::run_now(110);
                 $msg = sprintf('%d jeu(x) préparé(s), %d lot(s) créé(s).', $r['prepared'], count($r['lots']));
                 break;

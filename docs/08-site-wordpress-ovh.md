@@ -51,7 +51,7 @@ Ensuite dans WordPress : **Réglages → Général** → les deux adresses en `h
 - Sauvegardes : OVH en fait ; ajouter **UpdraftPlus** vers un stockage externe.
 
 ## 9. Installer le plugin Carte Blanche
-Le fichier : `dist/carte-blanche.zip` (fabriqué par `wordpress/build.sh`, environ 20 Mo).
+Le fichier : `dist/carte-blanche.zip` (fabriqué par `wordpress/build.sh`, environ 7 Mo). Le détourage des visages (27 Mo) n'est pas dans le zip : le serveur le télécharge lui-même après l'installation (voir Diagnostic).
 
 **Réseau multisite (cas de goodies-sport.fr)** : les extensions s'installent pour tout le réseau, puis s'activent site par site.
 1. **Mes sites → Admin du réseau → Extensions → Ajouter → Téléverser une extension** → `carte-blanche.zip` → **Installer**. Ne pas cliquer « Activer sur le réseau ».

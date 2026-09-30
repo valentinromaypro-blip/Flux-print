@@ -94,6 +94,7 @@ final class CB_Woo
             'rest' => esc_url_raw(rest_url('cb/v1/')),
             'nonce' => wp_create_nonce('wp_rest'),
             'assets' => CB_URL . 'assets/',
+            'mediapipe' => CB_Segmenter::url(),
             'productId' => $product_id,
             'deck' => $deck,
             'spec' => self::spec_for_js($deck),

@@ -2,15 +2,17 @@
 // de MediaPipe servi par le site (tools/fetch-segmenter.mjs). Le PNG détouré est ce qui est envoyé :
 // l'aperçu et l'impression partent donc du même fichier. En cas d'échec : null (repli sur l'ovale).
 import type { ImageSegmenter } from "@mediapipe/tasks-vision";
-import { asset } from "@/lib/env.ts";
+import { CB } from "@/lib/env.ts";
 
 const HAIR = 1, FACE = 3, MAX_SIDE = 1400;
 let segmenter: Promise<ImageSegmenter> | null = null;
 
 function load(): Promise<ImageSegmenter> {
+  // Fichiers servis par le site (installés par le plugin) ; absents : repli sur l'ovale
+  if (!CB.mediapipe) return Promise.reject(new Error("Détourage pas encore installé"));
   return (segmenter ??= import("@mediapipe/tasks-vision").then(async ({ FilesetResolver, ImageSegmenter }) =>
-    ImageSegmenter.createFromOptions(await FilesetResolver.forVisionTasks(asset("mediapipe")), {
-      baseOptions: { modelAssetPath: asset("mediapipe/selfie_multiclass_256x256.tflite"), delegate: "CPU" },
+    ImageSegmenter.createFromOptions(await FilesetResolver.forVisionTasks(CB.mediapipe.replace(/\/$/, "")), {
+      baseOptions: { modelAssetPath: CB.mediapipe + "selfie_multiclass_256x256.tflite", delegate: "CPU" },
       runningMode: "IMAGE", outputConfidenceMasks: true, outputCategoryMask: false,
     })));
 }

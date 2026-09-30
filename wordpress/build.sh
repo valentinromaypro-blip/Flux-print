@@ -6,6 +6,7 @@ cd "$(dirname "$0")"
 (cd studio && npm ci --no-audit --no-fund && npm run assets && python3 scripts/backs_formats.py && npm run build)
 mkdir -p ../dist
 rm -f ../dist/carte-blanche.zip ../dist/carte-blanche-theme.zip
-zip -rq ../dist/carte-blanche.zip carte-blanche -x 'carte-blanche/.gitignore' '*.DS_Store'
+# Sans le détourage (27 Mo) : le serveur le télécharge lui-même après installation (CB_Segmenter)
+zip -rq ../dist/carte-blanche.zip carte-blanche -x 'carte-blanche/.gitignore' 'carte-blanche/assets/mediapipe/*' '*.DS_Store'
 zip -rq ../dist/carte-blanche-theme.zip carte-blanche-theme -x '*.DS_Store'
 ls -lh ../dist/*.zip
