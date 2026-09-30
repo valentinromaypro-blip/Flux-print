@@ -117,9 +117,8 @@ final class CB_Rest
             file_put_contents($path, $body, FILE_APPEND);
             return ['received' => $size + strlen($body)];
         }
-        // Création en ligne : une image JPEG par carte dessinée dans le navigateur, à la taille d'impression
-        // (figures personnalisées ; tout le jeu pour un modèle de recto que l'atelier n'a pas)
-        if (!preg_match('/^(back|court-[SHDC]-[JQK]|front-(?:[SHDC]-(?:A|[2-9]|10|[JQK])|JK-[12])|card-\d{3})$/', $role)) {
+        // Création en ligne : une image JPEG par carte personnalisée, à la taille d'impression
+        if (!preg_match('/^(back|court-[SHDC]-[JQK]|card-\d{3})$/', $role)) {
             return self::fail('Fichier inattendu.');
         }
         if (strncmp($body, "\xFF\xD8", 2) !== 0 || strlen($body) > 15 * 1048576) {

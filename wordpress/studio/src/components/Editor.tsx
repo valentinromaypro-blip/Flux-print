@@ -2,8 +2,8 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { type Crop, RANKS, SUITS, uid, revealPanel } from "@/lib/design.ts";
 import { cutError, cutHead, warmup } from "@/lib/headcut.ts";
-import { type Style, RATIO } from "@/lib/cardrender.ts";
-import { deckCodes, drawCard, dragBox, MODELS, type Model, startCrop, STYLES } from "@/lib/recto.ts";
+import { type Style, headBox, RATIO } from "@/lib/cardrender.ts";
+import { deckCodes, drawCard, MODELS, type Model, startCrop, STYLES } from "@/lib/recto.ts";
 import { backModels, type BackModel } from "@/lib/backs.ts";
 import { CB } from "@/lib/env.ts";
 import BackStep, { BackPreview, type BackState, hasAlpha, initialBack } from "@/components/BackStep";
@@ -11,12 +11,12 @@ import BackStep, { BackPreview, type BackState, hasAlpha, initialBack } from "@/
 // Studio de création : grand aperçu à gauche (dessiné comme le moteur l'imprimera), étapes à droite.
 // 1. Le dos · 2. Les visages (photos détourées, glissées sur les figures) · 3. Finitions et commande.
 
-type Photo = { id: string; url: string; src: string; path: string | null; cut: boolean; busy: boolean; error?: string };
+type Photo = { id: string; url: string; path: string | null; cut: boolean; busy: boolean; error?: string };
 type Assign = { face: string; crop: Crop };
 /** Ce que le studio remet pour fabriquer les cartes à imprimer. */
 export type StudioPayload = {
   back: BackState; model: BackModel; style: Style; recto: Model;
-  courts: { code: string; face: { url: string; cut: boolean; src: string }; crop: Crop }[];
+  courts: { code: string; face: { url: string; cut: boolean }; crop: Crop }[];
 };
 type Props = {
   busy: boolean; header: ReactNode; finish: ReactNode; status: ReactNode;
@@ -39,9 +39,9 @@ const glyph = (code: string) => {
 
 
 /** Petite carte dessinée dans le modèle choisi. */
-function CardView({ recto, code, face, crop, style, width = 192, sample = false }: { recto: Model; code: string; face: Photo | null; crop: Crop; style: Style; width?: number; sample?: boolean }) {
+function CardView({ recto, code, face, crop, style, width = 192 }: { recto: Model; code: string; face: Photo | null; crop: Crop; style: Style; width?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => { if (ref.current) drawCard(ref.current, recto, code, face, crop, style, sample).catch(() => {}); }, [recto, code, face, crop, style, sample]);
+  useEffect(() => { if (ref.current) drawCard(ref.current, recto, code, face, crop, style).catch(() => {}); }, [recto, code, face, crop, style]);
   return <canvas ref={ref} width={width} height={Math.round(width * RATIO)} />;
 }
 
@@ -79,7 +79,6 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
   const [selected, setSelected] = useState("H-K");
   const [style, setStyle] = useState<Style>("couleur");
   const [recto, setRecto] = useState<Model>("classique");
-  const rectoRef = useRef(recto); rectoRef.current = recto;
   const [over, setOver] = useState(false);
   const stage = useRef<HTMLCanvasElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -109,14 +108,14 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
       const id = uid(), assignTo = dest;
       dest = null;
       const src = URL.createObjectURL(file);
-      setFaces((all) => [...all, { id, url: src, src, path: null, cut: false, busy: true }]);
-      if (assignTo) { setCourts((all) => ({ ...all, [assignTo]: { face: id, crop: startCrop(rectoRef.current, { url: src, cut: false }) } })); setSelected(assignTo); }
+      setFaces((all) => [...all, { id, url: src, path: null, cut: false, busy: true }]);
+      if (assignTo) { setCourts((all) => ({ ...all, [assignTo]: { face: id, crop: startCrop({ url: src, cut: false }) } })); setSelected(assignTo); }
       const cut = await cutHead(file);
       setCutNote(cut ? "" : cutError);
       if (cut) {
         const url = URL.createObjectURL(cut);
         setFaces((all) => all.map((f) => (f.id === id ? { ...f, url, cut: true } : f)));
-        if (assignTo) setCourts((all) => (all[assignTo]?.face === id ? { ...all, [assignTo]: { face: id, crop: startCrop(rectoRef.current, { url, cut: true }) } } : all));
+        if (assignTo) setCourts((all) => (all[assignTo]?.face === id ? { ...all, [assignTo]: { face: id, crop: startCrop({ url, cut: true }) } } : all));
       }
       try {
         setFaces((all) => all.map((f) => (f.id === id ? { ...f, path: "local", busy: false } : f)));
@@ -129,7 +128,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
   function assign(code: string, id: string) {
     const f = faceOf(id);
     if (!f || f.error) return;
-    setCourts((all) => ({ ...all, [code]: { face: id, crop: startCrop(recto, f) } }));
+    setCourts((all) => ({ ...all, [code]: { face: id, crop: startCrop(f) } }));
     setSelected(code);
   }
   function autofill() {
@@ -138,18 +137,14 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
     const next = { ...courts };
     COURTS.filter((c) => !next[c]).forEach((c, i) => {
       const f = usable[i % usable.length];
-      next[c] = { face: f.id, crop: startCrop(recto, f) };
+      next[c] = { face: f.id, crop: startCrop(f) };
     });
     setCourts(next);
   }
-  /** Changement de modèle : rendu conseillé, et cadrages remis à zéro (ils n'ont pas le même sens). */
+  /** Changement de modèle : avec le rendu des visages conseillé. */
   function chooseRecto(m: Model) {
     setRecto(m);
     setStyle(MODELS.find((x) => x.id === m)!.style);
-    setCourts((all) => Object.fromEntries(Object.entries(all).map(([code, a]) => {
-      const f = faceOf(a.face);
-      return [code, f ? { ...a, crop: startCrop(m, f) } : a];
-    })));
   }
   function removeFace(id: string) {
     setFaces((all) => all.filter((f) => f.id !== id));
@@ -159,7 +154,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
     setCourts((all) => (all[selected] ? { ...all, [selected]: { ...all[selected], crop: { ...all[selected].crop, ...patch } } } : all));
   const zoomBy = (f: number) => {
     if (!current) return;
-    const [lo, hi] = currentFace?.cut && recto !== "portrait" ? [0.5, 2.5] : [1, 4];
+    const [lo, hi] = currentFace?.cut ? [0.5, 2.5] : [1, 4];
     setCrop({ zoom: +Math.min(hi, Math.max(lo, current.crop.zoom * f)).toFixed(3) });
   };
 
@@ -168,7 +163,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
     if (view !== "court" || !current) return;
     const c = e.currentTarget, id = e.pointerId, start = { x: e.clientX, y: e.clientY, crop: current.crop };
     c.setPointerCapture(id);
-    const box = await dragBox(recto, selected, c.width), scale = c.getBoundingClientRect().width / c.width;
+    const box = await headBox(selected, c.width), scale = c.getBoundingClientRect().width / c.width;
     drag.current = { ...start, w: box.w * scale, h: box.h * scale };
   }
   function move(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -177,7 +172,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
     const dx = (e.clientX - d.x) / d.w, dy = (e.clientY - d.y) / d.h;
     const clamp = (v: number) => +Math.min(1, Math.max(0, v)).toFixed(3);
     // tête détourée : on déplace la tête ; photo ordinaire : on déplace le cadre dans la photo (sens inverse)
-    const k = recto === "portrait" ? -0.8 / d.crop.zoom : currentFace?.cut ? 1 : -0.5 / d.crop.zoom;
+    const k = currentFace?.cut ? 1 : -0.5 / d.crop.zoom;
     setCrop({ x: clamp(d.crop.x + k * dx), y: clamp(d.crop.y + k * dy) });
   }
 
@@ -188,7 +183,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
       back, model, style, recto,
       courts: Object.entries(courts).flatMap(([code, a]) => {
         const f = faceOf(a.face);
-        return f && !f.error ? [{ code, face: { url: f.url, cut: f.cut, src: f.src }, crop: a.crop }] : [];
+        return f && !f.error ? [{ code, face: { url: f.url, cut: f.cut }, crop: a.crop }] : [];
       }),
     });
   }
@@ -235,7 +230,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
           <div className="stage-tools" role="toolbar" aria-label="Ajuster le visage">
             <button onClick={() => zoomBy(1 / 1.1)} aria-label="Réduire">−</button>
             <button onClick={() => zoomBy(1.1)} aria-label="Agrandir">+</button>
-            <button onClick={() => currentFace && setCrop(startCrop(recto, currentFace))}>Recentrer</button>
+            <button onClick={() => currentFace && setCrop(startCrop(currentFace))}>Recentrer</button>
             <button onClick={() => setCourts((all) => { const n = { ...all }; delete n[selected]; return n; })}>Retirer</button>
           </div>
         )}
@@ -267,8 +262,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
                   <div className="cb-models" role="radiogroup" aria-label="Modèle du recto">
                     {MODELS.map((m) => (
                       <button key={m.id} role="radio" aria-checked={recto === m.id} className={recto === m.id ? "on" : ""} onClick={() => chooseRecto(m.id)}>
-                        <CardView recto={m.id} code={selected} face={currentFace} sample width={120}
-                          crop={m.id === recto ? current?.crop ?? CENTER : currentFace ? startCrop(m.id, currentFace) : CENTER} style={m.id === recto ? style : m.style} />
+                        <CardView recto={m.id} code={selected} face={currentFace} width={120} crop={current?.crop ?? CENTER} style={m.id === recto ? style : m.style} />
                         <span>{m.label}</span>
                       </button>
                     ))}

@@ -20,18 +20,12 @@ Du jeu payé au PDF pour la presse, sans intervention. Menu **Carte Blanche → 
 
 ## Modèles de recto
 
-Le client choisit un modèle à l'étape « Les visages », puis un rendu des visages (photo couleur,
-gravure bleue, noir et blanc, sépia, pop / BD).
-
-| Modèle | Ce qui est dessiné dans le navigateur | Ce que fournit l'atelier |
-|---|---|---|
-| Classique | les figures personnalisées | les autres cartes (faces standard) |
-| Portrait | les figures personnalisées (photo pleine carte, sans symétrie) | les autres cartes, figures sans photo comprises (classiques) |
-| Vintage | les figures personnalisées, teintées | les autres cartes, teintées à la préparation (même calcul que le studio) |
-| Moderne | tout le jeu (`front-*` et `court-*`, environ 2 Mo) | rien |
-
-Le modèle est enregistré dans la création (`design.recto`) et affiché dans la commande (« Recto »).
-Les faces vintage de l'atelier sont mises en cache dans `uploads/carte-blanche/fronts/{format}-vintage/`.
+Le client choisit à l'étape « Les visages » un modèle (Classique ou Vintage) et un rendu des visages
+(photo couleur, gravure bleue, noir et blanc, sépia). Les figures personnalisées sont dessinées dans
+le navigateur ; les autres cartes sont les faces standard de l'atelier. En vintage (papier crème,
+encres passées), l'atelier teinte ces faces avec le même calcul que le studio ; cache dans
+`uploads/carte-blanche/fronts/{format}-vintage/`. Le modèle est enregistré dans la création
+(`design.recto`) et affiché dans la commande (« Recto : Vintage »).
 
 ## Réglages Fiery
 Échelle 100 %, sans rotation automatique ni imposition Fiery, recto verso **petit côté**, profil source CMJN

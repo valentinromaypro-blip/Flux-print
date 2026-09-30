@@ -57,8 +57,7 @@ export async function renderBack(p: Pick<StudioPayload, "back" | "model">): Prom
 }
 
 /**
- * Une carte dessinée dans le navigateur (figure personnalisée, ou toute carte du modèle moderne) :
- * dessin au format fini, centré sur un fond perdu blanc (crème en vintage). Les cartes sont
+ * Une figure personnalisée : dessin au format fini, centré sur un fond perdu blanc (crème en vintage). Les cartes sont
  * dessinées au format poker ; sur un format plus étroit (bridge), le dessin garde ses proportions,
  * calé sur la largeur et centré en hauteur.
  */

@@ -152,8 +152,8 @@ final class CB_Production
             return $src;
         }
         foreach (self::codes($job['deck']) as $i => $code) {
-            $drawn = array_filter(["$dir/cards/court-$code.jpg", "$dir/cards/front-$code.jpg"], 'is_file');
-            $src[sprintf('f%03d', $i + 1)] = $drawn ? ['file', reset($drawn)] : ['front', $code];
+            $court = "$dir/cards/court-$code.jpg";
+            $src[sprintf('f%03d', $i + 1)] = is_file($court) ? ['file', $court] : ['front', $code];
         }
         return $src;
     }
@@ -183,7 +183,7 @@ final class CB_Production
     public static function recto(array $job): string
     {
         $r = is_array($job['design'] ?? null) ? (string) ($job['design']['recto'] ?? '') : '';
-        return in_array($r, ['classique', 'moderne', 'portrait', 'vintage'], true) ? $r : 'classique';
+        return $r === 'vintage' ? 'vintage' : 'classique';
     }
 
     private static function to_cmyk(string $src, string $dst, array $px, ?array $fit = null, bool $vintage = false): void

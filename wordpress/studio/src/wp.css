@@ -59,11 +59,10 @@
 .cb-studio-root .cb-head .seg { flex-wrap: wrap; }
 
 /* Modèles de recto */
-.cb-studio-root .cb-models { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.cb-studio-root .cb-models { display: grid; grid-template-columns: repeat(2, minmax(0, 150px)); gap: 10px; }
 .cb-studio-root .cb-models button { display: grid; gap: 6px; justify-items: center; padding: 8px 6px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; cursor: pointer; font-weight: 600; font-size: 13px; }
 .cb-studio-root .cb-models button.on { border-color: var(--red); box-shadow: 0 0 0 2px color-mix(in srgb, var(--red) 25%, transparent); }
 .cb-studio-root .cb-models canvas { width: 100%; height: auto; border-radius: 6px; box-shadow: 0 1px 4px rgb(0 0 0 / .18); }
 .cb-studio-root .cb-deck-peek { display: flex; gap: 8px; margin-top: 4px; }
 .cb-studio-root .cb-deck-peek canvas { width: 56px; height: auto; border-radius: 4px; box-shadow: 0 1px 3px rgb(0 0 0 / .2); }
 .cb-studio-root .seg { flex-wrap: wrap; }
-@media (max-width: 480px) { .cb-studio-root .cb-models { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -3,9 +3,8 @@
 import type { Crop } from "@/lib/design.ts";
 import { asset } from "@/lib/env.ts";
 
-export type Style = "couleur" | "gravure" | "nb" | "sepia" | "pop";
-/** url : photo détourée si `cut`, sinon la photo ; src : la photo d'origine (modèle portrait). */
-export type Face = { url: string; cut: boolean; src?: string };
+export type Style = "couleur" | "gravure" | "nb" | "sepia";
+export type Face = { url: string; cut: boolean };
 type Slot = [number, number, number, number, number]; // centre x, centre y, demi-largeur, demi-hauteur, bord haut (unités 240 × 336)
 
 export const RATIO = 336 / 240;
@@ -66,80 +65,9 @@ function ramp(c: CanvasRenderingContext2D, w: number, h: number, stops: Stops) {
   c.putImageData(im, 0, 0);
 }
 
-/** Flou « boîte » séparable, en place, sur une couche de w × h valeurs. */
-function boxBlur(v: Float32Array, w: number, h: number, r: number) {
-  const tmp = new Float32Array(v.length), n = 2 * r + 1;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    let s = 0;
-    for (let d = -r; d <= r; d++) s += v[y * w + Math.min(w - 1, Math.max(0, x + d))];
-    tmp[y * w + x] = s / n;
-  }
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    let s = 0;
-    for (let d = -r; d <= r; d++) s += tmp[Math.min(h - 1, Math.max(0, y + d)) * w + x];
-    v[y * w + x] = s / n;
-  }
-}
-
-/**
- * Pop / BD : couleurs lissées puis ramenées à quatre valeurs franches (ombrage en aplats), trame
- * de points dans les tons clairs et contours encrés. Tailles proportionnelles au visage.
- */
-function pop(c: CanvasRenderingContext2D, w: number, h: number) {
-  const im = c.getImageData(0, 0, w, h), d = im.data, n = w * h;
-  const ch = [0, 1, 2].map((k) => { const a = new Float32Array(n); for (let p = 0; p < n; p++) a[p] = d[4 * p + k]; return a; });
-  // Contours sur une image peu lissée (les traits du visage), aplats sur une image très lissée
-  const fine = new Float32Array(n);
-  for (let p = 0; p < n; p++) fine[p] = 0.299 * ch[0][p] + 0.587 * ch[1][p] + 0.114 * ch[2][p];
-  boxBlur(fine, w, h, Math.max(1, Math.round(w / 200)));
-  const r = Math.max(1, Math.round(w / 90));
-  ch.forEach((a) => boxBlur(a, w, h, r));
-  const lum = new Float32Array(n);
-  let lo = 255, hi = 0;
-  for (let p = 0; p < n; p++) {
-    lum[p] = 0.299 * ch[0][p] + 0.587 * ch[1][p] + 0.114 * ch[2][p];
-    if (d[4 * p + 3] > 128) { lo = Math.min(lo, lum[p]); hi = Math.max(hi, lum[p]); }
-  }
-  const span = Math.max(1, hi - lo), TONES = [52, 118, 186, 246];
-  // Contours : gradient de la luminance lissée, épaissi
-  const ink = new Uint8Array(n);
-  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
-    const p = y * w + x;
-    const gx = fine[p + 1 - w] + 2 * fine[p + 1] + fine[p + 1 + w] - fine[p - 1 - w] - 2 * fine[p - 1] - fine[p - 1 + w];
-    const gy = fine[p - 1 + w] + 2 * fine[p + w] + fine[p + 1 + w] - fine[p - 1 - w] - 2 * fine[p - w] - fine[p + 1 - w];
-    if (Math.hypot(gx, gy) > span * 0.6) ink[p] = 1;
-  }
-  const t = Math.max(1, Math.round(w / 220));
-  const thick = new Uint8Array(n);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (!ink[y * w + x]) continue;
-    for (let dy = -t + 1; dy < t; dy++) for (let dx = -t + 1; dx < t; dx++) {
-      const X = x + dx, Y = y + dy;
-      if (X >= 0 && Y >= 0 && X < w && Y < h) thick[Y * w + X] = 1;
-    }
-  }
-  const step = Math.max(4, w / 38), dot = step * 0.28; // trame de points (tons clairs)
-  for (let p = 0; p < n; p++) {
-    const i = 4 * p;
-    if (thick[p]) { d[i] = 24; d[i + 1] = 20; d[i + 2] = 30; continue; }
-    const l = Math.max(1, lum[p]), band = Math.min(3, Math.floor(((lum[p] - lo) / span) * 4));
-    let tone = TONES[band];
-    if (band === 2) {
-      const x = p % w, y = (p - x) / w, u = (x + ((Math.floor(y / step) % 2) * step) / 2) % step - step / 2, v = (y % step) - step / 2;
-      if (u * u + v * v < dot * dot) tone *= 0.82;
-    }
-    for (let k = 0; k < 3; k++) {
-      const sat = l + 1.8 * (ch[k][p] - l); // couleur renforcée, puis ramenée à la valeur de la bande
-      d[i + k] = Math.min(255, Math.max(0, (sat * tone) / l));
-    }
-  }
-  c.putImageData(im, 0, 0);
-}
-
-/** Rendu des visages (ou de la photo du modèle portrait). */
+/** Rendu des visages. */
 export function applyStyle(c: CanvasRenderingContext2D, w: number, h: number, style: Style) {
-  if (style === "pop") pop(c, w, h);
-  else if (RAMPS[style]) ramp(c, w, h, RAMPS[style]!);
+  if (RAMPS[style]) ramp(c, w, h, RAMPS[style]!);
 }
 
 /**

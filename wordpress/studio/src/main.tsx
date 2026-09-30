@@ -7,7 +7,6 @@ import { createRoot } from "react-dom/client";
 import Editor, { type StudioPayload } from "@/components/Editor";
 import CardsEditor, { type CardsPayload } from "@/components/CardsEditor";
 import { renderBack, renderCard, renderFreeCard } from "@/lib/print.ts";
-import { deckCodes, drawnHere } from "@/lib/recto.ts";
 import { format, formats, setFormat } from "@/lib/format.ts";
 import { CB } from "@/lib/env.ts";
 import "./studio.css";
@@ -207,15 +206,8 @@ function App() {
       const uid = await createJob("design", media);
       const cards: [string, () => Promise<Blob>][] = [
         ["back", () => renderBack(p)],
+        ...p.courts.map((c) => [`court-${c.code}`, () => renderCard(c.code, p.recto, c.face, c.crop, p.style)] as [string, () => Promise<Blob>]),
       ];
-      // Figures personnalisées ; en modèle moderne, tout le jeu (l'atelier n'a que les cartes classiques)
-      const faces = new Map(p.courts.map((c) => [c.code, c]));
-      for (const code of deckCodes(CB.deck)) {
-        const c = faces.get(code);
-        if (drawnHere(p.recto, code, !!c)) {
-          cards.push([`${c ? "court" : "front"}-${code}`, () => renderCard(code, p.recto, c?.face ?? null, c?.crop ?? { zoom: 1, x: 0.5, y: 0.5 }, p.style)]);
-        }
-      }
       for (const [i, [role, render]] of cards.entries()) {
         setStep({ label: `Fabrication des cartes en qualité d'impression (${i + 1}/${cards.length})…`, value: i / cards.length });
         await post(`jobs/${uid}/file?role=${role}`, await render(), "image/jpeg");

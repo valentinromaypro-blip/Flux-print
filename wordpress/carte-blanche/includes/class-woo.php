@@ -234,9 +234,8 @@ final class CB_Woo
         if ($deck && count($deck['formats']) > 1) {
             $out['Format'] = CB_Settings::FORMATS[$job['format']]['label'] ?? $job['format'];
         }
-        $recto = ['moderne' => 'Moderne', 'portrait' => 'Portrait', 'vintage' => 'Vintage'][CB_Production::recto($job)] ?? null;
-        if ($recto) {
-            $out['Recto'] = $recto;
+        if (CB_Production::recto($job) === 'vintage') {
+            $out['Recto'] = 'Vintage';
         }
         if ($deck && isset($deck['cards_min']) && $job['cards']) {
             $out['Cartes'] = (string) $job['cards'];
