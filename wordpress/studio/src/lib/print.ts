@@ -2,7 +2,8 @@
 // mêmes dessins que l'aperçu : seules ces images partent au serveur, pas les photos d'origine.
 import type { StudioPayload } from "@/components/Editor";
 import { backFields, backTemplate, fillBack } from "@/lib/backs.ts";
-import { drawCourt, loadImage, RATIO, type Style } from "@/lib/cardrender.ts";
+import { type Face, loadImage, RATIO, type Style, vintage } from "@/lib/cardrender.ts";
+import { drawCard, type Model } from "@/lib/recto.ts";
 import type { Crop } from "@/lib/design.ts";
 import { asset } from "@/lib/env.ts";
 import { backRatio, pagePx, trimPx } from "@/lib/format.ts";
@@ -56,18 +57,20 @@ export async function renderBack(p: Pick<StudioPayload, "back" | "model">): Prom
 }
 
 /**
- * Une figure personnalisée : dessin au format fini, centré sur un fond perdu blanc.
- * Les figures sont dessinées au format poker ; sur un format plus étroit (bridge), le dessin
- * garde ses proportions, calé sur la largeur et centré en hauteur.
+ * Une carte dessinée dans le navigateur (figure personnalisée, ou toute carte du modèle moderne) :
+ * dessin au format fini, centré sur un fond perdu blanc (crème en vintage). Les cartes sont
+ * dessinées au format poker ; sur un format plus étroit (bridge), le dessin garde ses proportions,
+ * calé sur la largeur et centré en hauteur.
  */
-export async function renderCourt(court: StudioPayload["courts"][number], style: Style): Promise<Blob> {
+export async function renderCard(code: string, recto: Model, face: Face | null, crop: Crop, style: Style): Promise<Blob> {
   const [W, H] = pagePx();
   const [tw, th] = trimPx();
   const art = canvas(tw, Math.min(th, Math.round(tw * RATIO)));
-  await drawCourt(art, court.code, court.face, court.crop, style);
-  const c = canvas(W, H), g = c.getContext("2d")!;
+  await drawCard(art, recto === "vintage" ? "classique" : recto, code, face, crop, style);
+  const c = canvas(W, H), g = c.getContext("2d", { willReadFrequently: true })!;
   g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
   g.drawImage(art, (W - art.width) / 2, (H - art.height) / 2);
+  if (recto === "vintage") vintage(g, W, H); // toute la page, fond perdu compris, comme à l'atelier
   return jpeg(c);
 }
 

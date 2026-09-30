@@ -18,6 +18,21 @@ Du jeu payé au PDF pour la presse, sans intervention. Menu **Carte Blanche → 
    n° de lot et de feuille dans la marge.
 5. **Fiche de lot** (imprimable) : pour chaque livre, la commande de chaque pile. Puis **Marquer imprimé**.
 
+## Modèles de recto
+
+Le client choisit un modèle à l'étape « Les visages », puis un rendu des visages (photo couleur,
+gravure bleue, noir et blanc, sépia, pop / BD).
+
+| Modèle | Ce qui est dessiné dans le navigateur | Ce que fournit l'atelier |
+|---|---|---|
+| Classique | les figures personnalisées | les autres cartes (faces standard) |
+| Portrait | les figures personnalisées (photo pleine carte, sans symétrie) | les autres cartes, figures sans photo comprises (classiques) |
+| Vintage | les figures personnalisées, teintées | les autres cartes, teintées à la préparation (même calcul que le studio) |
+| Moderne | tout le jeu (`front-*` et `court-*`, environ 2 Mo) | rien |
+
+Le modèle est enregistré dans la création (`design.recto`) et affiché dans la commande (« Recto »).
+Les faces vintage de l'atelier sont mises en cache dans `uploads/carte-blanche/fronts/{format}-vintage/`.
+
 ## Réglages Fiery
 Échelle 100 %, sans rotation automatique ni imposition Fiery, recto verso **petit côté**, profil source CMJN
 **FOGRA51 (PSO Coated v3)**, SRA3 320 × 450 mm.

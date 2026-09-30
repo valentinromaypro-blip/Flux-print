@@ -152,14 +152,41 @@ final class CB_Production
             return $src;
         }
         foreach (self::codes($job['deck']) as $i => $code) {
-            $court = "$dir/cards/court-$code.jpg";
-            $src[sprintf('f%03d', $i + 1)] = is_file($court) ? ['file', $court] : ['front', $code];
+            $drawn = array_filter(["$dir/cards/court-$code.jpg", "$dir/cards/front-$code.jpg"], 'is_file');
+            $src[sprintf('f%03d', $i + 1)] = $drawn ? ['file', reset($drawn)] : ['front', $code];
         }
         return $src;
     }
 
     /** Conversion d'une carte en JPEG CMJN (PSO Coated v3) à la taille d'impression exacte. */
-    private static function to_cmyk(string $src, string $dst, array $px, ?array $fit = null): void
+    /**
+     * Modèle vintage : encres passées sur papier crème. Même calcul que le studio (cardrender.ts,
+     * vintage) : saturation × 0,45 autour de la luminance, puis teinte du papier en multiplication.
+     */
+    public const VINTAGE = ['sat' => 0.45, 'paper' => [243, 232, 208]];
+
+    private static function vintage(Imagick $im): void
+    {
+        $s = self::VINTAGE['sat'];
+        $w = [0.299, 0.587, 0.114];
+        $m = array_fill(0, 25, 0.0);
+        for ($i = 0; $i < 3; $i++) {
+            for ($j = 0; $j < 3; $j++) {
+                $m[5 * $i + $j] = self::VINTAGE['paper'][$i] / 255 * ((1 - $s) * $w[$j] + ($i === $j ? $s : 0));
+            }
+        }
+        $m[18] = $m[24] = 1.0; // noir et opacité inchangés
+        $im->colorMatrixImage($m);
+    }
+
+    /** Modèle de recto d'une création en ligne ('classique' par défaut). */
+    public static function recto(array $job): string
+    {
+        $r = is_array($job['design'] ?? null) ? (string) ($job['design']['recto'] ?? '') : '';
+        return in_array($r, ['classique', 'moderne', 'portrait', 'vintage'], true) ? $r : 'classique';
+    }
+
+    private static function to_cmyk(string $src, string $dst, array $px, ?array $fit = null, bool $vintage = false): void
     {
         $im = new Imagick();
         $im->setResolution(self::DPI, self::DPI);
@@ -182,6 +209,9 @@ final class CB_Production
         } elseif ($im->getImageWidth() !== $px[0] || $im->getImageHeight() !== $px[1]) {
             $im->resizeImage($px[0], $px[1], Imagick::FILTER_LANCZOS, 1);
         }
+        if ($vintage) {
+            self::vintage($im);
+        }
         if ($im->getImageColorspace() !== Imagick::COLORSPACE_CMYK) {
             if (!array_key_exists('icc', $im->getImageProfiles('icc', false) ?: [])) {
                 $im->profileImage('icc', file_get_contents(CB_DIR . '/assets/icc/sRGB.icc'));
@@ -201,13 +231,14 @@ final class CB_Production
     }
 
     /** Face standard d'un format, convertie une fois pour toutes (partagée par tous les jeux). */
-    private static function standard_front(string $code, string $format): string
+    private static function standard_front(string $code, string $format, string $recto = 'classique'): string
     {
-        $dst = CB_Store::dir("fronts/$format") . "/$code.jpg";
+        $vintage = $recto === 'vintage';
+        $dst = CB_Store::dir('fronts/' . $format . ($vintage ? '-vintage' : '')) . "/$code.jpg";
         if (!is_file($dst)) {
             [$tw, $th] = CB_Settings::FORMATS[$format]['trim'];
             $fit = $format === 'poker' ? null : [(int) round($tw / 25.4 * self::DPI), (int) round($th / 25.4 * self::DPI)];
-            self::to_cmyk(CB_DIR . "/engine/fronts/$code.jpg", $dst, self::page_px($format), $fit);
+            self::to_cmyk(CB_DIR . "/engine/fronts/$code.jpg", $dst, self::page_px($format), $fit, $vintage);
         }
         return $dst;
     }
@@ -229,7 +260,7 @@ final class CB_Production
             $files = [];
             foreach (self::sources($job) as $key => [$type, $value]) {
                 if ($type === 'front') {
-                    $files[$key] = self::standard_front($value, $job['format']);
+                    $files[$key] = self::standard_front($value, $job['format'], self::recto($job));
                     continue;
                 }
                 $dst = "$out/$key.jpg";

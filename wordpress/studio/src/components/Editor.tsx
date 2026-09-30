@@ -2,7 +2,8 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { type Crop, RANKS, SUITS, uid, revealPanel } from "@/lib/design.ts";
 import { cutError, cutHead, warmup } from "@/lib/headcut.ts";
-import { type Style, drawCourt, headBox, RATIO } from "@/lib/cardrender.ts";
+import { type Style, RATIO } from "@/lib/cardrender.ts";
+import { deckCodes, drawCard, dragBox, MODELS, type Model, startCrop, STYLES } from "@/lib/recto.ts";
 import { backModels, type BackModel } from "@/lib/backs.ts";
 import { CB } from "@/lib/env.ts";
 import BackStep, { BackPreview, type BackState, hasAlpha, initialBack } from "@/components/BackStep";
@@ -10,12 +11,12 @@ import BackStep, { BackPreview, type BackState, hasAlpha, initialBack } from "@/
 // Studio de création : grand aperçu à gauche (dessiné comme le moteur l'imprimera), étapes à droite.
 // 1. Le dos · 2. Les visages (photos détourées, glissées sur les figures) · 3. Finitions et commande.
 
-type Photo = { id: string; url: string; path: string | null; cut: boolean; busy: boolean; error?: string };
+type Photo = { id: string; url: string; src: string; path: string | null; cut: boolean; busy: boolean; error?: string };
 type Assign = { face: string; crop: Crop };
 /** Ce que le studio remet pour fabriquer les cartes à imprimer. */
 export type StudioPayload = {
-  back: BackState; model: BackModel; style: Style;
-  courts: { code: string; face: { url: string; cut: boolean }; crop: Crop }[];
+  back: BackState; model: BackModel; style: Style; recto: Model;
+  courts: { code: string; face: { url: string; cut: boolean; src: string }; crop: Crop }[];
 };
 type Props = {
   busy: boolean; header: ReactNode; finish: ReactNode; status: ReactNode;
@@ -24,8 +25,9 @@ type Props = {
 
 const COURTS = SUITS.flatMap(([s]) => [...RANKS].reverse().map(([r]) => `${s}-${r}`)); // R, D, V de chaque couleur
 const CENTER: Crop = { zoom: 1, x: 0.5, y: 0.5 };
-const OVAL: Crop = { zoom: 2.2, x: 0.5, y: 0.38 }; // photo non détourée : cadrage de départ sur le visage
 const STEPS = ["Le dos", "Les visages", "Finitions"];
+const DECK = deckCodes(CB.deck);
+const PEEK = ["S-A", "H-7", "D-10", "JK-1"]; // quelques cartes non figures, pour voir le jeu entier
 const label = (code: string) => {
   const [s, r] = code.split("-");
   return `${RANKS.find(([k]) => k === r)![2]} de ${SUITS.find(([k]) => k === s)![2]}`;
@@ -36,13 +38,18 @@ const glyph = (code: string) => {
 };
 
 
-function MiniCourt({ code, face, crop, style, selected, onSelect, onDropFace, onDropFiles }: {
-  code: string; face: Photo | null; crop: Crop; style: Style; selected: boolean;
+/** Petite carte dessinée dans le modèle choisi. */
+function CardView({ recto, code, face, crop, style, width = 192, sample = false }: { recto: Model; code: string; face: Photo | null; crop: Crop; style: Style; width?: number; sample?: boolean }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => { if (ref.current) drawCard(ref.current, recto, code, face, crop, style, sample).catch(() => {}); }, [recto, code, face, crop, style, sample]);
+  return <canvas ref={ref} width={width} height={Math.round(width * RATIO)} />;
+}
+
+function MiniCourt({ recto, code, face, crop, style, selected, onSelect, onDropFace, onDropFiles }: {
+  recto: Model; code: string; face: Photo | null; crop: Crop; style: Style; selected: boolean;
   onSelect: () => void; onDropFace: (id: string) => void; onDropFiles: (files: File[]) => void;
 }) {
-  const ref = useRef<HTMLCanvasElement>(null);
   const [over, setOver] = useState(false);
-  useEffect(() => { if (ref.current) drawCourt(ref.current, code, face, crop, style).catch(() => {}); }, [code, face, crop, style]);
   return (
     <button className={`mini${selected ? " on" : ""}${over ? " over" : ""}`} onClick={onSelect} aria-pressed={selected}
       aria-label={`${label(code)}${face ? " · personnalisée" : ""}`}
@@ -52,7 +59,7 @@ function MiniCourt({ code, face, crop, style, selected, onSelect, onDropFace, on
         const id = e.dataTransfer.getData("text/x-face");
         if (id) onDropFace(id); else if (e.dataTransfer.files.length) onDropFiles([...e.dataTransfer.files]);
       }}>
-      <canvas ref={ref} width={192} height={Math.round(192 * RATIO)} />
+      <CardView recto={recto} code={code} face={face} crop={crop} style={style} />
       <span className="tag">{glyph(code)}{face && <i aria-hidden>●</i>}</span>
     </button>
   );
@@ -71,6 +78,8 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
   const [courts, setCourts] = useState<Record<string, Assign>>({});
   const [selected, setSelected] = useState("H-K");
   const [style, setStyle] = useState<Style>("couleur");
+  const [recto, setRecto] = useState<Model>("classique");
+  const rectoRef = useRef(recto); rectoRef.current = recto;
   const [over, setOver] = useState(false);
   const stage = useRef<HTMLCanvasElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -89,8 +98,8 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
   useEffect(() => {
     const c = stage.current;
     if (!c || view !== "court") return;
-    drawCourt(c, selected, currentFace, current?.crop ?? CENTER, style).catch(() => {});
-  }, [view, selected, currentFace, current, style]);
+    drawCard(c, recto, selected, currentFace, current?.crop ?? CENTER, style).catch(() => {});
+  }, [view, selected, currentFace, current, style, recto]);
 
   // Photos : détourage, envoi, et pose sur la figure visée (la première photo seulement).
   const [cutNote, setCutNote] = useState("");
@@ -99,14 +108,15 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
     for (const file of files.filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type)).slice(0, 12)) {
       const id = uid(), assignTo = dest;
       dest = null;
-      setFaces((all) => [...all, { id, url: URL.createObjectURL(file), path: null, cut: false, busy: true }]);
-      if (assignTo) { setCourts((all) => ({ ...all, [assignTo]: { face: id, crop: OVAL } })); setSelected(assignTo); }
+      const src = URL.createObjectURL(file);
+      setFaces((all) => [...all, { id, url: src, src, path: null, cut: false, busy: true }]);
+      if (assignTo) { setCourts((all) => ({ ...all, [assignTo]: { face: id, crop: startCrop(rectoRef.current, { url: src, cut: false }) } })); setSelected(assignTo); }
       const cut = await cutHead(file);
       setCutNote(cut ? "" : cutError);
       if (cut) {
         const url = URL.createObjectURL(cut);
         setFaces((all) => all.map((f) => (f.id === id ? { ...f, url, cut: true } : f)));
-        if (assignTo) setCourts((all) => (all[assignTo]?.face === id ? { ...all, [assignTo]: { face: id, crop: CENTER } } : all));
+        if (assignTo) setCourts((all) => (all[assignTo]?.face === id ? { ...all, [assignTo]: { face: id, crop: startCrop(rectoRef.current, { url, cut: true }) } } : all));
       }
       try {
         setFaces((all) => all.map((f) => (f.id === id ? { ...f, path: "local", busy: false } : f)));
@@ -119,7 +129,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
   function assign(code: string, id: string) {
     const f = faceOf(id);
     if (!f || f.error) return;
-    setCourts((all) => ({ ...all, [code]: { face: id, crop: f.cut ? CENTER : OVAL } }));
+    setCourts((all) => ({ ...all, [code]: { face: id, crop: startCrop(recto, f) } }));
     setSelected(code);
   }
   function autofill() {
@@ -128,9 +138,18 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
     const next = { ...courts };
     COURTS.filter((c) => !next[c]).forEach((c, i) => {
       const f = usable[i % usable.length];
-      next[c] = { face: f.id, crop: f.cut ? CENTER : OVAL };
+      next[c] = { face: f.id, crop: startCrop(recto, f) };
     });
     setCourts(next);
+  }
+  /** Changement de modèle : rendu conseillé, et cadrages remis à zéro (ils n'ont pas le même sens). */
+  function chooseRecto(m: Model) {
+    setRecto(m);
+    setStyle(MODELS.find((x) => x.id === m)!.style);
+    setCourts((all) => Object.fromEntries(Object.entries(all).map(([code, a]) => {
+      const f = faceOf(a.face);
+      return [code, f ? { ...a, crop: startCrop(m, f) } : a];
+    })));
   }
   function removeFace(id: string) {
     setFaces((all) => all.filter((f) => f.id !== id));
@@ -140,7 +159,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
     setCourts((all) => (all[selected] ? { ...all, [selected]: { ...all[selected], crop: { ...all[selected].crop, ...patch } } } : all));
   const zoomBy = (f: number) => {
     if (!current) return;
-    const [lo, hi] = currentFace?.cut ? [0.5, 2.5] : [1, 4];
+    const [lo, hi] = currentFace?.cut && recto !== "portrait" ? [0.5, 2.5] : [1, 4];
     setCrop({ zoom: +Math.min(hi, Math.max(lo, current.crop.zoom * f)).toFixed(3) });
   };
 
@@ -149,7 +168,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
     if (view !== "court" || !current) return;
     const c = e.currentTarget, id = e.pointerId, start = { x: e.clientX, y: e.clientY, crop: current.crop };
     c.setPointerCapture(id);
-    const box = await headBox(selected, c.width), scale = c.getBoundingClientRect().width / c.width;
+    const box = await dragBox(recto, selected, c.width), scale = c.getBoundingClientRect().width / c.width;
     drag.current = { ...start, w: box.w * scale, h: box.h * scale };
   }
   function move(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -158,7 +177,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
     const dx = (e.clientX - d.x) / d.w, dy = (e.clientY - d.y) / d.h;
     const clamp = (v: number) => +Math.min(1, Math.max(0, v)).toFixed(3);
     // tête détourée : on déplace la tête ; photo ordinaire : on déplace le cadre dans la photo (sens inverse)
-    const k = currentFace?.cut ? 1 : -0.5 / d.crop.zoom;
+    const k = recto === "portrait" ? -0.8 / d.crop.zoom : currentFace?.cut ? 1 : -0.5 / d.crop.zoom;
     setCrop({ x: clamp(d.crop.x + k * dx), y: clamp(d.crop.y + k * dy) });
   }
 
@@ -166,10 +185,10 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
     const model = models.find((m) => m.id === back.template);
     if (!model) return;
     onSubmit({
-      back, model, style,
+      back, model, style, recto,
       courts: Object.entries(courts).flatMap(([code, a]) => {
         const f = faceOf(a.face);
-        return f && !f.error ? [{ code, face: { url: f.url, cut: f.cut }, crop: a.crop }] : [];
+        return f && !f.error ? [{ code, face: { url: f.url, cut: f.cut, src: f.src }, crop: a.crop }] : [];
       }),
     });
   }
@@ -216,7 +235,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
           <div className="stage-tools" role="toolbar" aria-label="Ajuster le visage">
             <button onClick={() => zoomBy(1 / 1.1)} aria-label="Réduire">−</button>
             <button onClick={() => zoomBy(1.1)} aria-label="Agrandir">+</button>
-            <button onClick={() => setCrop(currentFace?.cut ? CENTER : OVAL)}>Recentrer</button>
+            <button onClick={() => currentFace && setCrop(startCrop(recto, currentFace))}>Recentrer</button>
             <button onClick={() => setCourts((all) => { const n = { ...all }; delete n[selected]; return n; })}>Retirer</button>
           </div>
         )}
@@ -243,6 +262,22 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
 
             {step === 1 && (
               <div className="step">
+                <div className="field-group">
+                  <b>Modèle du recto</b>
+                  <div className="cb-models" role="radiogroup" aria-label="Modèle du recto">
+                    {MODELS.map((m) => (
+                      <button key={m.id} role="radio" aria-checked={recto === m.id} className={recto === m.id ? "on" : ""} onClick={() => chooseRecto(m.id)}>
+                        <CardView recto={m.id} code={selected} face={currentFace} sample width={120}
+                          crop={m.id === recto ? current?.crop ?? CENTER : currentFace ? startCrop(m.id, currentFace) : CENTER} style={m.id === recto ? style : m.style} />
+                        <span>{m.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="hint">{MODELS.find((m) => m.id === recto)!.hint}</p>
+                  <div className="cb-deck-peek" aria-label="Le reste du jeu">
+                    {PEEK.filter((c) => DECK.includes(c)).map((c) => <CardView key={c} recto={recto} code={c} face={null} crop={CENTER} style={style} width={96} />)}
+                  </div>
+                </div>
                 <div className="tray" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFaces([...e.dataTransfer.files], null); }}>
                   <div className="tray-head">
                     <b>Vos photos</b>
@@ -273,7 +308,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
                   </div>
                   <div className="court-grid">
                     {COURTS.map((code) => (
-                      <MiniCourt key={code} code={code} face={faceOf(courts[code]?.face)} crop={courts[code]?.crop ?? CENTER} style={style}
+                      <MiniCourt key={code} recto={recto} code={code} face={faceOf(courts[code]?.face)} crop={courts[code]?.crop ?? CENTER} style={style}
                         selected={code === selected} onSelect={() => setSelected(code)}
                         onDropFace={(id) => assign(code, id)} onDropFiles={(files) => addFaces(files, code)} />
                     ))}
@@ -283,8 +318,8 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
                 <div className="field-group">
                   <b>Rendu des visages</b>
                   <div className="seg" role="radiogroup" aria-label="Rendu des visages">
-                    {(["couleur", "gravure"] as const).map((v) => (
-                      <button key={v} role="radio" aria-checked={style === v} onClick={() => setStyle(v)}>{v === "couleur" ? "Photo couleur" : "Gravure bleue"}</button>
+                    {STYLES.map(([v, name]) => (
+                      <button key={v} role="radio" aria-checked={style === v} onClick={() => setStyle(v)}>{name}</button>
                     ))}
                   </div>
                 </div>

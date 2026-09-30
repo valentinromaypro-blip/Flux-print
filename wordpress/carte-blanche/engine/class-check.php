@@ -85,12 +85,16 @@ final class CB_Check
         self::thumb("$dir/cards/back.jpg", "$dir/preview-back.jpg");
         $previews[] = 'back';
         $courts = array_values(array_filter($files, fn($f) => str_contains($f, '/court-')));
+        if (!$courts) { // modèle redessiné sans photo : l'aperçu montre une figure du modèle
+            $courts = array_values(array_filter($files, fn($f) => preg_match('#/front-[SHDC]-K\.jpg$#', $f)));
+            $plain = true;
+        }
         $first = $courts[0] ?? $free[0] ?? null;
         if ($first) {
             self::thumb($first, "$dir/preview-court.jpg");
             $previews[] = 'court';
         }
-        $n = count($courts);
+        $n = empty($plain) ? count($courts) : 0;
         $fmt = CB_Settings::FORMATS[$job['format']]['label'] ?? '';
         $detail = isset($deck['cards_min'])
             ? "$cards cartes et le dos en qualité d’impression · $fmt"
