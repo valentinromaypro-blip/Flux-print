@@ -7,14 +7,27 @@ import { CB } from "@/lib/env.ts";
 const HAIR = 1, FACE = 3, MAX_SIDE = 1400;
 let segmenter: Promise<ImageSegmenter> | null = null;
 
-function load(): Promise<ImageSegmenter> {
-  // Fichiers servis par le site (installés par le plugin) ; absents : repli sur l'ovale
-  if (!CB.mediapipe) return Promise.reject(new Error("Détourage pas encore installé"));
-  return (segmenter ??= import("@mediapipe/tasks-vision").then(async ({ FilesetResolver, ImageSegmenter }) =>
-    ImageSegmenter.createFromOptions(await FilesetResolver.forVisionTasks(CB.mediapipe.replace(/\/$/, "")), {
-      baseOptions: { modelAssetPath: CB.mediapipe + "selfie_multiclass_256x256.tflite", delegate: "CPU" },
+// Sources officielles publiques (même version que le moteur compilé dans le studio) : secours si
+// les fichiers servis par le site ne se chargent pas. Seuls ces fichiers sont téléchargés ; les
+// photos du client ne quittent jamais son navigateur.
+const CDN_WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
+const CDN_MODEL = "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite";
+
+function create(wasm: string, model: string): Promise<ImageSegmenter> {
+  return import("@mediapipe/tasks-vision").then(async ({ FilesetResolver, ImageSegmenter }) =>
+    ImageSegmenter.createFromOptions(await FilesetResolver.forVisionTasks(wasm), {
+      baseOptions: { modelAssetPath: model, delegate: "CPU" },
       runningMode: "IMAGE", outputConfidenceMasks: true, outputCategoryMask: false,
-    })).catch((e) => { segmenter = null; throw e; })); // un échec (réseau) n’est pas définitif
+    }));
+}
+
+function load(): Promise<ImageSegmenter> {
+  const local = CB.mediapipe
+    ? create(CB.mediapipe.replace(/\/$/, ""), CB.mediapipe + "selfie_multiclass_256x256.tflite")
+    : Promise.reject(new Error("fichiers du site absents"));
+  return (segmenter ??= local
+    .catch((e) => { console.warn("détourage : fichiers du site indisponibles, sources publiques", e); return create(CDN_WASM, CDN_MODEL); })
+    .catch((e) => { segmenter = null; throw e; })); // un échec (réseau) n'est pas définitif
 }
 
 /** Téléchargement du détourage en avance (dès l'étape des visages), sans attendre la première photo. */

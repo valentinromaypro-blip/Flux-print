@@ -5,7 +5,8 @@
  * Ces fichiers (27 Mo) ne sont pas dans le zip du plugin, trop lourd pour l'envoi par l'admin chez
  * OVH : le serveur les télécharge lui-même une fois (tâche de fond), les vérifie (empreinte SHA-1
  * des versions testées) et les sert depuis le site. Le navigateur du client n'appelle aucun service
- * tiers. Tant qu'ils manquent, le studio fonctionne avec un visage en ovale au lieu du détourage.
+ * tiers, sauf en secours : si ces fichiers ne se chargent pas, le studio les prend aux sources
+ * publiques officielles (jsDelivr, Google). Sans aucun des deux, visage en ovale.
  */
 
 defined('ABSPATH') || exit;
