@@ -14,7 +14,12 @@ function load(): Promise<ImageSegmenter> {
     ImageSegmenter.createFromOptions(await FilesetResolver.forVisionTasks(CB.mediapipe.replace(/\/$/, "")), {
       baseOptions: { modelAssetPath: CB.mediapipe + "selfie_multiclass_256x256.tflite", delegate: "CPU" },
       runningMode: "IMAGE", outputConfidenceMasks: true, outputCategoryMask: false,
-    })));
+    })).catch((e) => { segmenter = null; throw e; })); // un échec (réseau) n’est pas définitif
+}
+
+/** Téléchargement du détourage en avance (dès l'étape des visages), sans attendre la première photo. */
+export function warmup() {
+  load().catch(() => {});
 }
 
 /** Raison du dernier échec du détourage (affichée dans le studio). */

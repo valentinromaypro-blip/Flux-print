@@ -1,7 +1,7 @@
 "use client";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { type Crop, RANKS, SUITS, uid, revealPanel } from "@/lib/design.ts";
-import { cutError, cutHead } from "@/lib/headcut.ts";
+import { cutError, cutHead, warmup } from "@/lib/headcut.ts";
 import { type Style, drawCourt, headBox, RATIO } from "@/lib/cardrender.ts";
 import { backModels, type BackModel } from "@/lib/backs.ts";
 import { CB } from "@/lib/env.ts";
@@ -62,6 +62,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
   const [step, setStep] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null), firstStep = useRef(true);
   useEffect(() => revealPanel(panelRef.current, firstStep), [step]);
+  useEffect(() => { if (step === 1) warmup(); }, [step]);
   const [back, setBackState] = useState<BackState>(initialBack);
   const [models, setModels] = useState<BackModel[]>([]);
   const setBack = (patch: Partial<BackState>) => setBackState((b) => ({ ...b, ...patch }));

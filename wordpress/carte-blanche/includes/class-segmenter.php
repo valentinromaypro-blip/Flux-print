@@ -71,6 +71,28 @@ final class CB_Segmenter
         return self::ready() ? rest_url('cb/v1/mediapipe/') : '';
     }
 
+    /** Copie compressée d'un fichier qui s'y prête (le modèle, lui, ne gagne rien). */
+    private static function gzip(string $path): bool
+    {
+        if (str_ends_with($path, '.tflite')) {
+            return false;
+        }
+        if (!is_file("$path.gz") || filemtime("$path.gz") < filemtime($path)) {
+            $in = fopen($path, 'rb');
+            $out = gzopen("$path.gz.part", 'wb9');
+            if (!$in || !$out) {
+                return false;
+            }
+            while (!feof($in)) {
+                gzwrite($out, fread($in, 1 << 20));
+            }
+            fclose($in);
+            gzclose($out);
+            rename("$path.gz.part", "$path.gz");
+        }
+        return true;
+    }
+
     public static function route(): void
     {
         register_rest_route('cb/v1', '/mediapipe/(?P<file>[a-z0-9_]+\.(?:js|wasm|tflite))', [
@@ -94,6 +116,13 @@ final class CB_Segmenter
             exit;
         }
         header("Content-Type: $type");
+        header('Vary: Accept-Encoding');
+        // Version compressée (préparée une fois) : le moteur passe de 11,5 à 3,3 Mo
+        if (str_contains((string) ($_SERVER['HTTP_ACCEPT_ENCODING'] ?? ''), 'gzip') && self::gzip($path)) {
+            @ini_set('zlib.output_compression', '0');
+            header('Content-Encoding: gzip');
+            $path .= '.gz';
+        }
         header('Content-Length: ' . filesize($path));
         while (ob_get_level()) {
             ob_end_clean();

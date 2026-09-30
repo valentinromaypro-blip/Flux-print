@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Carte Blanche — jeux de cartes personnalisés
  * Description: Studio de création (dos, figures avec visages), contrôle des fichiers, amalgame « pile = jeu » et lots SRA3 prêts pour la presse, intégrés à WooCommerce.
- * Version: 0.3.1
+ * Version: 0.3.2
  * Requires PHP: 8.1
  * Requires Plugins: woocommerce
  * Author: Carte Blanche
@@ -12,7 +12,7 @@
 
 defined('ABSPATH') || exit;
 
-define('CB_VERSION', '0.3.1');
+define('CB_VERSION', '0.3.2');
 define('CB_FILE', __FILE__);
 define('CB_DIR', __DIR__);
 define('CB_URL', plugin_dir_url(__FILE__));
