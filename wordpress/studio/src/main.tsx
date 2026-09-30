@@ -9,6 +9,8 @@ import CardsEditor, { type CardsPayload } from "@/components/CardsEditor";
 import { renderBack, renderCard, renderFreeCard } from "@/lib/print.ts";
 import { format, formats, setFormat } from "@/lib/format.ts";
 import { CB } from "@/lib/env.ts";
+import { api, post } from "@/lib/api.ts";
+import PackPanel from "@/components/PackPanel";
 import "./studio.css";
 import "./wp.css";
 
@@ -16,22 +18,6 @@ type Message = { level: "ok" | "warn" | "error"; title: string; help: string };
 type Job = { uid: string; status: string; messages: Message[]; previews: string[]; error: string | null; price?: number; cards?: number | null };
 const FINAL = ["approved", "rejected", "failed"];
 const CHUNK = 4 * 1024 * 1024;
-
-// Pas de jeton WordPress : l'API reconnaît le visiteur par son cookie de session Carte Blanche,
-// ce qui reste valable même si la page est servie depuis un cache.
-// Adresse de l'API : `CB.rest` vaut « …/wp-json/cb/v1/ » ou, sans permaliens, « …/?rest_route=/cb/v1/ ».
-function endpoint(path: string) {
-  const [route, query] = path.split("?");
-  return CB.rest + route + (query ? (CB.rest.includes("?") ? "&" : "?") + query : "");
-}
-async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(endpoint(path), { credentials: "same-origin", ...init });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as { message?: string }).message || `Erreur ${res.status}`);
-  return body as T;
-}
-const post = <T,>(path: string, body: BodyInit, type = "application/json") =>
-  api<T>(path, { method: "POST", body, headers: { "Content-Type": type } });
 
 async function createJob(kind: "design" | "pdf", media: string) {
   return (await post<{ uid: string }>("jobs", JSON.stringify({ product_id: CB.productId, kind, media, format: format().key }))).uid;
@@ -62,6 +48,7 @@ function setJob(uid: string | null) {
 
 function Report({ job, onAddToCart, onEdit }: { job: Job; onAddToCart: () => void; onEdit: () => void }) {
   const ok = job.status === "approved";
+  const [pack, setPack] = useState({ extra: 0, ready: true }); // conditionnement : supplément par jeu, prêt ou non
   return (
     <div className="step cb-report" aria-live="polite">
       <b className="cb-report-title">{ok ? "Votre jeu est validé" : job.status === "failed" ? "Le contrôle n'a pas abouti" : "À corriger"}</b>
@@ -72,9 +59,10 @@ function Report({ job, onAddToCart, onEdit }: { job: Job; onAddToCart: () => voi
         {job.messages.map((m, i) => <li key={i} className={`cb-msg ${m.level}`}><b>{m.title}</b>{m.help && <span>{m.help}</span>}</li>)}
         {job.error && <li className="cb-msg error"><b>{job.error}</b></li>}
       </ul>
-      {ok && job.price !== undefined && <p className="cb-price">{euros(job.price)} <small>l&apos;exemplaire{job.cards && CB.spec.cardsMin ? ` · ${job.cards} cartes` : ""} · remises par quantité au panier</small></p>}
+      {ok && <PackPanel uid={job.uid} onChange={(extra, ready) => setPack({ extra, ready })} />}
+      {ok && job.price !== undefined && <p className="cb-price">{euros(job.price + pack.extra)} <small>l&apos;exemplaire{job.cards && CB.spec.cardsMin ? ` · ${job.cards} cartes` : ""} · remises par quantité au panier</small></p>}
       {ok && <Quantity />}
-      {ok && <button type="button" className="btn red wide" onClick={onAddToCart}>Ajouter au panier</button>}
+      {ok && <button type="button" className="btn red wide" disabled={!pack.ready} onClick={onAddToCart}>{pack.ready ? "Ajouter au panier" : "Validez d'abord l'étui"}</button>}
       <button type="button" className="link" onClick={onEdit}>{ok ? "← Modifier ma création" : "← Corriger"}</button>
     </div>
   );

@@ -223,12 +223,21 @@ final class CB_Admin
                     $msg = "Lot $id refait.";
                 }
                 break;
+            case 'prices': // prix des options de conditionnement (par jeu, hors remise quantité)
+                $all = get_option('cb_settings', []);
+                foreach (['fenetre', 'custom'] as $p) {
+                    $v = str_replace(',', '.', (string) wp_unslash($_POST["pack_price_$p"] ?? ''));
+                    $all["pack_price_$p"] = is_numeric($v) ? max(0, round((float) $v, 2)) : CB_Box::PACKS[$p]['price'];
+                }
+                update_option('cb_settings', $all);
+                $msg = 'Prix des étuis enregistrés.';
+                break;
             case 'printed':
                 CB_Production::mark_printed($id);
                 $msg = "Lot $id marqué imprimé.";
                 break;
             case 'download':
-                $file = CB_Production::lot_file($id);
+                $file = ($_GET['file'] ?? '') === 'etuis' ? CB_Production::boxes_file($id) : CB_Production::lot_file($id);
                 if (!is_file($file)) {
                     wp_die('Fichier introuvable.');
                 }
@@ -312,7 +321,9 @@ final class CB_Admin
                     'failed' => '<span style="color:#c4172c">erreur : ' . esc_html((string) $l['error']) . '</span>'][$l['status']] ?? esc_html($l['status']);
                 $files = in_array($l['status'], ['ready', 'printed'], true)
                     ? sprintf('<a class="button button-primary" href="%s">PDF d’impression</a> <a class="button" href="%s">Fiche de lot</a>',
-                        esc_url(self::action_url('download', ['lot' => $l['id']])), esc_url(self::prod_url(['lot' => $l['id']]))) : '';
+                        esc_url(self::action_url('download', ['lot' => $l['id']])), esc_url(self::prod_url(['lot' => $l['id']])))
+                        . (is_file(CB_Production::boxes_file($l['id'])) ? sprintf(' <a class="button" href="%s">PDF étuis perso (%d)</a>',
+                            esc_url(self::action_url('download', ['lot' => $l['id'], 'file' => 'etuis'])), (int) (CB_Store::lot($l['id'])['manifest']['packs']['custom'] ?? 0)) : '') : '';
                 $act = $l['status'] === 'ready' ? '<a href="' . esc_url(self::action_url('printed', ['lot' => $l['id']])) . '">Marquer imprimé</a>'
                     : ($l['status'] === 'failed' ? '<a href="' . esc_url(self::action_url('rebuild', ['lot' => $l['id']])) . '">Refaire</a>' : '');
                 printf('<tr><td><code>%s</code><br><small>%s</small></td><td>%s</td><td>%s · %s</td><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
@@ -320,8 +331,21 @@ final class CB_Admin
                     (int) $l['decks'], $l['sheets'] ? (int) $l['sheets'] : '—', $state, $files, $act);
             }
             echo '</tbody></table>';
+            echo '<p class="description">Étuis personnalisés : le bouton « PDF étuis perso » donne un PDF par lot (une page par jeu, étui à plat avec fond perdu, découpe en ton direct CutContour, rainage en ton direct Rainage), à transmettre à l’imprimeur du groupe. Étuis à fenêtre : à sortir du stock (voir la fiche de lot).</p>';
             echo '<p class="description">Fiery : échelle 100 %, sans rotation automatique ni imposition Fiery, recto verso <strong>petit côté</strong>, profil source CMJN FOGRA51 (PSO Coated v3).</p>';
         }
+        // Prix des options d'étui
+        echo '<h2>Conditionnement</h2><form method="post" action="' . esc_url(admin_url('admin-post.php?action=cb_prod&do=prices')) . '">';
+        wp_nonce_field('cb_prod');
+        echo '<p>De base : sous film rétractable (inclus). Options, par jeu, ajoutées au prix après la remise quantité :</p><table class="form-table">';
+        foreach (['fenetre', 'custom'] as $p) {
+            printf('<tr><th><label for="pp-%1$s">%2$s</label></th><td><input id="pp-%1$s" name="pack_price_%1$s" type="text" inputmode="decimal" size="6" value="%3$s"> € TTC%4$s</td></tr>',
+                $p, esc_html(CB_Box::PACKS[$p]['label']), esc_attr(number_format(CB_Box::price($p), 2, ',', '')),
+                isset(CB_Box::PACKS[$p]['formats']) ? ' <span class="description">(proposé en format ' . esc_html(implode(', ', CB_Box::PACKS[$p]['formats'])) . ')</span>' : '');
+        }
+        echo '</table>';
+        submit_button('Enregistrer les prix');
+        echo '</form>';
         echo '</div>';
     }
 
@@ -339,14 +363,19 @@ final class CB_Admin
         printf('<h1>Fiche de lot %s</h1><p><strong>%s</strong> · %s · %s · %d jeux · %d feuilles SRA3 · recto verso petit côté</p>',
             esc_html($id), esc_html(CB_Settings::FORMATS[$m['format']]['label'] ?? $m['format']), esc_html(CB_Settings::MEDIA[$m['media']]['label'] ?? $m['media']),
             esc_html($m['layout']), (int) $lot['decks'], (int) $lot['sheets']);
+        $packs = $m['packs'] ?? [];
+        if (!empty($packs['fenetre']) || !empty($packs['custom'])) {
+            printf('<p><strong>Conditionnement :</strong> %d sous film · %d étui(s) à fenêtre à sortir du stock · %d étui(s) personnalisé(s) (PDF « étuis perso » à envoyer à l’imprimeur du groupe).</p>',
+                $packs['film'] ?? 0, $packs['fenetre'] ?? 0, $packs['custom'] ?? 0);
+        }
         echo '<p>Couper chaque livre de feuilles d’un seul coup : chaque pile est un jeu complet et trié, sa carte d’identification sur le dessus (à retirer avant la mise en étui). '
             . 'Piles numérotées dans l’ordre de lecture de la feuille : de haut en bas, de gauche à droite (recto).</p>';
         foreach ($m['books'] as $book) {
             printf('<h2>Livre %d · feuilles %d à %d (%d feuilles)</h2>', $book['book'], $book['first_sheet'], $book['first_sheet'] + $book['sheets'] - 1, $book['sheets']);
-            echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th>Pile</th><th>Commande</th><th>Client</th><th>Exemplaire</th><th>Cartes</th><th>✓</th></tr></thead><tbody>';
+            echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th>Pile</th><th>Commande</th><th>Client</th><th>Exemplaire</th><th>Cartes</th><th>Conditionnement</th><th>✓</th></tr></thead><tbody>';
             foreach ($book['stacks'] as $s) {
-                printf('<tr><td><strong>%d</strong></td><td>#%s</td><td>%s</td><td>%d / %d</td><td>%d</td><td>☐</td></tr>', $s['stack'], esc_html($s['order']), esc_html($s['name']),
-                    $s['copy'], $s['copies'], $s['cards']);
+                printf('<tr><td><strong>%d</strong></td><td>#%s</td><td>%s</td><td>%d / %d</td><td>%d</td><td>%s</td><td>☐</td></tr>', $s['stack'], esc_html($s['order']), esc_html($s['name']),
+                    $s['copy'], $s['copies'], $s['cards'], esc_html(CB_Box::label($s['pack'] ?? 'film')));
             }
             echo '</tbody></table>';
         }

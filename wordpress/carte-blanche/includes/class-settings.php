@@ -84,7 +84,8 @@ final class CB_Settings
      * Prix unitaire TTC d'un jeu, comme le site d'origine (apps/site/src/lib/pricing.ts).
      * @return array{unit:float, discount:int} prix d'un exemplaire, remise en %
      */
-    public static function price(string $deck, int $copies = 1, ?int $cards = null, string $media = 'cmdm-350g'): array
+    /** Prix d'un exemplaire : grille du jeu, carton, remise quantité, puis conditionnement (hors remise). */
+    public static function price(string $deck, int $copies = 1, ?int $cards = null, string $media = 'cmdm-350g', string $pack = 'film'): array
     {
         $p = self::deck($deck)['pricing'];
         $d = self::deck($deck);
@@ -95,6 +96,6 @@ final class CB_Settings
                 $coef = $c;
             }
         }
-        return ['unit' => round($base * $coef, 2), 'discount' => (int) round((1 - $coef) * 100)];
+        return ['unit' => round($base * $coef + CB_Box::price($pack), 2), 'discount' => (int) round((1 - $coef) * 100)];
     }
 }

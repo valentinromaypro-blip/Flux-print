@@ -147,7 +147,7 @@ final class CB_Woo
             if (empty($item['cb_job']) || !($job = CB_Store::job($item['cb_job'])) || !CB_Settings::deck($job['deck'])) {
                 continue;
             }
-            $price = CB_Settings::price($job['deck'], (int) $item['quantity'], $job['cards'] ? (int) $job['cards'] : null, $job['media']);
+            $price = CB_Settings::price($job['deck'], (int) $item['quantity'], $job['cards'] ? (int) $job['cards'] : null, $job['media'], $job['pack'] ?? 'film');
             $item['data']->set_price($price['unit']);
         }
     }
@@ -234,6 +234,7 @@ final class CB_Woo
         if ($deck && count($deck['formats']) > 1) {
             $out['Format'] = CB_Settings::FORMATS[$job['format']]['label'] ?? $job['format'];
         }
+        $out['Conditionnement'] = CB_Box::label($job['pack'] ?? 'film');
         if (CB_Production::recto($job) === 'vintage') {
             $out['Recto'] = 'Vintage';
         }

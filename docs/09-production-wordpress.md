@@ -27,6 +27,25 @@ encres passées), l'atelier teinte ces faces avec le même calcul que le studio 
 `uploads/carte-blanche/fronts/{format}-vintage/`. Le modèle est enregistré dans la création
 (`design.recto`) et affiché dans la commande (« Recto : Vintage »).
 
+## Conditionnement
+
+Choisi par le client une fois son jeu validé, à côté de la quantité ; le supplément s'ajoute au prix
+par jeu, après la remise quantité. Prix réglables dans Carte Blanche → Production → Conditionnement.
+
+| Option | Prix par défaut | À l'atelier |
+|---|---|---|
+| Sous film rétractable | inclus | — |
+| Étui à fenêtre Carte Blanche (format poker) | +3 € | à sortir du stock (compté sur la fiche de lot, et indiqué sur la carte d'identification de chaque jeu) |
+| Étui personnalisé | +6 € | bouton « PDF étuis perso » du lot, à transmettre à l'imprimeur du groupe |
+
+Étui personnalisé : étui à rabats inversés calculé par le serveur pour le format et l'épaisseur du jeu
+(nombre de cartes × épaisseur du carton : 0,40 mm en 350 g, 0,34 mm en 300 g, valeurs à confirmer ;
+1,5 mm de jeu), patte de collage 12 mm, languettes 15 mm. Le client le crée dans le studio (face avant :
+le dos du jeu, une photo, ou une couleur et un titre ; titre sur les tranches ; message au dos) ou dépose
+un PDF fait sur le gabarit téléchargeable, contrôlé au format exact. Le PDF du lot contient une page par
+jeu : étui à plat en CMJN avec 3 mm de fond perdu, découpe en ton direct `CutContour`, rainage en ton
+direct `Rainage` (pointillés), tous deux en surimpression, et le repère de commande et d'exemplaires.
+
 ## Réglages Fiery
 Échelle 100 %, sans rotation automatique ni imposition Fiery, recto verso **petit côté**, profil source CMJN
 **FOGRA51 (PSO Coated v3)**, SRA3 320 × 450 mm.

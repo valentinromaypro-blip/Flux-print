@@ -92,14 +92,31 @@ final class CB_Pdf
         return $this->stream_obj(sprintf('/Type /XObject /Subtype /Form /BBox [0 0 %.3F %.3F] /Resources << /Font << /F1 3 0 R >> >>', $w, $h), $content);
     }
 
-    /** Page : contenu et objets (images, dessins) qu'il utilise, nommés /X<id>. */
-    public function page(string $content, array $xobjects, float $w, float $h): void
+    /** Ton direct (Separation), avec son équivalent CMJN à 100 % : tracés de découpe et de rainage. */
+    public function spot(string $name, array $cmyk): int
+    {
+        $id = $this->next++;
+        $this->write_obj($id, sprintf('[/Separation /%s /DeviceCMYK << /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [%s] /N 1 >>]',
+            $name, implode(' ', $cmyk)));
+        return $id;
+    }
+
+    /** État graphique « surimpression » (les tracés ne défoncent pas l'image). */
+    public function overprint(): int
+    {
+        $id = $this->next++;
+        $this->write_obj($id, '<< /Type /ExtGState /OP true /op true /OPM 1 >>');
+        return $id;
+    }
+
+    /** Page : contenu et objets (images, dessins) qu'il utilise, nommés /X<id> ; $resources : ressources en plus. */
+    public function page(string $content, array $xobjects, float $w, float $h, string $resources = ''): void
     {
         $content_id = $this->stream_obj('', $content);
         $xo = implode(' ', array_map(fn($id) => "/X$id $id 0 R", array_unique($xobjects)));
         $id = $this->next++;
-        $this->write_obj($id, sprintf('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.3F %.3F] /Resources << /Font << /F1 3 0 R >> /XObject << %s >> >> /Contents %d 0 R >>',
-            $w, $h, $xo, $content_id));
+        $this->write_obj($id, sprintf('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.3F %.3F] /Resources << /Font << /F1 3 0 R >> /XObject << %s >> %s >> /Contents %d 0 R >>',
+            $w, $h, $xo, $resources, $content_id));
         $this->pages[] = $id;
     }
 

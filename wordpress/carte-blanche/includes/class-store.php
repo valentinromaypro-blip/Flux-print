@@ -39,6 +39,7 @@ final class CB_Store
             format varchar(16) NOT NULL DEFAULT 'poker',
             cards int(11) NULL,
             media varchar(40) NOT NULL DEFAULT 'cmdm-350g',
+            pack varchar(16) NOT NULL DEFAULT 'film',
             status varchar(16) NOT NULL DEFAULT 'draft',
             design longtext NULL,
             report longtext NULL,

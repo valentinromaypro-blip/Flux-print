@@ -186,7 +186,7 @@ final class CB_Production
         return $r === 'vintage' ? 'vintage' : 'classique';
     }
 
-    private static function to_cmyk(string $src, string $dst, array $px, ?array $fit = null, bool $vintage = false): void
+    public static function to_cmyk(string $src, string $dst, array $px, ?array $fit = null, bool $vintage = false): void
     {
         $im = new Imagick();
         $im->setResolution(self::DPI, self::DPI);
@@ -284,6 +284,7 @@ final class CB_Production
             file_put_contents("$out/print.json", wp_json_encode([
                 'format' => $job['format'], 'fronts' => array_map($rel, $fronts), 'backs' => is_array($backs) ? array_map($rel, $backs) : $rel($backs),
             ]));
+            CB_Box::prepare($job); // étui personnalisé : image CMJN pour l'imprimeur du groupe
             array_map('unlink', glob("$dir/pdfpages/*.jpg") ?: []);
             CB_Store::update_job($uid, ['status' => 'ready']);
             CB_Store::note((int) $job['order_id'], 'Carte Blanche : fichiers d’impression prêts (' . count($fronts) . ' cartes, CMJN PSO Coated v3).');
@@ -410,6 +411,12 @@ final class CB_Production
         return CB_Store::dir('lots') . '/' . sanitize_file_name($id) . '.pdf';
     }
 
+    /** PDF des étuis personnalisés du lot (pour l'imprimeur du groupe). */
+    public static function boxes_file(string $id): string
+    {
+        return CB_Store::dir('lots') . '/' . sanitize_file_name($id) . '-etuis.pdf';
+    }
+
     public static function build_lot(string $id): void
     {
         $lot = CB_Store::lot($id);
@@ -429,7 +436,8 @@ final class CB_Production
 
             // Jeux du lot : un par exemplaire, la carte d'identification en tête
             $decks = [];
-            foreach (CB_Store::jobs_where('lot_id = %s ORDER BY paid_at ASC, id ASC', [$id]) as $job) {
+            $jobs = CB_Store::jobs_where('lot_id = %s ORDER BY paid_at ASC, id ASC', [$id]);
+            foreach ($jobs as $job) {
                 $print = json_decode((string) @file_get_contents(CB_Store::job_dir($job['uid']) . '/print/print.json'), true);
                 if (!$print) {
                     throw new RuntimeException("Jeu {$job['uid']} non préparé.");
@@ -439,7 +447,7 @@ final class CB_Production
                 $fronts = array_map(fn($p) => "$base/$p", $print['fronts']);
                 $backs = is_array($print['backs']) ? array_map(fn($p) => "$base/$p", $print['backs']) : "$base/{$print['backs']}";
                 for ($c = 1; $c <= $copies; $c++) {
-                    $decks[] = ['uid' => $job['uid'], 'fronts' => $fronts, 'backs' => $backs, 'copy' => $c, 'copies' => $copies,
+                    $decks[] = ['uid' => $job['uid'], 'fronts' => $fronts, 'backs' => $backs, 'copy' => $c, 'copies' => $copies, 'pack' => $job['pack'] ?? 'film',
                         'order' => $order ? $order->get_order_number() : '—',
                         'name' => $order ? trim($order->get_formatted_billing_full_name()) : '',
                         'order_id' => (int) $job['order_id']];
@@ -467,7 +475,7 @@ final class CB_Production
                 $length = count($book[0]['fronts']) + 1;
                 $stacks = [];
                 foreach ($book as $k => $deck) {
-                    $stacks[] = ['stack' => $k + 1, 'order' => $deck['order'], 'name' => $deck['name'], 'copy' => $deck['copy'], 'copies' => $deck['copies'],
+                    $stacks[] = ['stack' => $k + 1, 'order' => $deck['order'], 'name' => $deck['name'], 'copy' => $deck['copy'], 'copies' => $deck['copies'], 'pack' => $deck['pack'],
                         'cards' => count($deck['fronts']), 'uid' => $deck['uid'], 'order_id' => $deck['order_id']];
                 }
                 $manifest['books'][] = ['book' => $b + 1, 'first_sheet' => $sheet_no + 1, 'sheets' => $length, 'stacks' => $stacks];
@@ -511,6 +519,21 @@ final class CB_Production
             $pdf->close("Lot $id — " . $manifest['layout']);
             rename($file . '.part', $file);
             $manifest['sheets'] = $total;
+            // Conditionnement : étuis à fenêtre à sortir du stock, étuis personnalisés à faire imprimer
+            $manifest['packs'] = array_count_values(array_column($decks, 'pack'));
+            $boxes = [];
+            foreach ($jobs as $job) {
+                $image = CB_Store::dir('jobs/' . $job['uid'] . '/print') . '/box.jpg';
+                if (($job['pack'] ?? '') === 'custom' && is_file($image)) {
+                    $order = $job['order_id'] ? wc_get_order($job['order_id']) : null;
+                    $boxes[] = ['image' => $image, 'geometry' => CB_Box::for_job($job), 'copies' => max(1, (int) $job['copies']),
+                        'order' => $order ? $order->get_order_number() : '—', 'name' => $order ? trim($order->get_formatted_billing_full_name()) : ''];
+                }
+            }
+            @unlink(self::boxes_file($id));
+            if ($boxes) {
+                CB_Box::lot_pdf(self::boxes_file($id), $id, $boxes);
+            }
             CB_Store::update_lot($id, ['status' => 'ready', 'sheets' => $total, 'decks' => count($decks), 'manifest' => $manifest, 'generated_at' => CB_Store::now()]);
             foreach (array_unique(array_column($decks, 'order_id')) as $oid) {
                 CB_Store::note($oid, "Carte Blanche : PDF d’impression du lot $id prêt ($total feuilles SRA3).");
@@ -574,6 +597,7 @@ final class CB_Production
             $ops[] = $center(mb_substr($deck['name'], 0, 28), 9, $ph - $b - CB_Pdf::mm(37));
         }
         $ops[] = $center(count($deck['fronts']) . ' cartes · ' . $fmt['label'], 6.5, $ph - $b - CB_Pdf::mm(43));
+        $ops[] = $center('Conditionnement : ' . CB_Box::label($deck['pack'] ?? 'film'), 6.5, $ph - $b - CB_Pdf::mm(49));
         $ops[] = sprintf('0 0 0 1 K 0.6 w %.2F %.2F %.2F %.2F re S', $b + CB_Pdf::mm(4), $b + CB_Pdf::mm(4), $pw - 2 * $b - CB_Pdf::mm(8), $ph - 2 * $b - CB_Pdf::mm(8));
         $ops[] = $center(strtoupper($side) . ' · à retirer avant mise en étui', 5.5, $b + CB_Pdf::mm(7));
         $ops[] = $center(substr($deck['uid'], 0, 12), 5, $b + CB_Pdf::mm(10));
