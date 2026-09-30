@@ -229,13 +229,32 @@ final class CB_Admin
                     $v = str_replace(',', '.', (string) wp_unslash($_POST["pack_price_$p"] ?? ''));
                     $all["pack_price_$p"] = is_numeric($v) ? max(0, round((float) $v, 2)) : CB_Box::PACKS[$p]['price'];
                 }
+                foreach (array_keys(CB_Box::PACKS) as $p) {
+                    $all["pack_photo_$p"] = esc_url_raw(trim((string) wp_unslash($_POST["pack_photo_$p"] ?? '')));
+                }
                 update_option('cb_settings', $all);
-                $msg = 'Prix des étuis enregistrés.';
+                $msg = 'Conditionnement enregistré.';
                 break;
             case 'printed':
                 CB_Production::mark_printed($id);
                 $msg = "Lot $id marqué imprimé.";
                 break;
+            case 'stock': // fichier d'impression de l'étui à fenêtre (stock)
+                @set_time_limit(120);
+                try {
+                    $file = CB_Box::stock_pdf();
+                } catch (Throwable $e) {
+                    wp_die('Fabrication du fichier impossible : ' . esc_html($e->getMessage()));
+                }
+                nocache_headers();
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: attachment; filename="' . basename($file) . '"');
+                header('Content-Length: ' . filesize($file));
+                while (ob_get_level()) {
+                    ob_end_clean();
+                }
+                readfile($file);
+                exit;
             case 'download':
                 $file = ($_GET['file'] ?? '') === 'etuis' ? CB_Production::boxes_file($id) : CB_Production::lot_file($id);
                 if (!is_file($file)) {
@@ -343,9 +362,17 @@ final class CB_Admin
                 $p, esc_html(CB_Box::PACKS[$p]['label']), esc_attr(number_format(CB_Box::price($p), 2, ',', '')),
                 isset(CB_Box::PACKS[$p]['formats']) ? ' <span class="description">(proposé en format ' . esc_html(implode(', ', CB_Box::PACKS[$p]['formats'])) . ')</span>' : '');
         }
+        echo '</table><p>Photos de présentation (mockups) montrées au client à l’étape « L’étui » : adresse d’une image de la médiathèque (Médias → l’image → « Copier l’URL »). Sans photo, le studio affiche un aperçu dessiné.</p><table class="form-table">';
+        foreach (array_keys(CB_Box::PACKS) as $p) {
+            $url = CB_Box::photo($p);
+            printf('<tr><th><label for="ph-%1$s">%2$s</label></th><td><input id="ph-%1$s" name="pack_photo_%1$s" type="url" class="regular-text" value="%3$s" placeholder="https://…/mockup.jpg">%4$s</td></tr>',
+                $p, esc_html(CB_Box::PACKS[$p]['label']), esc_attr($url), $url ? ' <img src="' . esc_url($url) . '" alt="" style="height:48px;vertical-align:middle;margin-left:8px;border-radius:4px">' : '');
+        }
         echo '</table>';
-        submit_button('Enregistrer les prix');
+        submit_button('Enregistrer');
         echo '</form>';
+        printf('<p><a class="button" href="%s">Fichier d’impression de l’étui à fenêtre Carte Blanche</a> <span class="description">Poker 54 cartes, à faire fabriquer en série pour le stock : fond perdu, découpe (fenêtre comprise) et rainage en tons directs.</span></p>',
+            esc_url(self::action_url('stock')));
         echo '</div>';
     }
 

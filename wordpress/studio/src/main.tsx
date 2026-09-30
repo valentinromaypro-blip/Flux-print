@@ -9,13 +9,14 @@ import CardsEditor, { type CardsPayload } from "@/components/CardsEditor";
 import { renderBack, renderCard, renderFreeCard } from "@/lib/print.ts";
 import { format, formats, setFormat } from "@/lib/format.ts";
 import { CB } from "@/lib/env.ts";
-import { api, post } from "@/lib/api.ts";
-import PackPanel from "@/components/PackPanel";
+import { api, endpoint, post } from "@/lib/api.ts";
+import PackStep, { initialPack, Mockup, needsBoxFile, packAvailable, type PackChoice, PackSummary } from "@/components/PackStep";
+import { type BoxInfo, placeholderBack, renderFlat } from "@/lib/box.ts";
 import "./studio.css";
 import "./wp.css";
 
 type Message = { level: "ok" | "warn" | "error"; title: string; help: string };
-type Job = { uid: string; status: string; messages: Message[]; previews: string[]; error: string | null; price?: number; cards?: number | null };
+type Job = { uid: string; status: string; messages: Message[]; previews: string[]; error: string | null; price?: number; cards?: number | null; pack?: string; packMessages?: Message[] };
 const FINAL = ["approved", "rejected", "failed"];
 const CHUNK = 4 * 1024 * 1024;
 
@@ -46,26 +47,57 @@ function setJob(uid: string | null) {
   if (input) input.value = uid ?? "";
 }
 
-function Report({ job, onAddToCart, onEdit }: { job: Job; onAddToCart: () => void; onEdit: () => void }) {
-  const ok = job.status === "approved";
-  const [pack, setPack] = useState({ extra: 0, ready: true }); // conditionnement : supplément par jeu, prêt ou non
+function Report({ job, pack, media, onAddToCart, onEdit }: { job: Job; pack: PackChoice; media: string; onAddToCart: () => void; onEdit: () => void }) {
+  const ok = job.status === "approved" && !job.packMessages?.length;
+  const cards = job.cards ?? CB.spec.cards;
   return (
     <div className="step cb-report" aria-live="polite">
       <b className="cb-report-title">{ok ? "Votre jeu est validé" : job.status === "failed" ? "Le contrôle n'a pas abouti" : "À corriger"}</b>
       {job.previews.length > 0 && (
-        <div className="previews">{job.previews.map((u) => <img key={u} src={u} alt="Aperçu de la carte imprimée" width={150} />)}</div>
+        <div className="previews">
+          {job.previews.filter((u) => !u.includes("/preview/box")).map((u) => <img key={u} src={u} alt="Aperçu de la carte imprimée" width={150} />)}
+          {job.status === "approved" && job.pack && job.pack !== "film" && (
+            <Mockup pack={job.pack as PackChoice["pack"]} back={endpoint(`jobs/${job.uid}/box-back`)} cards={cards} media={media}
+              design={pack.design} width={300} height={260} className="cb-report-box" />
+          )}
+        </div>
       )}
       <ul className="cb-messages">
         {job.messages.map((m, i) => <li key={i} className={`cb-msg ${m.level}`}><b>{m.title}</b>{m.help && <span>{m.help}</span>}</li>)}
+        {job.packMessages?.map((m, i) => <li key={`p${i}`} className={`cb-msg ${m.level}`}><b>{m.title}</b>{m.help && <span>{m.help}</span>}</li>)}
         {job.error && <li className="cb-msg error"><b>{job.error}</b></li>}
       </ul>
-      {ok && <PackPanel uid={job.uid} onChange={(extra, ready) => setPack({ extra, ready })} />}
-      {ok && job.price !== undefined && <p className="cb-price">{euros(job.price + pack.extra)} <small>l&apos;exemplaire{job.cards && CB.spec.cardsMin ? ` · ${job.cards} cartes` : ""} · remises par quantité au panier</small></p>}
+      {ok && <PackSummary choice={{ ...pack, pack: (job.pack ?? "film") as PackChoice["pack"] }} />}
+      {ok && job.price !== undefined && <p className="cb-price">{euros(job.price)} <small>l&apos;exemplaire{job.cards && CB.spec.cardsMin ? ` · ${job.cards} cartes` : ""} · remises par quantité au panier</small></p>}
       {ok && <Quantity />}
-      {ok && <button type="button" className="btn red wide" disabled={!pack.ready} onClick={onAddToCart}>{pack.ready ? "Ajouter au panier" : "Validez d'abord l'étui"}</button>}
-      <button type="button" className="link" onClick={onEdit}>{ok ? "← Modifier ma création" : "← Corriger"}</button>
+      {ok && <button type="button" className="btn red wide" onClick={onAddToCart}>Ajouter au panier</button>}
+      <button type="button" className="link" onClick={onEdit}>{ok ? "← Modifier ma création" : job.packMessages?.length ? "← Corriger l'étui" : "← Corriger"}</button>
     </div>
   );
+}
+
+/**
+ * Après validation du jeu : conditionnement choisi. Étui personnalisé : fabriqué au gabarit exact
+ * (le serveur connaît maintenant le format et le nombre de cartes), envoyé et contrôlé.
+ */
+async function applyPack(job: Job, c: PackChoice, progress: (label: string) => void): Promise<Job> {
+  if (job.status !== "approved" || c.pack === "film" || !packAvailable(c.pack)) return job;
+  if (c.pack === "custom") {
+    if (c.how === "online") {
+      progress("Fabrication de l'étui en qualité d'impression…");
+      const info = await api<BoxInfo>(`jobs/${job.uid}/box`);
+      await post(`jobs/${job.uid}/file?role=box`, await renderFlat(info, c.design), "image/jpeg");
+    } else if (c.file) {
+      for (let offset = 0; offset < c.file.size; offset += CHUNK) {
+        progress(`Envoi du PDF de l'étui… ${Math.round((offset / c.file.size) * 100)} %`);
+        await post(`jobs/${job.uid}/file?role=boxpdf&offset=${offset}`, c.file.slice(offset, offset + CHUNK), "application/pdf");
+      }
+    }
+    progress("Contrôle de l'étui…");
+  }
+  const r = await post<{ ok: boolean; messages: Message[] }>(`jobs/${job.uid}/pack`, JSON.stringify({ pack: c.pack }));
+  const fresh = await api<Job>(`jobs/${job.uid}`);
+  return r.ok ? fresh : { ...fresh, packMessages: r.messages };
 }
 
 // Titre (H1), prix, accroche et remises de la fiche produit, déplacés dans le panneau du studio
@@ -116,7 +148,8 @@ function Progress({ label, value }: { label: string; value?: number }) {
   );
 }
 
-function PdfPanel({ media, onDone }: { media: string; onDone: (job: Job) => void }) {
+function PdfPanel({ media, onDone, pack, setPack }: { media: string; onDone: (job: Job) => void; pack: PackChoice; setPack: (p: Partial<PackChoice>) => void }) {
+  const sample = useRef(placeholderBack());
   const [file, setFile] = useState<File | null>(null);
   const [step, setStep] = useState<{ label: string; value?: number } | null>(null);
   const [error, setError] = useState("");
@@ -139,7 +172,7 @@ function PdfPanel({ media, onDone }: { media: string; onDone: (job: Job) => void
       }
       setStep({ label: "Contrôle du fichier (pages, format, fond perdu)…" });
       await post(`jobs/${uid}/submit`, "{}");
-      onDone(await waitJob(uid, () => {}));
+      onDone(await applyPack(await waitJob(uid, () => {}), pack, (label) => setStep({ label })));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -161,7 +194,13 @@ function PdfPanel({ media, onDone }: { media: string; onDone: (job: Job) => void
           : <><b>Choisir mon PDF</b><span>ou le glisser ici</span></>}
       </label>
       {error && <p className="error-text">{error}</p>}
-      <button type="button" className="btn red wide" disabled={!file} onClick={send}>Envoyer et contrôler</button>
+      <div className="field-group">
+        <b>L&apos;étui</b>
+        <PackStep choice={pack} set={setPack} back={sample.current} cards={sp.cardsMin ?? sp.cards} media={media} big />
+      </div>
+      <PackSummary choice={pack} />
+      <button type="button" className="btn red wide" disabled={!file || needsBoxFile(pack)} onClick={send}>
+        {needsBoxFile(pack) ? "Ajoutez le PDF de votre étui" : "Envoyer et contrôler"}</button>
     </div>
   );
 }
@@ -169,6 +208,8 @@ function PdfPanel({ media, onDone }: { media: string; onDone: (job: Job) => void
 function App() {
   const [mode, setMode] = useState<"design" | "pdf">(CB.spec.editor ? "design" : "pdf");
   const [media, setMedia] = useState(CB.spec.media[0]?.id ?? "cmdm-350g");
+  const [pack, setPackState] = useState<PackChoice>(initialPack);
+  const setPack = (patch: Partial<PackChoice>) => setPackState((p) => ({ ...p, ...patch }));
   const [fmt, setFmt] = useState(format().key);
   const free = !!CB.spec.cardsMin; // oracle : cartes libres
   const [step, setStep] = useState<{ label: string; value?: number } | null>(null);
@@ -206,7 +247,7 @@ function App() {
         logo: !!p.back.logo, photo: !!p.back.photo, style: p.style, recto: p.recto, courts: p.courts.map((c) => c.code),
       };
       await post(`jobs/${uid}/submit`, JSON.stringify({ design }));
-      finish(await waitJob(uid, () => {}));
+      finish(await applyPack(await waitJob(uid, () => {}), pack, (label) => setStep({ label })));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -231,7 +272,7 @@ function App() {
       const design = { template: p.back.template, bg: p.back.bg, ink: p.back.ink, title: p.back.title, subtitle: p.back.subtitle,
         logo: !!p.back.logo, photo: !!p.back.photo, format: format().key, cards: p.cards.length, titles: p.cards.map((c) => c.title), look: p.look };
       await post(`jobs/${uid}/submit`, JSON.stringify({ design }));
-      finish(await waitJob(uid, () => {}));
+      finish(await applyPack(await waitJob(uid, () => {}), pack, (label) => setStep({ label })));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -239,7 +280,7 @@ function App() {
   }
 
   const status = step ? <Progress {...step} />
-    : job ? <Report job={job} onAddToCart={() => cartButton()?.click()} onEdit={() => setJobState(null)} /> : null;
+    : job ? <Report job={job} pack={pack} media={media} onAddToCart={() => cartButton()?.click()} onEdit={() => setJobState(null)} /> : null;
 
   const header = (
     <div className="cb-head">
@@ -276,15 +317,15 @@ function App() {
       {/* L'éditeur reste monté en mode PDF : la création en cours n'est pas perdue en changeant d'avis. */}
       <div hidden={mode !== "design"}>
         {free
-          ? <CardsEditor key={fmt} busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitCards}
+          ? <CardsEditor key={fmt} pack={pack} setPack={setPack} media={media} busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitCards}
               finish={<p className="hint">Vérifiez vos cartes : le jeu sera imprimé exactement comme l&apos;aperçu.</p>} />
-          : <Editor busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitDesign}
+          : <Editor pack={pack} setPack={setPack} media={media} busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitDesign}
               finish={<p className="hint">Vérifiez vos figures : le jeu sera imprimé exactement comme l&apos;aperçu.</p>} />}
       </div>
       {mode === "pdf" && (
         <div className="cb-container studio cb-pdf">
           <div className="stage-col">{CB.image && <img className="cb-pdf-image" src={CB.image} alt="" />}</div>
-          <div className="panel">{header}{step || job ? status : <PdfPanel media={media} onDone={finish} />}</div>
+          <div className="panel">{header}{step || job ? status : <PdfPanel media={media} onDone={finish} pack={pack} setPack={setPack} />}</div>
         </div>
       )}
     </div>

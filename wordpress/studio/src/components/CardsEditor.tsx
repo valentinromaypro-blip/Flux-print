@@ -5,16 +5,20 @@ import { CB } from "@/lib/env.ts";
 import { format } from "@/lib/format.ts";
 import { type CardLook, drawFreeCard, type FreeCard } from "@/lib/print.ts";
 import BackStep, { BackPreview, type BackState, hasAlpha, initialBack } from "@/components/BackStep";
+import PackStep, { StageMockup, needsBoxFile, type PackChoice, PackSummary, useBackImage } from "@/components/PackStep";
 
 // Studio des jeux « cartes libres » (oracle) : un dos commun, puis une image par carte, avec un
 // titre facultatif. Même disposition que le studio des jeux classiques : aperçu à gauche, étapes à droite.
 
 export type Card = FreeCard & { id: string };
 export type CardsPayload = { back: BackState; model: BackModel; cards: Card[]; look: CardLook };
-type Props = { busy: boolean; header: ReactNode; finish: ReactNode; status: ReactNode; onSubmit: (p: CardsPayload) => void };
+type Props = {
+  busy: boolean; header: ReactNode; finish: ReactNode; status: ReactNode; onSubmit: (p: CardsPayload) => void;
+  pack: PackChoice; setPack: (patch: Partial<PackChoice>) => void; media: string;
+};
 
 const CENTER: Crop = { zoom: 1, x: 0.5, y: 0.5 };
-const STEPS = ["Le dos", "Vos cartes", "Finitions"];
+const STEPS = ["Le dos", "Vos cartes", "L'étui", "Finitions"];
 const clamp01 = (v: number) => +Math.min(1, Math.max(0, v)).toFixed(3);
 
 /** Fraction de la page occupée par le fond perdu, en largeur et en hauteur. */
@@ -34,7 +38,7 @@ function CardCanvas({ card, look, width, className, onPointerDown, onPointerMove
     onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} />;
 }
 
-export default function CardsEditor({ busy, header, finish, status, onSubmit }: Props) {
+export default function CardsEditor({ busy, header, finish, status, onSubmit, pack, setPack, media }: Props) {
   const min = CB.spec.cardsMin ?? 1, max = CB.spec.cardsMax ?? 100;
   const [step, setStep] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null), firstStep = useRef(true);
@@ -52,6 +56,8 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit }: 
   const setBack = useCallback((patch: Partial<BackState>) => setBackState((b) => ({ ...b, ...patch })), []);
   const fullLook: CardLook = { ...look, bg: back.bg, ink: back.ink };
   const current = cards.find((c) => c.id === selected) ?? null;
+  const backImage = useBackImage(back, models.find((m) => m.id === back.template), step >= 2);
+  const deckSize = Math.max(min, cards.length);
   const index = current ? cards.indexOf(current) : -1;
 
   function addFiles(files: File[]) {
@@ -95,7 +101,8 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit }: 
       <div className="stage-col">
         <div className="stage" onDragOver={(e) => { if (step === 1) e.preventDefault(); }}
           onDrop={(e) => { e.preventDefault(); addFiles([...e.dataTransfer.files]); }}>
-          {step === 0 || !current
+          {step === 2 ? <StageMockup choice={pack} back={backImage} cards={deckSize} media={media} />
+          : step === 0 || !current
             ? (step === 0 || !cards.length
               ? <BackPreview state={back} models={models} onDrag={dragBack} />
               : <button className="stage-empty" onClick={() => picker.current?.click()}><b>＋</b><span>Ajouter vos images</span></button>)
@@ -115,7 +122,7 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit }: 
             <button onClick={() => remove(current.id)}>Retirer</button>
           </div>
         )}
-        <p className="stage-caption">{step === 0 ? `Le dos, identique sur toutes les cartes · ${format().label}`
+        <p className="stage-caption">{step === 2 ? "Votre jeu tel que vous le recevrez" : step === 0 ? `Le dos, identique sur toutes les cartes · ${format().label}`
           : current ? `Carte ${index + 1} sur ${cards.length} · glissez l'image pour la placer` : `${format().label} · de ${min} à ${max} cartes`}</p>
       </div>
 
@@ -165,7 +172,7 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit }: 
                 </div>
                 <div className="row-actions">
                   <button className="btn red" onClick={() => setStep(2)} disabled={cards.length < min}>
-                    {cards.length < min ? `Encore ${min - cards.length} carte${min - cards.length > 1 ? "s" : ""}` : "Continuer : finitions →"}
+                    {cards.length < min ? `Encore ${min - cards.length} carte${min - cards.length > 1 ? "s" : ""}` : "Continuer : l'étui →"}
                   </button>
                   <button className="link" onClick={() => setStep(0)}>← Le dos</button>
                 </div>
@@ -173,11 +180,22 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit }: 
             )}
 
             {step === 2 && (
+              <PackStep choice={pack} set={setPack} back={backImage} cards={deckSize} media={media}
+                defaults={{ bg: back.bg, ink: back.ink, title: back.title, subtitle: back.subtitle }}
+                nav={<div className="row-actions">
+                  <button className="btn red" onClick={() => setStep(3)}>Continuer : finitions →</button>
+                  <button className="link" onClick={() => setStep(1)}>← Vos cartes</button>
+                </div>} />
+            )}
+
+            {step === 3 && (
               <div className="step">
                 {finish}
+                <PackSummary choice={pack} />
                 <p className="hint">{count} au format {format().label}. Les images doivent couvrir toute la carte : ce qui dépasse du trait de coupe (3 mm) disparaît au massicot, gardez l&apos;essentiel loin des bords.</p>
-                <button className="btn red wide" disabled={busy || cards.length < min} onClick={submit}>Valider mon jeu</button>
-                <button className="link" onClick={() => setStep(1)}>← Vos cartes</button>
+                <button className="btn red wide" disabled={busy || cards.length < min || needsBoxFile(pack)} onClick={submit}>
+                  {needsBoxFile(pack) ? "Ajoutez le PDF de votre étui" : "Valider mon jeu"}</button>
+                <button className="link" onClick={() => setStep(2)}>← L&apos;étui</button>
               </div>
             )}
           </>

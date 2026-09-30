@@ -24,6 +24,10 @@ final class CB_Box
     /** Épaisseur d'une carte (mm) selon le carton : sert à la profondeur de l'étui. À confirmer à l'atelier. */
     public const CALIPER = ['cmdm-350g' => 0.40, 'carte-graphique-300g' => 0.34];
 
+    /** Étui à fenêtre de stock : fenêtre ovale sur la face (fractions de la face), identique dans le studio (box.ts). */
+    public const WINDOW = ['cx' => 0.5, 'cy' => 0.57, 'rx' => 0.34, 'ry' => 0.29];
+    public const STOCK = ['format' => 'poker', 'cards' => 54, 'media' => 'cmdm-350g', 'bg' => '#134536', 'ink' => '#F0E8D6'];
+
     public const DPI = 300;
     private const GLUE = 12.0;   // patte de collage
     private const TUCK = 15.0;   // languette des rabats
@@ -41,6 +45,12 @@ final class CB_Box
     public static function offered(array $deck, string $format): array
     {
         return array_keys(array_filter(self::PACKS, fn($p) => !isset($p['formats']) || in_array($format, $p['formats'], true)));
+    }
+
+    /** Photo de présentation (mockup) réglée dans l'atelier, ou '' : le studio dessine alors un aperçu. */
+    public static function photo(string $pack): string
+    {
+        return (string) (CB_Settings::get("pack_photo_$pack") ?? '');
     }
 
     public static function label(string $pack): string
@@ -212,12 +222,25 @@ final class CB_Box
     }
 
     /** Tracés de découpe et de rainage (opérateurs PDF), gabarit posé en ($x0, $y0) mm, page de hauteur $ph pt. */
-    private static function dieline(array $g, float $x0, float $y0, float $ph, int $cut, int $crease, int $op): string
+    private static function dieline(array $g, float $x0, float $y0, float $ph, int $cut, int $crease, int $op, bool $window = false): string
     {
         $P = fn($x, $y) => sprintf('%.3F %.3F', CB_Pdf::mm($x0 + $x), $ph - CB_Pdf::mm($y0 + $y));
         $path = [];
         foreach ($g['cut'] as $i => [$x, $y]) {
             $path[] = $P($x, $y) . ($i ? ' l' : ' m');
+        }
+        if ($window) { // fenêtre ovale : quatre arcs de Bézier
+            [$fx, $fy, $fw, $fh] = $g['panels']['front'];
+            $cx = $fx + $fw * self::WINDOW['cx'];
+            $cy = $fy + $fh * self::WINDOW['cy'];
+            $rx = $fw * self::WINDOW['rx'];
+            $ry = $fh * self::WINDOW['ry'];
+            $k = 0.5523;
+            $path[] = ' h ' . $P($cx + $rx, $cy) . ' m';
+            $path[] = $P($cx + $rx, $cy + $k * $ry) . ' ' . $P($cx + $k * $rx, $cy + $ry) . ' ' . $P($cx, $cy + $ry) . ' c';
+            $path[] = $P($cx - $k * $rx, $cy + $ry) . ' ' . $P($cx - $rx, $cy + $k * $ry) . ' ' . $P($cx - $rx, $cy) . ' c';
+            $path[] = $P($cx - $rx, $cy - $k * $ry) . ' ' . $P($cx - $k * $rx, $cy - $ry) . ' ' . $P($cx, $cy - $ry) . ' c';
+            $path[] = $P($cx + $k * $rx, $cy - $ry) . ' ' . $P($cx + $rx, $cy - $k * $ry) . ' ' . $P($cx + $rx, $cy) . ' c';
         }
         $lines = array_map(fn($l) => $P($l[0], $l[1]) . ' m ' . $P($l[2], $l[3]) . ' l', $g['crease']);
         return "q /GS$op gs /CS$cut CS 1 SC 0.5 w 1 j\n" . implode("\n", $path) . " h S Q\n"
@@ -278,6 +301,84 @@ final class CB_Box
         $pdf->page(implode("\n", $ops), [], $pw, $ph,
             "/ColorSpace << /CS$cut $cut 0 R /CS$crease $crease 0 R >> /ExtGState << /GS$op $op 0 R >>");
         $pdf->close("Gabarit étui — $title");
+        return $file;
+    }
+
+    /**
+     * Étui à fenêtre Carte Blanche (stock, format poker 54 cartes) : fichier d'impression à faire
+     * fabriquer en série. Fond vert tapis, marque crème ; la fenêtre laisse voir le dos du jeu.
+     */
+    public static function stock_pdf(): string
+    {
+        $st = self::STOCK;
+        $g = self::geometry($st['format'], $st['cards'], $st['media']);
+        [$pw, $ph] = self::px($g);
+        $k = $pw / ($g['W'] + 2 * $g['bleed']); // pixels par mm
+        $im = new Imagick();
+        $im->newImage($pw, $ph, new ImagickPixel($st['bg']));
+        $im->setImageFormat('jpeg');
+        $font = fn($f) => CB_DIR . "/assets/backs/fonts/$f.ttf";
+        $text = function (string $s, string $f, float $size_mm, float $x_mm, float $y_mm, int $angle = 0, float $max_mm = 0) use ($im, $k, $font, $g, $st) {
+            $d = new ImagickDraw();
+            $d->setFont($font($f));
+            $d->setFillColor(new ImagickPixel($st['ink']));
+            $d->setTextAntialias(true);
+            $size = $size_mm * $k;
+            $d->setFontSize($size);
+            $m = $im->queryFontMetrics($d, $s);
+            if ($max_mm && $m['textWidth'] > $max_mm * $k) {
+                $size *= $max_mm * $k / $m['textWidth'];
+                $d->setFontSize($size);
+                $m = $im->queryFontMetrics($d, $s);
+            }
+            $cx = ($x_mm + $g['bleed']) * $k;
+            $cy = ($y_mm + $g['bleed']) * $k;
+            $w = $m['textWidth'];
+            $asc = $m['ascender'] * 0.72; // centrage vertical approché sur les capitales
+            $rad = deg2rad($angle);
+            // point de départ de la ligne de base, pour un texte centré en (cx, cy) tourné de $angle
+            $x = $cx - cos($rad) * $w / 2 - sin($rad) * $asc / 2;
+            $y = $cy - sin($rad) * $w / 2 + cos($rad) * $asc / 2;
+            $im->annotateImage($d, $x, $y, $angle, $s);
+        };
+        [$fx, $fy, $fw, $fh] = $g['panels']['front'];
+        $text('Carte Blanche', 'cb-display', $fw * 0.13, $fx + $fw / 2, $fy + $fh * 0.14, 0, $fw * 0.8);
+        $text('jeu de cartes personnalisé', 'cb-serif', $fw * 0.06, $fx + $fw / 2, $fy + $fh * 0.93, 0, $fw * 0.8);
+        [$bx, $by, $bw, $bh] = $g['panels']['back'];
+        $text('Carte Blanche', 'cb-display', $bw * 0.13, $bx + $bw / 2, $by + $bh * 0.42, 0, $bw * 0.8);
+        $text('Imprimé à la demande', 'cb-serif', $bw * 0.065, $bx + $bw / 2, $by + $bh * 0.52, 0, $bw * 0.8);
+        $host = (string) wp_parse_url(home_url(), PHP_URL_HOST);
+        $text($host, 'cb-sans', $bw * 0.05, $bx + $bw / 2, $by + $bh * 0.9, 0, $bw * 0.85);
+        foreach (['left', 'right'] as $p) {
+            [$sx, $sy, $sw, $sh] = $g['panels'][$p];
+            $text('Carte Blanche', 'cb-display', $sw * 0.42, $sx + $sw / 2, $sy + $sh / 2, -90, $sh * 0.8);
+        }
+        $rgb = CB_Store::dir('stock') . '/etui-fenetre-rgb.jpg';
+        $im->setImageUnits(Imagick::RESOLUTION_PIXELSPERINCH);
+        $im->setImageResolution(self::DPI, self::DPI);
+        $im->writeImage($rgb);
+        $im->clear();
+        $cmyk = CB_Store::dir('stock') . '/etui-fenetre.jpg';
+        CB_Production::to_cmyk($rgb, $cmyk, [$pw, $ph]);
+        $file = CB_Store::dir('stock') . '/etui-fenetre-carte-blanche.pdf';
+        $pdf = new CB_Pdf($file . '.part');
+        $cut = $pdf->spot('CutContour', [0, 1, 0, 0]);
+        $crease = $pdf->spot('Rainage', [1, 0, 0, 0]);
+        $op = $pdf->overprint();
+        $b = $g['bleed'];
+        $m = self::MARGIN;
+        $W = CB_Pdf::mm($g['W'] + 2 * ($b + $m));
+        $H = CB_Pdf::mm($g['H'] + 2 * ($b + $m));
+        $img = $pdf->image($cmyk);
+        $ops = [sprintf('q %.3F 0 0 %.3F %.3F %.3F cm /X%d Do Q', CB_Pdf::mm($g['W'] + 2 * $b), CB_Pdf::mm($g['H'] + 2 * $b), CB_Pdf::mm($m), CB_Pdf::mm($m), $img)];
+        $ops[] = self::dieline($g, $m + $b, $m + $b, $H, $cut, $crease, $op, true);
+        $ops[] = sprintf('BT 0 0 0 1 k /F1 6 Tf %.2F %.2F Td %s Tj ET', CB_Pdf::mm($m), CB_Pdf::mm(4), CB_Pdf::text(sprintf(
+            'Étui à fenêtre Carte Blanche (stock) · poker 54 cartes · étui %s × %s × %s mm · découpe (fenêtre comprise) : CutContour · rainage : Rainage (pointillés) · fenêtre à doubler d’un film transparent si souhaité',
+            self::mm($g['w']), self::mm($g['h']), self::mm($g['d']))));
+        $pdf->page(implode("\n", $ops), [$img], $W, $H, "/ColorSpace << /CS$cut $cut 0 R /CS$crease $crease 0 R >> /ExtGState << /GS$op $op 0 R >>");
+        $pdf->close('Étui à fenêtre Carte Blanche');
+        rename($file . '.part', $file);
+        @unlink($rgb);
         return $file;
     }
 }

@@ -7,9 +7,10 @@ import { deckCodes, drawCard, MODELS, type Model, startCrop, STYLES } from "@/li
 import { backModels, type BackModel } from "@/lib/backs.ts";
 import { CB } from "@/lib/env.ts";
 import BackStep, { BackPreview, type BackState, hasAlpha, initialBack } from "@/components/BackStep";
+import PackStep, { StageMockup, needsBoxFile, type PackChoice, PackSummary, useBackImage } from "@/components/PackStep";
 
 // Studio de création : grand aperçu à gauche (dessiné comme le moteur l'imprimera), étapes à droite.
-// 1. Le dos · 2. Les visages (photos détourées, glissées sur les figures) · 3. Finitions et commande.
+// 1. Le dos · 2. Les visages (photos détourées, glissées sur les figures) · 3. L'étui · 4. Finitions et commande.
 
 type Photo = { id: string; url: string; path: string | null; cut: boolean; busy: boolean; error?: string };
 type Assign = { face: string; crop: Crop };
@@ -21,11 +22,12 @@ export type StudioPayload = {
 type Props = {
   busy: boolean; header: ReactNode; finish: ReactNode; status: ReactNode;
   onSubmit: (payload: StudioPayload) => void;
+  pack: PackChoice; setPack: (patch: Partial<PackChoice>) => void; media: string;
 };
 
 const COURTS = SUITS.flatMap(([s]) => [...RANKS].reverse().map(([r]) => `${s}-${r}`)); // R, D, V de chaque couleur
 const CENTER: Crop = { zoom: 1, x: 0.5, y: 0.5 };
-const STEPS = ["Le dos", "Les visages", "Finitions"];
+const STEPS = ["Le dos", "Les visages", "L'étui", "Finitions"];
 const DECK = deckCodes(CB.deck);
 const PEEK = ["S-A", "H-7", "D-10", "JK-1"]; // quelques cartes non figures, pour voir le jeu entier
 const label = (code: string) => {
@@ -65,7 +67,7 @@ function MiniCourt({ recto, code, face, crop, style, selected, onSelect, onDropF
   );
 }
 
-export default function Editor({ busy, header, finish, status, onSubmit }: Props) {
+export default function Editor({ busy, header, finish, status, onSubmit, pack, setPack, media }: Props) {
   const [step, setStep] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null), firstStep = useRef(true);
   useEffect(() => revealPanel(panelRef.current, firstStep), [step]);
@@ -91,7 +93,8 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
   const done = Object.keys(courts).filter((c) => faceOf(courts[c].face)).length;
   const uploading = [back.photo, back.logo, ...faces].some((p) => p?.busy);
   useEffect(() => { backModels().then(setModels).catch(() => {}); }, []);
-  const view = step === 0 ? "back" : "court";
+  const view = step === 0 ? "back" : step === 2 ? "pack" : "court";
+  const backImage = useBackImage(back, models.find((m) => m.id === back.template), step >= 2);
 
   // Grand aperçu
   useEffect(() => {
@@ -216,8 +219,9 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
             if (id) assign(selected, id); else addFaces([...e.dataTransfer.files], selected);
           }}>
           {view === "back" && <BackPreview state={back} models={models} onDrag={dragBack} />}
+          {view === "pack" && <StageMockup choice={pack} back={backImage} cards={CB.spec.cards} media={media} />}
           <canvas ref={stage} width={720} height={Math.round(720 * RATIO)} aria-label={`Aperçu : ${label(selected)}`}
-            hidden={view === "back"} className={view === "court" && current ? "grab" : ""}
+            hidden={view !== "court"} className={view === "court" && current ? "grab" : ""}
             onPointerDown={down} onPointerMove={move} onPointerUp={() => (drag.current = null)} onPointerCancel={() => (drag.current = null)}
             onWheel={(e) => { if (view === "court" && current) zoomBy(e.deltaY < 0 ? 1.05 : 1 / 1.05); }} />
           {view === "court" && !current && (
@@ -234,7 +238,7 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
             <button onClick={() => setCourts((all) => { const n = { ...all }; delete n[selected]; return n; })}>Retirer</button>
           </div>
         )}
-        <p className="stage-caption">{view === "back"
+        <p className="stage-caption">{view === "pack" ? "Votre jeu tel que vous le recevrez" : view === "back"
           ? (models.find((m) => m.id === back.template)?.photo && back.photo ? "Glissez la photo pour la placer · le dos est identique sur toutes les cartes" : `Le dos, identique sur les ${CB.spec.cards} cartes`)
           : current ? "Glissez le visage pour le placer · molette ou −/+ pour la taille" : `${label(selected)} · tête du haut et du bas`}</p>
       </div>
@@ -318,20 +322,30 @@ export default function Editor({ busy, header, finish, status, onSubmit }: Props
                   </div>
                 </div>
                 <div className="row-actions">
-                  <button className="btn red" onClick={() => setStep(2)}>Continuer : finitions →</button>
+                  <button className="btn red" onClick={() => setStep(2)}>Continuer : l&apos;étui →</button>
                   <button className="link" onClick={() => setStep(0)}>← Le dos</button>
                 </div>
               </div>
             )}
 
             {step === 2 && (
+              <PackStep choice={pack} set={setPack} back={backImage} cards={CB.spec.cards} media={media}
+                defaults={{ bg: back.bg, ink: back.ink, title: back.title, subtitle: back.subtitle }}
+                nav={<div className="row-actions">
+                  <button className="btn red" onClick={() => setStep(3)}>Continuer : finitions →</button>
+                  <button className="link" onClick={() => setStep(1)}>← Les visages</button>
+                </div>} />
+            )}
+
+            {step === 3 && (
               <div className="step">
                 {finish}
-                <button className="btn red wide" disabled={busy || uploading} onClick={submit}>
-                  {uploading ? "Envoi des photos…" : "Valider mon jeu"}
+                <PackSummary choice={pack} />
+                <button className="btn red wide" disabled={busy || uploading || needsBoxFile(pack)} onClick={submit}>
+                  {uploading ? "Envoi des photos…" : needsBoxFile(pack) ? "Ajoutez le PDF de votre étui" : "Valider mon jeu"}
                 </button>
                 <p className="hint">Nous fabriquons vos {CB.spec.cards} cartes en qualité d&apos;impression et vous montrons le rendu final avant l&apos;ajout au panier.</p>
-                <button className="link" onClick={() => setStep(1)}>← Les visages</button>
+                <button className="link" onClick={() => setStep(2)}>← L&apos;étui</button>
               </div>
             )}
           </>

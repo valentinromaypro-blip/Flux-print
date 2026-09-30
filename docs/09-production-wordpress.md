@@ -29,8 +29,12 @@ encres passées), l'atelier teinte ces faces avec le même calcul que le studio 
 
 ## Conditionnement
 
-Choisi par le client une fois son jeu validé, à côté de la quantité ; le supplément s'ajoute au prix
-par jeu, après la remise quantité. Prix réglables dans Carte Blanche → Production → Conditionnement.
+Choisi par le client à l'étape « L'étui » du studio (ou dans le panneau d'envoi d'un PDF), avant la
+validation, sur des maquettes de son propre jeu : sous film, dans l'étui à fenêtre qui laisse voir son dos,
+ou dans son étui personnalisé (vue avant et arrière). À la validation, l'étui personnalisé est fabriqué au
+gabarit exact et contrôlé. Le supplément s'ajoute au prix par jeu, après la remise quantité. Prix réglables
+dans Carte Blanche → Production → Conditionnement, où se télécharge aussi le fichier d'impression de
+l'étui à fenêtre de stock (poker 54 cartes : fond vert, marque crème, fenêtre ovale découpée).
 
 | Option | Prix par défaut | À l'atelier |
 |---|---|---|

@@ -33,7 +33,7 @@ final class CB_Rest
         register_rest_route(self::NS, '/jobs/(?P<uid>[a-f0-9]{32})/submit', $open + ['methods' => 'POST', 'callback' => [self::class, 'submit']]);
         register_rest_route(self::NS, '/jobs/(?P<uid>[a-f0-9]{32})/box', $open + ['methods' => 'GET', 'callback' => [self::class, 'box']]);
         register_rest_route(self::NS, '/jobs/(?P<uid>[a-f0-9]{32})/box-back', $open + ['methods' => 'GET', 'callback' => [self::class, 'box_back']]);
-        register_rest_route(self::NS, '/jobs/(?P<uid>[a-f0-9]{32})/box-template', $open + ['methods' => 'GET', 'callback' => [self::class, 'box_template']]);
+        register_rest_route(self::NS, '/box-template', $open + ['methods' => 'GET', 'callback' => [self::class, 'box_template']]);
         register_rest_route(self::NS, '/jobs/(?P<uid>[a-f0-9]{32})/pack', $open + ['methods' => 'POST', 'callback' => [self::class, 'pack']]);
         register_rest_route(self::NS, '/jobs/(?P<uid>[a-f0-9]{32})/preview/(?P<n>[a-z0-9-]{1,20})', $open + ['methods' => 'GET', 'callback' => [self::class, 'preview']]);
     }
@@ -224,7 +224,6 @@ final class CB_Rest
                 CB_Box::offered($deck, $job['format'])),
             'geometry' => $g, 'px' => CB_Box::px($g),
             'back' => rest_url(self::NS . "/jobs/{$job['uid']}/box-back"),
-            'template' => rest_url(self::NS . "/jobs/{$job['uid']}/box-template"),
             'design' => is_array($job['design']) ? array_intersect_key($job['design'], array_flip(['bg', 'ink', 'title', 'subtitle'])) : [],
         ];
     }
@@ -258,17 +257,23 @@ final class CB_Rest
         exit;
     }
 
+    /** Gabarit PDF de l'étui personnalisé d'un jeu (produit, format, carton, nombre de cartes). */
     public static function box_template(WP_REST_Request $r)
     {
-        $job = self::owned($r['uid']);
-        if (!$job || $job['status'] !== 'approved') {
-            return self::fail('Création introuvable ou non validée.', 404);
+        $product_id = (int) $r->get_param('product_id');
+        $deck = CB_Settings::deck((string) get_post_meta($product_id, '_cb_deck', true));
+        if (!$deck) {
+            return self::fail('Produit inconnu.');
         }
-        $title = get_the_title((int) $job['product_id']) . ' · ' . (CB_Settings::FORMATS[$job['format']]['label'] ?? '');
-        $file = CB_Box::template_pdf(CB_Box::for_job($job), $title);
+        $format = in_array($r->get_param('format'), $deck['formats'], true) ? (string) $r->get_param('format') : $deck['formats'][0];
+        $media = isset(CB_Settings::MEDIA[$r->get_param('media')]) ? (string) $r->get_param('media') : 'cmdm-350g';
+        $cards = (int) $r->get_param('cards') ?: ($deck['cards_min'] ?? $deck['cards']);
+        $cards = max($deck['cards_min'] ?? $deck['cards'], min($deck['cards_max'] ?? $deck['cards'], $cards));
+        $title = get_the_title($product_id) . ' · ' . CB_Settings::FORMATS[$format]['label'] . " · $cards cartes";
+        $file = CB_Box::template_pdf(CB_Box::geometry($format, $cards, $media), $title);
         nocache_headers();
         header('Content-Type: application/pdf');
-        header('Content-Disposition: attachment; filename="gabarit-etui-' . $job['format'] . '-' . (int) $job['cards'] . '-cartes.pdf"');
+        header('Content-Disposition: attachment; filename="gabarit-etui-' . $format . '-' . $cards . '-cartes.pdf"');
         header('Content-Length: ' . filesize($file));
         readfile($file);
         @unlink($file);

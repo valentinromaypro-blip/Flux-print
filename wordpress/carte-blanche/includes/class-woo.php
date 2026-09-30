@@ -132,6 +132,9 @@ final class CB_Woo
             'cards' => $d['cards'], 'cardsMin' => $d['cards_min'] ?? null, 'cardsMax' => $d['cards_max'] ?? null,
             'backs' => $d['backs'], 'editor' => $d['editor'], 'media' => $media,
             'pricing' => $d['pricing'],
+            'packs' => array_map(fn($k) => ['id' => $k, 'label' => CB_Box::PACKS[$k]['label'], 'hint' => CB_Box::PACKS[$k]['hint'], 'price' => CB_Box::price($k), 'photo' => CB_Box::photo($k),
+                'formats' => CB_Box::PACKS[$k]['formats'] ?? null], array_keys(CB_Box::PACKS)),
+            'caliper' => CB_Box::CALIPER,
             'formats' => array_map(fn($f) => ['key' => $f, 'label' => CB_Settings::FORMATS[$f]['label'], 'trim' => CB_Settings::FORMATS[$f]['trim'],
                 'page' => array_map(fn($v) => $v + $b, CB_Settings::FORMATS[$f]['trim'])], $d['formats']),
         ];
