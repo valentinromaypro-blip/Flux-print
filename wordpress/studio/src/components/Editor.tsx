@@ -304,7 +304,7 @@ export default function Editor({ busy, header, finish, status, onSubmit, pack, s
                   </div>
                 </div>
 
-                <details className="cb-style">
+                <details className="cb-style" open>
                   <summary>Style des figures <small>{MODELS.find((m) => m.id === recto)!.label} · {STYLES.find(([v]) => v === style)![1]}</small></summary>
                 <div className="field-group">
                   <b>Modèle du recto</b>
