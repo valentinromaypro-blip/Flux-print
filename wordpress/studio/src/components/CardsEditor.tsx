@@ -4,8 +4,10 @@ import { backModels, type BackModel } from "@/lib/backs.ts";
 import { CB } from "@/lib/env.ts";
 import { format } from "@/lib/format.ts";
 import { type CardLook, drawFreeCard, type FreeCard } from "@/lib/print.ts";
-import BackStep, { BackPreview, type BackState, hasAlpha, initialBack } from "@/components/BackStep";
-import PackStep, { StageMockup, needsBoxFile, type PackChoice, PackSummary, useBackImage } from "@/components/PackStep";
+import BackStep, { BackPreview, backBlocker, type BackState, hasAlpha, initialBack } from "@/components/BackStep";
+import { ActionBar, Recap, StepBar } from "@/components/Flow";
+import { estimate } from "@/lib/price.ts";
+import PackStep, { StageMockup, needsBoxFile, packOffer, type PackChoice, useBackImage } from "@/components/PackStep";
 
 // Studio des jeux « cartes libres » (oracle) : un dos commun, puis une image par carte, avec un
 // titre facultatif. Même disposition que le studio des jeux classiques : aperçu à gauche, étapes à droite.
@@ -14,11 +16,12 @@ export type Card = FreeCard & { id: string };
 export type CardsPayload = { back: BackState; model: BackModel; cards: Card[]; look: CardLook };
 type Props = {
   busy: boolean; header: ReactNode; finish: ReactNode; status: ReactNode; onSubmit: (p: CardsPayload) => void;
-  pack: PackChoice; setPack: (patch: Partial<PackChoice>) => void; media: string;
+  pack: PackChoice; setPack: (patch: Partial<PackChoice>) => void; media: string; setMedia: (m: string) => void;
+  qty: number; setQty: (n: number) => void;
 };
 
 const CENTER: Crop = { zoom: 1, x: 0.5, y: 0.5 };
-const STEPS = ["Le dos", "Vos cartes", "L'étui", "Finitions"];
+const NEXT = ["Vos cartes →", "L'étui →", "Récapitulatif →", "Valider mon jeu"];
 const clamp01 = (v: number) => +Math.min(1, Math.max(0, v)).toFixed(3);
 
 /** Fraction de la page occupée par le fond perdu, en largeur et en hauteur. */
@@ -38,7 +41,7 @@ function CardCanvas({ card, look, width, className, onPointerDown, onPointerMove
     onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} />;
 }
 
-export default function CardsEditor({ busy, header, finish, status, onSubmit, pack, setPack, media }: Props) {
+export default function CardsEditor({ busy, header, finish, status, onSubmit, pack, setPack, media, setMedia, qty, setQty }: Props) {
   const min = CB.spec.cardsMin ?? 1, max = CB.spec.cardsMax ?? 100;
   const [step, setStep] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null), firstStep = useRef(true);
@@ -58,6 +61,9 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit, pa
   const current = cards.find((c) => c.id === selected) ?? null;
   const backImage = useBackImage(back, models.find((m) => m.id === back.template), step >= 2);
   const deckSize = Math.max(min, cards.length);
+  const backModel = models.find((m) => m.id === back.template);
+  const blocker = backBlocker(back, backModel);
+  const short = cards.length < min ? `Encore ${min - cards.length} carte${min - cards.length > 1 ? "s" : ""} (de ${min} à ${max})` : null;
   const index = current ? cards.indexOf(current) : -1;
 
   function addFiles(files: File[]) {
@@ -97,11 +103,11 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit, pa
 
   const count = `${cards.length} carte${cards.length > 1 ? "s" : ""}`;
   return (
-    <div className="cb-container studio">
+    <div className={`cb-container studio${status ? " has-status" : ""}`}>
       <div className="stage-col">
         <div className="stage" onDragOver={(e) => { if (step === 1) e.preventDefault(); }}
           onDrop={(e) => { e.preventDefault(); addFiles([...e.dataTransfer.files]); }}>
-          {step === 2 ? <StageMockup choice={pack} back={backImage} cards={deckSize} media={media} />
+          {step >= 2 ? <StageMockup choice={pack} back={backImage} cards={deckSize} media={media} />
           : step === 0 || !current
             ? (step === 0 || !cards.length
               ? <BackPreview state={back} models={models} onDrag={dragBack} />
@@ -130,14 +136,14 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit, pa
         {header}
         {status ?? (
           <>
-            <ol className="steps">
-              {STEPS.map((s, i) => (
-                <li key={s}><button aria-current={i === step ? "step" : undefined} onClick={() => setStep(i)} disabled={busy}>
-                  <span>{i + 1}</span>{s}{i === 1 && cards.length ? ` · ${cards.length}` : ""}</button></li>
-              ))}
-            </ol>
+            <StepBar step={step} go={(i) => setStep(i > 1 && short ? 1 : i)} busy={busy} steps={[
+              { label: "Le dos", note: backModel?.label },
+              { label: "Vos cartes", note: cards.length ? String(cards.length) : undefined },
+              { label: "L'étui", note: packOffer(pack.pack)?.label.replace("Étui à fenêtre Carte Blanche", "Fenêtre").replace("Sous film rétractable", "Sous film").replace("Étui personnalisé", "Perso") },
+              { label: "Récap" },
+            ]} />
 
-            {step === 0 && <BackStep state={back} set={setBack} models={models} onNext={() => setStep(1)}
+            {step === 0 && <BackStep state={back} set={setBack} models={models}
               pickLogo={(f) => uploadBack("logo", f)} pickPhoto={(f) => uploadBack("photo", f)} />}
 
             {step === 1 && (
@@ -170,34 +176,35 @@ export default function CardsEditor({ busy, header, finish, status, onSubmit, pa
                   <label className="check-row"><input type="checkbox" checked={look.band} onChange={(e) => setLook((l) => ({ ...l, band: e.target.checked }))} /> Titre en bas de la carte, dans les couleurs du dos</label>
                   <label className="check-row"><input type="checkbox" checked={look.frame} onChange={(e) => setLook((l) => ({ ...l, frame: e.target.checked }))} /> Filet autour de l&apos;image</label>
                 </div>
-                <div className="row-actions">
-                  <button className="btn red" onClick={() => setStep(2)} disabled={cards.length < min}>
-                    {cards.length < min ? `Encore ${min - cards.length} carte${min - cards.length > 1 ? "s" : ""}` : "Continuer : l'étui →"}
-                  </button>
-                  <button className="link" onClick={() => setStep(0)}>← Le dos</button>
-                </div>
               </div>
             )}
 
             {step === 2 && (
               <PackStep choice={pack} set={setPack} back={backImage} cards={deckSize} media={media}
                 defaults={{ bg: back.bg, ink: back.ink, title: back.title, subtitle: back.subtitle }}
-                nav={<div className="row-actions">
-                  <button className="btn red" onClick={() => setStep(3)}>Continuer : finitions →</button>
-                  <button className="link" onClick={() => setStep(1)}>← Vos cartes</button>
-                </div>} />
+/>
             )}
 
             {step === 3 && (
-              <div className="step">
+              <Recap cards={deckSize} pack={pack.pack} media={media} setMedia={setMedia} qty={qty} setQty={setQty}
+                visual={backImage ? <img src={backImage} alt="Le dos de vos cartes" /> : null}
+                lines={[
+                  ["Dos", backModel?.label ?? "—"],
+                  ["Cartes", `${count} · ${look.band ? "titre en bas" : "sans titre"}${look.frame ? " · filet" : ""}`],
+                  ["Étui", packOffer(pack.pack)?.label ?? "—"],
+                  ["Format", format().label],
+                ]}>
                 {finish}
-                <PackSummary choice={pack} />
-                <p className="hint">{count} au format {format().label}. Les images doivent couvrir toute la carte : ce qui dépasse du trait de coupe (3 mm) disparaît au massicot, gardez l&apos;essentiel loin des bords.</p>
-                <button className="btn red wide" disabled={busy || cards.length < min || needsBoxFile(pack)} onClick={submit}>
-                  {needsBoxFile(pack) ? "Ajoutez le PDF de votre étui" : "Valider mon jeu"}</button>
-                <button className="link" onClick={() => setStep(2)}>← L&apos;étui</button>
-              </div>
+                <p className="hint">Les images couvrent toute la carte : ce qui dépasse du trait de coupe (3 mm) disparaît au massicot, gardez l&apos;essentiel loin des bords.</p>
+              </Recap>
             )}
+
+            <ActionBar position={`${step + 1}/4`} price={{ ...estimate(deckSize, media, pack.pack, step === 3 ? qty : 1), qty: step === 3 ? qty : 1 }}
+              back={step > 0 ? () => setStep(step - 1) : undefined}
+              next={step < 3 ? () => setStep(step + 1) : submit}
+              nextLabel={NEXT[step]}
+              disabled={step === 0 ? !!blocker : step === 1 ? !!short : step === 3 ? busy || !!short || needsBoxFile(pack) : false}
+              hint={step === 0 ? blocker ?? undefined : step === 1 ? short ?? undefined : needsBoxFile(pack) ? "Ajoutez le PDF de votre étui (étape L'étui)" : undefined} />
           </>
         )}
       </div>

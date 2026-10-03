@@ -9,6 +9,8 @@ import CardsEditor, { type CardsPayload } from "@/components/CardsEditor";
 import { renderBack, renderCard, renderFreeCard } from "@/lib/print.ts";
 import { format, formats, setFormat } from "@/lib/format.ts";
 import { CB } from "@/lib/env.ts";
+import { ActionBar, MediaChoice, QtyStepper } from "@/components/Flow";
+import { estimate } from "@/lib/price.ts";
 import { api, endpoint, post } from "@/lib/api.ts";
 import PackStep, { initialPack, Mockup, needsBoxFile, packAvailable, type PackChoice, PackSummary } from "@/components/PackStep";
 import { type BoxInfo, placeholderBack, renderFlat } from "@/lib/box.ts";
@@ -47,7 +49,7 @@ function setJob(uid: string | null) {
   if (input) input.value = uid ?? "";
 }
 
-function Report({ job, pack, media, onAddToCart, onEdit }: { job: Job; pack: PackChoice; media: string; onAddToCart: () => void; onEdit: () => void }) {
+function Report({ job, pack, media, qty, setQty, onAddToCart, onEdit }: { job: Job; pack: PackChoice; media: string; qty: number; setQty: (n: number) => void; onAddToCart: () => void; onEdit: () => void }) {
   const ok = job.status === "approved" && !job.packMessages?.length;
   const cards = job.cards ?? CB.spec.cards;
   return (
@@ -68,9 +70,8 @@ function Report({ job, pack, media, onAddToCart, onEdit }: { job: Job; pack: Pac
         {job.error && <li className="cb-msg error"><b>{job.error}</b></li>}
       </ul>
       {ok && <PackSummary choice={{ ...pack, pack: (job.pack ?? "film") as PackChoice["pack"] }} />}
-      {ok && job.price !== undefined && <p className="cb-price">{euros(job.price)} <small>l&apos;exemplaire{job.cards && CB.spec.cardsMin ? ` · ${job.cards} cartes` : ""} · remises par quantité au panier</small></p>}
-      {ok && <Quantity />}
-      {ok && <button type="button" className="btn red wide" onClick={onAddToCart}>Ajouter au panier</button>}
+      {ok && <QtyStepper qty={qty} setQty={setQty} />}
+      {ok && <ActionBar price={{ ...estimate(cards, media, job.pack ?? "film", qty), qty }} back={onEdit} next={onAddToCart} nextLabel="Ajouter au panier" />}
       <button type="button" className="link" onClick={onEdit}>{ok ? "← Modifier ma création" : job.packMessages?.length ? "← Corriger l'étui" : "← Corriger"}</button>
     </div>
   );
@@ -107,35 +108,23 @@ productHead.className = "cb-product-head";
 function collectProductHead() {
   const scope = document.querySelector(".product") ?? document.querySelector("main") ?? document.body;
   const pick = (sel: string) => scope.querySelector<HTMLElement>(sel);
-  for (const el of [
-    pick("h1.product_title, h1.wp-block-post-title, h1"),
-    pick(".summary .price, .wp-block-woocommerce-product-price, p.price"),
-    pick(".woocommerce-product-details__short-description, .wp-block-post-excerpt"),
-    pick(".cb-tiers"),
-  ]) if (el && !productHead.contains(el)) productHead.appendChild(el);
+  for (const el of [pick("h1.product_title, h1.wp-block-post-title, h1"), pick(".summary .price, .wp-block-woocommerce-product-price, p.price")]) {
+    if (el && !productHead.contains(el)) productHead.appendChild(el);
+  }
+  // Accroche et remises : repliées, pour que le studio commence tout de suite (le texte reste dans la page)
+  const more = [pick(".woocommerce-product-details__short-description, .wp-block-post-excerpt"), pick(".cb-tiers")].filter((e): e is HTMLElement => !!e);
+  if (more.length) {
+    const details = document.createElement("details");
+    details.className = "cb-more";
+    details.innerHTML = "<summary>Détails et remises par quantité</summary>";
+    more.forEach((e) => details.appendChild(e));
+    productHead.appendChild(details);
+  }
 }
 function ProductHead() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { ref.current?.appendChild(productHead); }, []);
   return <div ref={ref} />;
-}
-
-/** Quantité : saisie dans le studio, reportée dans le formulaire WooCommerce (masqué) avant l'envoi. */
-function Quantity() {
-  const input = document.querySelector<HTMLInputElement>("form.cart input.qty");
-  const [qty, setQty] = useState(Number(input?.value) || 1);
-  if (!input) return null;
-  const set = (v: number) => { const n = Math.max(1, Math.min(999, v || 1)); setQty(n); input.value = String(n); };
-  return (
-    <div className="cb-qty">
-      <span>Quantité</span>
-      <div className="stepper">
-        <button type="button" onClick={() => set(qty - 1)} aria-label="Un de moins">−</button>
-        <input type="number" min={1} value={qty} onChange={(e) => set(Number(e.target.value))} aria-label="Nombre de jeux" />
-        <button type="button" onClick={() => set(qty + 1)} aria-label="Un de plus">+</button>
-      </div>
-    </div>
-  );
 }
 
 function Progress({ label, value }: { label: string; value?: number }) {
@@ -148,7 +137,7 @@ function Progress({ label, value }: { label: string; value?: number }) {
   );
 }
 
-function PdfPanel({ media, onDone, pack, setPack }: { media: string; onDone: (job: Job) => void; pack: PackChoice; setPack: (p: Partial<PackChoice>) => void }) {
+function PdfPanel({ media, setMedia, onDone, pack, setPack }: { media: string; setMedia: (m: string) => void; onDone: (job: Job) => void; pack: PackChoice; setPack: (p: Partial<PackChoice>) => void }) {
   const sample = useRef(placeholderBack());
   const [file, setFile] = useState<File | null>(null);
   const [step, setStep] = useState<{ label: string; value?: number } | null>(null);
@@ -198,7 +187,9 @@ function PdfPanel({ media, onDone, pack, setPack }: { media: string; onDone: (jo
         <b>L&apos;étui</b>
         <PackStep choice={pack} set={setPack} back={sample.current} cards={sp.cardsMin ?? sp.cards} media={media} big />
       </div>
+      <div className="field-group"><b>Carton</b><MediaChoice media={media} setMedia={setMedia} /></div>
       <PackSummary choice={pack} />
+      <p className="cb-total"><b>{euros(estimate(sp.cardsMin ?? sp.cards, media, pack.pack).unit)}</b> <small>le jeu{sp.cardsMin ? `, pour ${sp.cardsMin} cartes (le prix suit le nombre de cartes du PDF)` : ""} · remises par quantité ensuite</small></p>
       <button type="button" className="btn red wide" disabled={!file || needsBoxFile(pack)} onClick={send}>
         {needsBoxFile(pack) ? "Ajoutez le PDF de votre étui" : "Envoyer et contrôler"}</button>
     </div>
@@ -209,6 +200,8 @@ function App() {
   const [mode, setMode] = useState<"design" | "pdf">(CB.spec.editor ? "design" : "pdf");
   const [media, setMedia] = useState(CB.spec.media[0]?.id ?? "cmdm-350g");
   const [pack, setPackState] = useState<PackChoice>(initialPack);
+  const [qty, setQtyState] = useState(Number(document.querySelector<HTMLInputElement>("form.cart input.qty")?.value) || 1);
+  const setQty = (n: number) => { setQtyState(n); const i = document.querySelector<HTMLInputElement>("form.cart input.qty"); if (i) i.value = String(n); };
   const setPack = (patch: Partial<PackChoice>) => setPackState((p) => ({ ...p, ...patch }));
   const [fmt, setFmt] = useState(format().key);
   const free = !!CB.spec.cardsMin; // oracle : cartes libres
@@ -280,7 +273,7 @@ function App() {
   }
 
   const status = step ? <Progress {...step} />
-    : job ? <Report job={job} pack={pack} media={media} onAddToCart={() => cartButton()?.click()} onEdit={() => setJobState(null)} /> : null;
+    : job ? <Report job={job} pack={pack} media={media} qty={qty} setQty={setQty} onAddToCart={() => cartButton()?.click()} onEdit={() => setJobState(null)} /> : null;
 
   const header = (
     <div className="cb-head">
@@ -299,15 +292,6 @@ function App() {
           ))}
         </div>
       )}
-      {CB.spec.media.length > 1 && (
-        <div className="cb-media" role="radiogroup" aria-label="Carton">
-          {CB.spec.media.map((m) => (
-            <button type="button" key={m.id} role="radio" aria-checked={media === m.id} disabled={!!step || !!job} onClick={() => setMedia(m.id)}>
-              <b>{m.label}</b><span>{m.hint}{m.delta ? ` · ${m.delta > 0 ? "+" : "−"}${euros(Math.abs(m.delta))}` : ""}</span>
-            </button>
-          ))}
-        </div>
-      )}
       {error && <p className="error-text">{error}</p>}
     </div>
   );
@@ -317,15 +301,15 @@ function App() {
       {/* L'éditeur reste monté en mode PDF : la création en cours n'est pas perdue en changeant d'avis. */}
       <div hidden={mode !== "design"}>
         {free
-          ? <CardsEditor key={fmt} pack={pack} setPack={setPack} media={media} busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitCards}
+          ? <CardsEditor key={fmt} pack={pack} setPack={setPack} media={media} setMedia={setMedia} qty={qty} setQty={setQty} busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitCards}
               finish={<p className="hint">Vérifiez vos cartes : le jeu sera imprimé exactement comme l&apos;aperçu.</p>} />
-          : <Editor pack={pack} setPack={setPack} media={media} busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitDesign}
+          : <Editor pack={pack} setPack={setPack} media={media} setMedia={setMedia} qty={qty} setQty={setQty} busy={!!step} header={header} status={mode === "design" ? status : null} onSubmit={submitDesign}
               finish={<p className="hint">Vérifiez vos figures : le jeu sera imprimé exactement comme l&apos;aperçu.</p>} />}
       </div>
       {mode === "pdf" && (
         <div className="cb-container studio cb-pdf">
           <div className="stage-col">{CB.image && <img className="cb-pdf-image" src={CB.image} alt="" />}</div>
-          <div className="panel">{header}{step || job ? status : <PdfPanel media={media} onDone={finish} pack={pack} setPack={setPack} />}</div>
+          <div className="panel">{header}{step || job ? status : <PdfPanel media={media} setMedia={setMedia} onDone={finish} pack={pack} setPack={setPack} />}</div>
         </div>
       )}
     </div>
@@ -342,5 +326,11 @@ if (mount) {
   setFormat(CB.spec.formats[0].key);
   collectProductHead();
   document.body.classList.add("cb-has-studio");
+  // Bas de l'en-tête collant du site : sous lui se calent l'aperçu (mobile) et la barre des étapes
+  const header = document.querySelector<HTMLElement>("header.wp-block-template-part, .site-header, header");
+  let frame = 0;
+  const top = () => { frame = 0; document.documentElement.style.setProperty("--cb-top", `${Math.max(0, Math.round(header?.getBoundingClientRect().bottom ?? 0))}px`); };
+  const queue = () => { if (!frame) frame = requestAnimationFrame(top); };
+  addEventListener("scroll", queue, { passive: true }); addEventListener("resize", queue); top();
   createRoot(mount).render(<StrictMode><App /></StrictMode>);
 }

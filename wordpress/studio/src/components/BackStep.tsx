@@ -103,9 +103,14 @@ export function BackPreview({ state, models, onDrag }: { state: BackState; model
   );
 }
 
+/** Ce qui empêche de passer à l'étape suivante (modèle à logo obligatoire sans logo), ou null. */
+export function backBlocker(state: BackState, model?: BackModel): string | null {
+  return model?.logo === "required" && !state.logo ? "Ajoutez votre logo pour ce modèle de dos" : null;
+}
+
 export default function BackStep({ state, set, models, pickLogo, pickPhoto, onNext }: {
   state: BackState; set: (patch: Partial<BackState>) => void; models: BackModel[];
-  pickLogo: (f: File) => void; pickPhoto: (f: File) => void; onNext: () => void;
+  pickLogo: (f: File) => void; pickPhoto: (f: File) => void; onNext?: () => void;
 }) {
   const model = models.find((m) => m.id === state.template);
   const logoInput = useRef<HTMLInputElement>(null), photoInput = useRef<HTMLInputElement>(null);
@@ -171,7 +176,7 @@ export default function BackStep({ state, set, models, pickLogo, pickPhoto, onNe
         </div>
       </div>
 
-      <button className="btn red wide" disabled={needsLogo} onClick={onNext}>Continuer : les visages →</button>
+      {onNext && <button className="btn red wide" disabled={needsLogo} onClick={onNext}>Continuer : les visages →</button>}
     </div>
   );
 }

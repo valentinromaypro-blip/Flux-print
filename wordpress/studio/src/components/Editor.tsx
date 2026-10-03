@@ -6,8 +6,11 @@ import { type Style, headBox, RATIO } from "@/lib/cardrender.ts";
 import { deckCodes, drawCard, MODELS, type Model, startCrop, STYLES } from "@/lib/recto.ts";
 import { backModels, type BackModel } from "@/lib/backs.ts";
 import { CB } from "@/lib/env.ts";
-import BackStep, { BackPreview, type BackState, hasAlpha, initialBack } from "@/components/BackStep";
-import PackStep, { StageMockup, needsBoxFile, type PackChoice, PackSummary, useBackImage } from "@/components/PackStep";
+import BackStep, { BackPreview, backBlocker, type BackState, hasAlpha, initialBack } from "@/components/BackStep";
+import { ActionBar, Recap, StepBar } from "@/components/Flow";
+import { estimate } from "@/lib/price.ts";
+import { format } from "@/lib/format.ts";
+import PackStep, { StageMockup, needsBoxFile, packOffer, type PackChoice, useBackImage } from "@/components/PackStep";
 
 // Studio de création : grand aperçu à gauche (dessiné comme le moteur l'imprimera), étapes à droite.
 // 1. Le dos · 2. Les visages (photos détourées, glissées sur les figures) · 3. L'étui · 4. Finitions et commande.
@@ -22,12 +25,13 @@ export type StudioPayload = {
 type Props = {
   busy: boolean; header: ReactNode; finish: ReactNode; status: ReactNode;
   onSubmit: (payload: StudioPayload) => void;
-  pack: PackChoice; setPack: (patch: Partial<PackChoice>) => void; media: string;
+  pack: PackChoice; setPack: (patch: Partial<PackChoice>) => void; media: string; setMedia: (m: string) => void;
+  qty: number; setQty: (n: number) => void;
 };
 
 const COURTS = SUITS.flatMap(([s]) => [...RANKS].reverse().map(([r]) => `${s}-${r}`)); // R, D, V de chaque couleur
 const CENTER: Crop = { zoom: 1, x: 0.5, y: 0.5 };
-const STEPS = ["Le dos", "Les visages", "L'étui", "Finitions"];
+const NEXT = ["Visages →", "L'étui →", "Récapitulatif →", "Valider mon jeu"];
 const DECK = deckCodes(CB.deck);
 const PEEK = ["S-A", "H-7", "D-10", "JK-1"]; // quelques cartes non figures, pour voir le jeu entier
 const label = (code: string) => {
@@ -67,7 +71,7 @@ function MiniCourt({ recto, code, face, crop, style, selected, onSelect, onDropF
   );
 }
 
-export default function Editor({ busy, header, finish, status, onSubmit, pack, setPack, media }: Props) {
+export default function Editor({ busy, header, finish, status, onSubmit, pack, setPack, media, setMedia, qty, setQty }: Props) {
   const [step, setStep] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null), firstStep = useRef(true);
   useEffect(() => revealPanel(panelRef.current, firstStep), [step]);
@@ -93,7 +97,9 @@ export default function Editor({ busy, header, finish, status, onSubmit, pack, s
   const done = Object.keys(courts).filter((c) => faceOf(courts[c].face)).length;
   const uploading = [back.photo, back.logo, ...faces].some((p) => p?.busy);
   useEffect(() => { backModels().then(setModels).catch(() => {}); }, []);
-  const view = step === 0 ? "back" : step === 2 ? "pack" : "court";
+  const view = step === 0 ? "back" : step >= 2 ? "pack" : "court";
+  const backModel = models.find((m) => m.id === back.template);
+  const blocker = backBlocker(back, backModel);
   const backImage = useBackImage(back, models.find((m) => m.id === back.template), step >= 2);
 
   // Grand aperçu
@@ -209,7 +215,7 @@ export default function Editor({ busy, header, finish, status, onSubmit, pack, s
   }
 
   return (
-    <div className="cb-container studio">
+    <div className={`cb-container studio${status ? " has-status" : ""}`}>
       <div className="stage-col">
         <div className={`stage${over ? " over" : ""}`}
           onDragOver={(e) => { if (view === "court") { e.preventDefault(); setOver(true); } }} onDragLeave={() => setOver(false)}
@@ -247,35 +253,20 @@ export default function Editor({ busy, header, finish, status, onSubmit, pack, s
         {header}
         {status ?? (
           <>
-            <ol className="steps">
-              {STEPS.map((s, i) => (
-                <li key={s}><button aria-current={i === step ? "step" : undefined} onClick={() => setStep(i)} disabled={busy}>
-                  <span>{i + 1}</span>{s}{i === 1 && done > 0 ? ` · ${done}/12` : ""}</button></li>
-              ))}
-            </ol>
+            <StepBar step={step} go={setStep} busy={busy} steps={[
+              { label: "Le dos", note: backModel?.label },
+              { label: "Visages", note: `${done}/12` },
+              { label: "L'étui", note: packOffer(pack.pack)?.label.replace("Étui à fenêtre Carte Blanche", "Fenêtre").replace("Sous film rétractable", "Sous film").replace("Étui personnalisé", "Perso") },
+              { label: "Récap" },
+            ]} />
 
             {step === 0 && (
-              <BackStep state={back} set={setBack} models={models} onNext={() => setStep(1)}
+              <BackStep state={back} set={setBack} models={models}
                 pickLogo={(f) => uploadBack("logo", f)} pickPhoto={(f) => uploadBack("photo", f)} />
             )}
 
             {step === 1 && (
               <div className="step">
-                <div className="field-group">
-                  <b>Modèle du recto</b>
-                  <div className="cb-models" role="radiogroup" aria-label="Modèle du recto">
-                    {MODELS.map((m) => (
-                      <button key={m.id} role="radio" aria-checked={recto === m.id} className={recto === m.id ? "on" : ""} onClick={() => chooseRecto(m.id)}>
-                        <CardView recto={m.id} code={selected} face={currentFace} width={120} crop={current?.crop ?? CENTER} style={m.id === recto ? style : m.style} />
-                        <span>{m.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <p className="hint">{MODELS.find((m) => m.id === recto)!.hint}</p>
-                  <div className="cb-deck-peek" aria-label="Le reste du jeu">
-                    {PEEK.filter((c) => DECK.includes(c)).map((c) => <CardView key={c} recto={recto} code={c} face={null} crop={CENTER} style={style} width={96} />)}
-                  </div>
-                </div>
                 <div className="tray" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFaces([...e.dataTransfer.files], null); }}>
                   <div className="tray-head">
                     <b>Vos photos</b>
@@ -313,6 +304,23 @@ export default function Editor({ busy, header, finish, status, onSubmit, pack, s
                   </div>
                 </div>
 
+                <details className="cb-style">
+                  <summary>Style des figures <small>{MODELS.find((m) => m.id === recto)!.label} · {STYLES.find(([v]) => v === style)![1]}</small></summary>
+                <div className="field-group">
+                  <b>Modèle du recto</b>
+                  <div className="cb-models" role="radiogroup" aria-label="Modèle du recto">
+                    {MODELS.map((m) => (
+                      <button key={m.id} role="radio" aria-checked={recto === m.id} className={recto === m.id ? "on" : ""} onClick={() => chooseRecto(m.id)}>
+                        <CardView recto={m.id} code={selected} face={currentFace} width={120} crop={current?.crop ?? CENTER} style={m.id === recto ? style : m.style} />
+                        <span>{m.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="hint">{MODELS.find((m) => m.id === recto)!.hint}</p>
+                  <div className="cb-deck-peek" aria-label="Le reste du jeu">
+                    {PEEK.filter((c) => DECK.includes(c)).map((c) => <CardView key={c} recto={recto} code={c} face={null} crop={CENTER} style={style} width={96} />)}
+                  </div>
+                </div>
                 <div className="field-group">
                   <b>Rendu des visages</b>
                   <div className="seg" role="radiogroup" aria-label="Rendu des visages">
@@ -321,33 +329,36 @@ export default function Editor({ busy, header, finish, status, onSubmit, pack, s
                     ))}
                   </div>
                 </div>
-                <div className="row-actions">
-                  <button className="btn red" onClick={() => setStep(2)}>Continuer : l&apos;étui →</button>
-                  <button className="link" onClick={() => setStep(0)}>← Le dos</button>
-                </div>
+                </details>
               </div>
             )}
 
             {step === 2 && (
               <PackStep choice={pack} set={setPack} back={backImage} cards={CB.spec.cards} media={media}
                 defaults={{ bg: back.bg, ink: back.ink, title: back.title, subtitle: back.subtitle }}
-                nav={<div className="row-actions">
-                  <button className="btn red" onClick={() => setStep(3)}>Continuer : finitions →</button>
-                  <button className="link" onClick={() => setStep(1)}>← Les visages</button>
-                </div>} />
+/>
             )}
 
             {step === 3 && (
-              <div className="step">
+              <Recap cards={CB.spec.cards} pack={pack.pack} media={media} setMedia={setMedia} qty={qty} setQty={setQty}
+                visual={backImage ? <img src={backImage} alt="Le dos de vos cartes" /> : null}
+                lines={[
+                  ["Dos", backModel?.label ?? "—"],
+                  ["Figures", done ? `${done} personnalisée${done > 1 ? "s" : ""} · ${MODELS.find((m) => m.id === recto)!.label} · ${STYLES.find(([v]) => v === style)![1]}` : "classiques (aucune photo)"],
+                  ["Étui", packOffer(pack.pack)?.label ?? "—"],
+                  ["Format", `${format().label} · ${CB.spec.cards} cartes`],
+                ]}>
                 {finish}
-                <PackSummary choice={pack} />
-                <button className="btn red wide" disabled={busy || uploading || needsBoxFile(pack)} onClick={submit}>
-                  {uploading ? "Envoi des photos…" : needsBoxFile(pack) ? "Ajoutez le PDF de votre étui" : "Valider mon jeu"}
-                </button>
-                <p className="hint">Nous fabriquons vos {CB.spec.cards} cartes en qualité d&apos;impression et vous montrons le rendu final avant l&apos;ajout au panier.</p>
-                <button className="link" onClick={() => setStep(2)}>← L&apos;étui</button>
-              </div>
+                <p className="hint">Nous fabriquons vos cartes en qualité d&apos;impression et vous montrons le rendu final avant l&apos;ajout au panier.</p>
+              </Recap>
             )}
+
+            <ActionBar position={`${step + 1}/4`} price={{ ...estimate(CB.spec.cards, media, pack.pack, step === 3 ? qty : 1), qty: step === 3 ? qty : 1 }}
+              back={step > 0 ? () => setStep(step - 1) : undefined}
+              next={step < 3 ? () => setStep(step + 1) : submit}
+              nextLabel={step === 3 && uploading ? "Envoi des photos…" : NEXT[step]}
+              disabled={step === 0 ? !!blocker : step === 3 ? busy || uploading || needsBoxFile(pack) : false}
+              hint={step === 0 ? blocker ?? undefined : needsBoxFile(pack) ? "Ajoutez le PDF de votre étui (étape L'étui)" : undefined} />
           </>
         )}
       </div>
