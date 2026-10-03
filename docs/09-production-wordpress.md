@@ -27,6 +27,27 @@ encres passées), l'atelier teinte ces faces avec le même calcul que le studio 
 `uploads/carte-blanche/fronts/{format}-vintage/`. Le modèle est enregistré dans la création
 (`design.recto`) et affiché dans la commande (« Recto : Vintage »).
 
+## Clients qui font leur jeu eux-mêmes (« J'ai mes fichiers »)
+
+Parcours en 3 étapes (Vos fichiers, L'étui, Récap). Kit de création téléchargeable par jeu et par
+format (REST `cb/v1/kit`, et page Guide via `[cb_kits]`) : gabarit PDF du jeu complet (une page par
+carte, nommée, dans l'ordre), gabarit d'une carte en PNG (350 dpi) et SVG, gabarit d'étui, fiche
+technique, mode d'emploi Canva. Fichiers mis en cache dans `uploads/carte-blanche/kits/`.
+
+Dépôt d'un PDF ou d'une image par carte (rangées d'après leur nom : « dos », « as-pique »,
+« 10-coeur », « H-A »…, sinon dans l'ordre ; vignettes échangeables). Corrections automatiques
+plutôt que refus, signalées au client :
+
+| Cas | Correction |
+|---|---|
+| Traits de coupe (export Canva, InDesign) | rendu de la zone de fond perdu du PDF (BleedBox) |
+| Pas de fond perdu (format fini) | bords prolongés en miroir de 3 mm |
+| Bonnes proportions, autre taille | mise à l'échelle (tolérance 0,5 % : un A4 est refusé) |
+| Image sans fond perdu | bords prolongés en miroir (dans le navigateur) |
+
+Le rapport montre le jeu entier en vignettes nommées avec la ligne de coupe, et un aperçu
+« couleurs d'impression » (passage par PSO Coated v3).
+
 ## Conditionnement
 
 Choisi par le client à l'étape « L'étui » du studio (ou dans le panneau d'envoi d'un PDF), avant la

@@ -33,6 +33,7 @@ final class CB_Rest
         register_rest_route(self::NS, '/jobs/(?P<uid>[a-f0-9]{32})/submit', $open + ['methods' => 'POST', 'callback' => [self::class, 'submit']]);
         register_rest_route(self::NS, '/jobs/(?P<uid>[a-f0-9]{32})/box', $open + ['methods' => 'GET', 'callback' => [self::class, 'box']]);
         register_rest_route(self::NS, '/jobs/(?P<uid>[a-f0-9]{32})/box-back', $open + ['methods' => 'GET', 'callback' => [self::class, 'box_back']]);
+        register_rest_route(self::NS, '/kit', $open + ['methods' => 'GET', 'callback' => [self::class, 'kit']]);
         register_rest_route(self::NS, '/box-template', $open + ['methods' => 'GET', 'callback' => [self::class, 'box_template']]);
         register_rest_route(self::NS, '/jobs/(?P<uid>[a-f0-9]{32})/pack', $open + ['methods' => 'POST', 'callback' => [self::class, 'pack']]);
         register_rest_route(self::NS, '/jobs/(?P<uid>[a-f0-9]{32})/preview/(?P<n>[a-z0-9-]{1,20})', $open + ['methods' => 'GET', 'callback' => [self::class, 'preview']]);
@@ -203,6 +204,9 @@ final class CB_Rest
                 fn($n) => rest_url(self::NS . "/jobs/{$job['uid']}/preview/$n"),
                 $report['previews'] ?? []
             ),
+            'grid' => array_map(fn($label, $i) => ['label' => $label, 'url' => rest_url(self::NS . sprintf('/jobs/%s/preview/g%03d', $job['uid'], $i + 1))],
+                $report['grid'] ?? [], array_keys($report['grid'] ?? [])),
+            'trim' => $report['trim'] ?? null,
             'error' => $job['status'] === 'failed' ? 'Le contrôle a échoué. Réessayez ou contactez-nous.' : null,
         ];
     }
@@ -254,6 +258,43 @@ final class CB_Rest
         header('Content-Type: image/jpeg');
         header('Content-Length: ' . filesize($file));
         readfile($file);
+        exit;
+    }
+
+    /**
+     * Kit de création d'un jeu (ZIP), ou un de ses fichiers (`file`) : gabarits au format exact,
+     * fiche technique, gabarit d'étui, mode d'emploi.
+     */
+    public static function kit(WP_REST_Request $r)
+    {
+        $product_id = (int) $r->get_param('product_id');
+        $key = (string) get_post_meta($product_id, '_cb_deck', true);
+        $deck = CB_Settings::deck($key);
+        if (!$deck) {
+            return self::fail('Produit inconnu.');
+        }
+        $format = in_array($r->get_param('format'), $deck['formats'], true) ? (string) $r->get_param('format') : $deck['formats'][0];
+        $cards = isset($deck['cards_min'])
+            ? max($deck['cards_min'], min($deck['cards_max'], (int) $r->get_param('cards') ?: $deck['cards']))
+            : $deck['cards'];
+        $name = (string) ($r->get_param('file') ?: 'kit.zip');
+        if ($name !== 'kit.zip' && !in_array($name, CB_Kit::FILES, true)) {
+            return self::fail('Fichier inconnu.', 404);
+        }
+        @set_time_limit(120);
+        try {
+            $path = CB_Kit::file($key, $format, $cards, $name);
+        } catch (Throwable $e) {
+            return self::fail('Préparation du kit impossible : ' . $e->getMessage(), 500);
+        }
+        $types = ['zip' => 'application/zip', 'pdf' => 'application/pdf', 'png' => 'image/png', 'svg' => 'image/svg+xml', 'txt' => 'text/plain; charset=utf-8'];
+        $slug = sanitize_title(get_post_field('post_name', $product_id) ?: $key);
+        $download = $name === 'kit.zip' ? "kit-creation-$slug-$format" . (isset($deck['cards_min']) ? "-$cards-cartes" : '') . '.zip' : $name;
+        nocache_headers();
+        header('Content-Type: ' . $types[pathinfo($path, PATHINFO_EXTENSION)]);
+        header('Content-Disposition: attachment; filename="' . $download . '"');
+        header('Content-Length: ' . filesize($path));
+        readfile($path);
         exit;
     }
 

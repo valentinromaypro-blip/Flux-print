@@ -6,19 +6,21 @@ import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import Editor, { type StudioPayload } from "@/components/Editor";
 import CardsEditor, { type CardsPayload } from "@/components/CardsEditor";
-import { renderBack, renderCard, renderFreeCard } from "@/lib/print.ts";
+import { renderBack, renderCard, renderFreeCard, renderUserImage } from "@/lib/print.ts";
+import FilesFlow, { type FilesPayload } from "@/components/FilesFlow";
 import { format, formats, setFormat } from "@/lib/format.ts";
 import { CB } from "@/lib/env.ts";
-import { ActionBar, MediaChoice, QtyStepper } from "@/components/Flow";
+import { ActionBar, QtyStepper } from "@/components/Flow";
 import { estimate } from "@/lib/price.ts";
 import { api, endpoint, post } from "@/lib/api.ts";
-import PackStep, { initialPack, Mockup, needsBoxFile, packAvailable, type PackChoice, PackSummary } from "@/components/PackStep";
-import { type BoxInfo, placeholderBack, renderFlat } from "@/lib/box.ts";
+import { initialPack, Mockup, packAvailable, type PackChoice, PackSummary } from "@/components/PackStep";
+import { type BoxInfo, renderFlat } from "@/lib/box.ts";
 import "./studio.css";
 import "./wp.css";
 
 type Message = { level: "ok" | "warn" | "error"; title: string; help: string };
-type Job = { uid: string; status: string; messages: Message[]; previews: string[]; error: string | null; price?: number; cards?: number | null; pack?: string; packMessages?: Message[] };
+type Job = { uid: string; status: string; messages: Message[]; previews: string[]; error: string | null; price?: number; cards?: number | null; pack?: string; packMessages?: Message[];
+  grid?: { label: string; url: string }[]; trim?: [number, number] | null };
 const FINAL = ["approved", "rejected", "failed"];
 const CHUNK = 4 * 1024 * 1024;
 
@@ -26,7 +28,6 @@ async function createJob(kind: "design" | "pdf", media: string) {
   return (await post<{ uid: string }>("jobs", JSON.stringify({ product_id: CB.productId, kind, media, format: format().key }))).uid;
 }
 const euros = (v: number) => v.toFixed(2).replace(".", ",") + " €";
-const mm = (v: number) => v.toFixed(1).replace(".", ",").replace(",0", "");
 async function waitJob(uid: string, onUpdate: (j: Job) => void): Promise<Job> {
   for (let i = 0; ; i++) {
     const job = await api<Job>(`jobs/${uid}`);
@@ -52,16 +53,24 @@ function setJob(uid: string | null) {
 function Report({ job, pack, media, qty, setQty, onAddToCart, onEdit }: { job: Job; pack: PackChoice; media: string; qty: number; setQty: (n: number) => void; onAddToCart: () => void; onEdit: () => void }) {
   const ok = job.status === "approved" && !job.packMessages?.length;
   const cards = job.cards ?? CB.spec.cards;
+  const [proof, setProof] = useState(false);
+  const [tx, ty] = job.trim ?? [0, 0];
   return (
     <div className="step cb-report" aria-live="polite">
       <b className="cb-report-title">{ok ? "Votre jeu est validé" : job.status === "failed" ? "Le contrôle n'a pas abouti" : "À corriger"}</b>
       {job.previews.length > 0 && (
         <div className="previews">
-          {job.previews.filter((u) => !u.includes("/preview/box")).map((u) => <img key={u} src={u} alt="Aperçu de la carte imprimée" width={150} />)}
+          {job.previews.filter((u) => !u.includes("/preview/box")).map((u) => <img key={u} src={proof ? `${u}-proof` : u} alt="Aperçu de la carte imprimée" width={150} />)}
           {job.status === "approved" && job.pack && job.pack !== "film" && (
             <Mockup pack={job.pack as PackChoice["pack"]} back={endpoint(`jobs/${job.uid}/box-back`)} cards={cards} media={media}
               design={pack.design} width={300} height={260} className="cb-report-box" />
           )}
+        </div>
+      )}
+      {job.grid && job.grid.length > 0 && (
+        <div className="seg cb-proof" role="radiogroup" aria-label="Couleurs de l'aperçu">
+          <button type="button" role="radio" aria-checked={!proof} onClick={() => setProof(false)}>Couleurs écran</button>
+          <button type="button" role="radio" aria-checked={proof} onClick={() => setProof(true)} title="Simulation du rendu sur la presse (CMJN)">Couleurs d&apos;impression</button>
         </div>
       )}
       <ul className="cb-messages">
@@ -69,6 +78,17 @@ function Report({ job, pack, media, qty, setQty, onAddToCart, onEdit }: { job: J
         {job.packMessages?.map((m, i) => <li key={`p${i}`} className={`cb-msg ${m.level}`}><b>{m.title}</b>{m.help && <span>{m.help}</span>}</li>)}
         {job.error && <li className="cb-msg error"><b>{job.error}</b></li>}
       </ul>
+      {job.grid && job.grid.length > 0 && (
+        <details className="cb-grid" open>
+          <summary>Tout le jeu, carte par carte ({job.grid.length} pages) : vérifiez l&apos;ordre</summary>
+          <div className="cb-grid-cards" style={{ ["--tx" as string]: `${tx * 100}%`, ["--ty" as string]: `${ty * 100}%` }}>
+            {job.grid.map((g, i) => (
+              <figure key={g.url}><span><img src={g.url} alt="" loading="lazy" /><i aria-hidden /></span><figcaption>{i + 1}. {g.label}</figcaption></figure>
+            ))}
+          </div>
+          <p className="hint">La ligne pointillée marque la coupe : ce qui est au-delà part au massicot.</p>
+        </details>
+      )}
       {ok && <PackSummary choice={{ ...pack, pack: (job.pack ?? "film") as PackChoice["pack"] }} />}
       {ok && <QtyStepper qty={qty} setQty={setQty} />}
       {ok && <ActionBar price={{ ...estimate(cards, media, job.pack ?? "film", qty), qty }} back={onEdit} next={onAddToCart} nextLabel="Ajouter au panier" />}
@@ -137,65 +157,6 @@ function Progress({ label, value }: { label: string; value?: number }) {
   );
 }
 
-function PdfPanel({ media, setMedia, onDone, pack, setPack }: { media: string; setMedia: (m: string) => void; onDone: (job: Job) => void; pack: PackChoice; setPack: (p: Partial<PackChoice>) => void }) {
-  const sample = useRef(placeholderBack());
-  const [file, setFile] = useState<File | null>(null);
-  const [step, setStep] = useState<{ label: string; value?: number } | null>(null);
-  const [error, setError] = useState("");
-  const sp = CB.spec;
-  const pagesFor = (n: number) => (sp.backs === "individual" ? 2 * n : n + 1);
-  const pages = sp.cardsMin ? `de ${pagesFor(sp.cardsMin)} à ${pagesFor(sp.cardsMax!)} pages` : `${pagesFor(sp.cards)} pages`;
-  const order = sp.backs === "individual" ? "recto verso alternés : face 1, dos 1, face 2, dos 2…"
-    : "le dos en page 1, puis les faces (pique, cœur, carreau, trèfle ; de l'as au roi ; puis les jokers)";
-  const sizes = sp.formats.map((f) => `${mm(f.page[0])} × ${mm(f.page[1])} mm (${f.label.split(" ")[0].toLowerCase()})`).join(" ou ");
-
-  async function send() {
-    if (!file) return;
-    setError("");
-    try {
-      setStep({ label: "Préparation…" });
-      const uid = await createJob("pdf", media);
-      for (let offset = 0; offset < file.size; offset += CHUNK) {
-        setStep({ label: "Envoi du fichier…", value: offset / file.size });
-        await post(`jobs/${uid}/file?role=pdf&offset=${offset}`, file.slice(offset, offset + CHUNK), "application/pdf");
-      }
-      setStep({ label: "Contrôle du fichier (pages, format, fond perdu)…" });
-      await post(`jobs/${uid}/submit`, "{}");
-      onDone(await applyPack(await waitJob(uid, () => {}), pack, (label) => setStep({ label })));
-    } catch (e) {
-      setError((e as Error).message);
-    }
-    setStep(null);
-  }
-
-  if (step) return <Progress {...step} />;
-  return (
-    <div className="step">
-      <p className="hint">
-        Un PDF de <b>{pages}</b>{sp.cardsMin ? ` (${sp.cardsMin} à ${sp.cardsMax} cartes)` : ""} : {order}.
-        Chaque page mesure <b>{sizes}</b>, soit 3 mm de fond perdu autour de la carte.
-      </p>
-      <label className={`cb-drop${file ? " on" : ""}`}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setFile(f); }}>
-        <input type="file" accept="application/pdf,.pdf" hidden onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        {file ? <><b>{file.name}</b><span>{(file.size / 1048576).toFixed(1).replace(".", ",")} Mo · cliquez pour changer</span></>
-          : <><b>Choisir mon PDF</b><span>ou le glisser ici</span></>}
-      </label>
-      {error && <p className="error-text">{error}</p>}
-      <div className="field-group">
-        <b>L&apos;étui</b>
-        <PackStep choice={pack} set={setPack} back={sample.current} cards={sp.cardsMin ?? sp.cards} media={media} big />
-      </div>
-      <div className="field-group"><b>Carton</b><MediaChoice media={media} setMedia={setMedia} /></div>
-      <PackSummary choice={pack} />
-      <p className="cb-total"><b>{euros(estimate(sp.cardsMin ?? sp.cards, media, pack.pack).unit)}</b> <small>le jeu{sp.cardsMin ? `, pour ${sp.cardsMin} cartes (le prix suit le nombre de cartes du PDF)` : ""} · remises par quantité ensuite</small></p>
-      <button type="button" className="btn red wide" disabled={!file || needsBoxFile(pack)} onClick={send}>
-        {needsBoxFile(pack) ? "Ajoutez le PDF de votre étui" : "Envoyer et contrôler"}</button>
-    </div>
-  );
-}
-
 function App() {
   const [mode, setMode] = useState<"design" | "pdf">(CB.spec.editor ? "design" : "pdf");
   const [media, setMedia] = useState(CB.spec.media[0]?.id ?? "cmdm-350g");
@@ -247,6 +208,36 @@ function App() {
     setStep(null);
   }
 
+  /** « J'ai mes fichiers » : un PDF (contrôlé en tâche de fond) ou une image par carte. */
+  async function sendFiles(p: FilesPayload) {
+    setError("");
+    try {
+      setStep({ label: "Préparation…" });
+      if (p.kind === "pdf") {
+        const uid = await createJob("pdf", media);
+        for (let offset = 0; offset < p.file.size; offset += CHUNK) {
+          setStep({ label: "Envoi du fichier…", value: offset / p.file.size });
+          await post(`jobs/${uid}/file?role=pdf&offset=${offset}`, p.file.slice(offset, offset + CHUNK), "application/pdf");
+        }
+        setStep({ label: "Contrôle du fichier : pages, format, fond perdu…" });
+        await post(`jobs/${uid}/submit`, "{}");
+        finish(await applyPack(await waitJob(uid, () => {}), pack, (label) => setStep({ label })));
+      } else {
+        const uid = await createJob("design", media);
+        for (const [i, s] of p.slots.entries()) {
+          setStep({ label: `Préparation des images en qualité d'impression (${i + 1}/${p.slots.length})…`, value: i / p.slots.length });
+          await post(`jobs/${uid}/file?role=${i === 0 ? "back" : `card-${String(i).padStart(3, "0")}`}`, await renderUserImage(s.url), "image/jpeg");
+        }
+        setStep({ label: "Contrôle…" });
+        await post(`jobs/${uid}/submit`, JSON.stringify({ design: { source: "images", files: p.slots.map((s) => s.file?.name ?? "") } }));
+        finish(await applyPack(await waitJob(uid, () => {}), pack, (label) => setStep({ label })));
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    }
+    setStep(null);
+  }
+
   async function submitCards(p: CardsPayload) {
     setError("");
     try {
@@ -281,7 +272,7 @@ function App() {
       {CB.spec.editor && (
         <div className="seg" role="radiogroup" aria-label="Façon de créer le jeu">
           <button type="button" role="radio" aria-checked={mode === "design"} disabled={!!step} onClick={() => { setMode("design"); setJobState(null); }}>Créer en ligne</button>
-          <button type="button" role="radio" aria-checked={mode === "pdf"} disabled={!!step} onClick={() => { setMode("pdf"); setJobState(null); }}>J&apos;ai mon fichier PDF</button>
+          <button type="button" role="radio" aria-checked={mode === "pdf"} disabled={!!step} onClick={() => { setMode("pdf"); setJobState(null); }}>J&apos;ai mes fichiers</button>
         </div>
       )}
       {formats().length > 1 && (
@@ -307,10 +298,8 @@ function App() {
               finish={<p className="hint">Vérifiez vos figures : le jeu sera imprimé exactement comme l&apos;aperçu.</p>} />}
       </div>
       {mode === "pdf" && (
-        <div className="cb-container studio cb-pdf">
-          <div className="stage-col">{CB.image && <img className="cb-pdf-image" src={CB.image} alt="" />}</div>
-          <div className="panel">{header}{step || job ? status : <PdfPanel media={media} setMedia={setMedia} onDone={finish} pack={pack} setPack={setPack} />}</div>
-        </div>
+        <FilesFlow header={header} status={step || job ? status : null} busy={!!step} media={media} setMedia={setMedia}
+          qty={qty} setQty={setQty} pack={pack} setPack={setPack} onSend={sendFiles} />
       )}
     </div>
   );

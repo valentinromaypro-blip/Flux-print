@@ -145,7 +145,7 @@ final class CB_Production
             return $src;
         }
         $src['back'] = ['file', "$dir/cards/back.jpg"];
-        if (isset($deck['cards_min'])) { // oracle : une image par carte
+        if (isset($deck['cards_min']) || glob("$dir/cards/card-*.jpg")) { // oracle, ou jeu fourni en images : une image par carte
             foreach (glob("$dir/cards/card-*.jpg") ?: [] as $i => $file) {
                 $src[sprintf('f%03d', $i + 1)] = ['file', $file];
             }
@@ -302,13 +302,44 @@ final class CB_Production
         $pages = CB_Store::dir('jobs/' . $job['uid'] . '/pdfpages');
         $file = sprintf('%s/p%03d.jpg', $pages, $page);
         if (!is_file($file)) {
-            $rendered = CB_Check::render_pages("$dir/source.pdf", "$pages/tmp-%03d.jpg", self::DPI, $page, $page + 9);
+            $fit = is_array($job['design'] ?? null) ? ($job['design']['fit'] ?? []) : [];
+            $rendered = CB_Check::render_pages("$dir/source.pdf", "$pages/tmp-%03d.jpg", self::DPI, $page, $page + 9, (string) ($fit['box'] ?? ''));
             sort($rendered);
             foreach ($rendered as $i => $tmp) {
-                rename($tmp, sprintf('%s/p%03d.jpg', $pages, $page + $i));
+                $out = sprintf('%s/p%03d.jpg', $pages, $page + $i);
+                if (!empty($fit['addbleed'])) {
+                    self::add_bleed($tmp, $out, $job['format']);
+                    @unlink($tmp);
+                } else {
+                    rename($tmp, $out);
+                }
             }
         }
         return $file;
+    }
+
+    /**
+     * Page sans fond perdu : mise au format fini, puis bords prolongés en miroir sur la largeur du
+     * fond perdu (le massicot coupe dans cette bande ; rien de neuf n'apparaît sur la carte).
+     */
+    public static function add_bleed(string $src, string $dst, string $format): void
+    {
+        [$tw, $th] = CB_Settings::FORMATS[$format]['trim'];
+        [$W, $H] = self::page_px($format);
+        $w = (int) round($tw / 25.4 * self::DPI);
+        $h = (int) round($th / 25.4 * self::DPI);
+        $im = new Imagick($src);
+        $im->resizeImage($w, $h, Imagick::FILTER_LANCZOS, 1);
+        $im->setImageVirtualPixelMethod(Imagick::VIRTUALPIXELMETHOD_MIRROR);
+        $bx = intdiv($W - $w, 2);
+        $by = intdiv($H - $h, 2);
+        $im->setImageArtifact('distort:viewport', "{$W}x{$H}-{$bx}-{$by}");
+        $im->distortImage(Imagick::DISTORTION_SCALEROTATETRANSLATE, [0], false);
+        $im->setImagePage(0, 0, 0, 0);
+        $im->setImageFormat('jpeg');
+        $im->setImageCompressionQuality(95);
+        $im->writeImage($dst);
+        $im->clear();
     }
 
     // --- 2. Amalgame ----------------------------------------------------------------------------

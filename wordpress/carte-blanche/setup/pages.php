@@ -320,7 +320,10 @@ return [
                 '<strong>Jeu de 54 cartes</strong> : 55 pages. Le dos en page 1, puis les 54 faces.',
                 '<strong>Jeu de belote</strong> : 33 pages. Le dos en page 1, puis les 32 faces.',
             ]),
-            B::p('Ordre des faces : pique, cœur, carreau, trèfle ; dans chaque couleur, de l’as au roi (as, 2 à 10, valet, dame, roi) ; puis les jokers. ' . B::todo('lien de téléchargement du gabarit')),
+            B::p('Ordre des faces : pique, cœur, carreau, trèfle ; dans chaque couleur, de l’as au roi (as, 2 à 10, valet, dame, roi) ; puis les jokers.'),
+            B::h('Kits de création à télécharger', 3),
+            B::p('Chaque kit contient le gabarit du jeu complet (une page par carte, nommée, dans le bon ordre), le gabarit d’une carte en PNG et SVG, le gabarit de l’étui, une fiche technique et le mode d’emploi pour Canva.'),
+            B::shortcode('[cb_kits]'),
             B::ul([
                 '<strong>Jeu de bridge</strong> : 55 pages au format bridge (63,2 × 94,9 mm avec le fond perdu).',
                 '<strong>Oracle</strong> : le dos en page 1, puis une page par carte, de 22 à 100 cartes, au format tarot (76 × 126 mm avec le fond perdu) ou poker.',

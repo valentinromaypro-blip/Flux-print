@@ -169,3 +169,27 @@
 .cb-studio-root .field, .cb-studio-root .field input { min-width: 0; }
 @media (max-width: 420px) { .cb-studio-root .grid2 { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 900px) { .cb-studio-root .studio.has-status .stage-col { display: none; } }
+
+/* « J'ai mes fichiers » : kit, cases des images, épreuve en grille */
+.cb-studio-root .cb-kit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; padding: 14px; border-radius: 14px; background: var(--stone); }
+.cb-studio-root .cb-kit-links { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); }
+.cb-studio-root .cb-kit-links a { text-decoration: underline; }
+.cb-studio-root .cb-kit-cards { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; margin-top: 6px; }
+.cb-studio-root .cb-kit-cards input { width: 72px; padding: 4px 8px; border: 1.5px solid var(--line); border-radius: 8px; }
+.cb-studio-root .cb-slots-head { display: flex; justify-content: space-between; align-items: baseline; }
+.cb-studio-root .cb-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 6px; max-height: 420px; overflow: auto; padding: 2px; }
+.cb-studio-root .cb-slot { position: relative; display: grid; gap: 2px; padding: 3px; border: 1.5px dashed var(--line); border-radius: 8px; background: #fff; cursor: pointer; font-size: 9.5px; line-height: 1.1; color: var(--muted); }
+.cb-studio-root .cb-slot.on { border-style: solid; color: var(--ink); }
+.cb-studio-root .cb-slot.warn { border-color: #E0A100; }
+.cb-studio-root .cb-slot img, .cb-studio-root .cb-slot i { width: 100%; aspect-ratio: var(--tw, 63.5) / var(--th, 88.9); object-fit: cover; border-radius: 4px; }
+.cb-studio-root .cb-slot i { display: grid; place-items: center; font-style: normal; font-size: 18px; background: var(--stone); }
+.cb-studio-root .cb-slot em { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: #E0A100; color: #fff; font: 700 11px/16px var(--body); font-style: normal; }
+.cb-studio-root .cb-grid { border: 1.5px solid var(--line); border-radius: 14px; padding: 12px; }
+.cb-studio-root .cb-grid summary { cursor: pointer; font-weight: 600; }
+.cb-studio-root .cb-grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; margin: 12px 0 8px; max-height: 520px; overflow: auto; }
+.cb-studio-root .cb-grid-cards figure { margin: 0; display: grid; gap: 3px; }
+.cb-studio-root .cb-grid-cards span { position: relative; display: block; }
+.cb-studio-root .cb-grid-cards img { width: 100%; display: block; border-radius: 3px; box-shadow: 0 1px 3px #0003; }
+.cb-studio-root .cb-grid-cards i { position: absolute; left: var(--tx); right: var(--tx); top: var(--ty); bottom: var(--ty); border: 1px dashed rgba(228, 0, 124, .9); border-radius: 3px; pointer-events: none; }
+.cb-studio-root .cb-grid-cards figcaption { font-size: 9.5px; line-height: 1.15; color: var(--muted); }
+@media (max-width: 900px) { .cb-studio-root .cb-pdf .stage-col { display: none; } }

@@ -118,3 +118,38 @@ export async function renderFreeCard(card: FreeCard, look: CardLook, bleedFrac: 
   await drawFreeCard(c, card, look, bleedFrac);
   return jpeg(c);
 }
+
+/**
+ * Une image fournie par le client (une par carte), à la taille d'impression. Aux proportions de la
+ * carte avec fond perdu : redimensionnée ; sans fond perdu : posée au format fini et bords
+ * prolongés en miroir ; autres proportions : recadrée au centre.
+ */
+export async function renderUserImage(url: string): Promise<Blob> {
+  const img = await loadImage(url);
+  const [W, H] = pagePx();
+  const [tw, th] = trimPx();
+  const r = img.naturalWidth / img.naturalHeight;
+  const c = canvas(W, H), g = c.getContext("2d")!;
+  g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
+  if (Math.abs(r - tw / th) / (tw / th) < 0.01 && Math.abs(r - W / H) / (W / H) >= 0.01) {
+    const bx = Math.floor((W - tw) / 2), by = Math.floor((H - th) / 2); // pixels entiers : pas de liseré à la jonction
+    g.imageSmoothingQuality = "high";
+    g.drawImage(img, bx, by, W - 2 * bx, H - 2 * by);
+    const mirror = (vertical: boolean) => {
+      const snap = canvas(W, H); snap.getContext("2d")!.drawImage(c, 0, 0);
+      const bands: [number, number, number, number, number][] = vertical
+        ? [[0, 0, W, by, 2 * by], [0, H - by, W, by, 2 * (H - by)]]
+        : [[0, 0, bx, H, 2 * bx], [W - bx, 0, bx, H, 2 * (W - bx)]];
+      for (const [x, y, w, h, axis] of bands) {
+        g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+        if (vertical) { g.translate(0, axis); g.scale(1, -1); } else { g.translate(axis, 0); g.scale(-1, 1); }
+        g.drawImage(snap, 0, 0); g.restore();
+      }
+    };
+    mirror(true); mirror(false);
+  } else {
+    const cw = Math.min(img.naturalWidth, img.naturalHeight * (W / H)), ch = cw / (W / H);
+    g.drawImage(img, (img.naturalWidth - cw) / 2, (img.naturalHeight - ch) / 2, cw, ch, 0, 0, W, H);
+  }
+  return jpeg(c);
+}
